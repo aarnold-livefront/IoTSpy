@@ -1,0 +1,49 @@
+using IoTSpy.Core.Interfaces;
+using IoTSpy.Core.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace IoTSpy.Api.Controllers;
+
+[ApiController]
+[Authorize]
+[Route("api/devices")]
+public class DevicesController(IDeviceRepository devices) : ControllerBase
+{
+    [HttpGet]
+    public async Task<IActionResult> List() =>
+        Ok(await devices.GetAllAsync());
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> Get(Guid id)
+    {
+        var device = await devices.GetByIdAsync(id);
+        return device is null ? NotFound() : Ok(device);
+    }
+
+    [HttpPatch("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] DevicePatchDto dto)
+    {
+        var device = await devices.GetByIdAsync(id);
+        if (device is null) return NotFound();
+
+        if (dto.Label is not null) device.Label = dto.Label;
+        if (dto.Notes is not null) device.Notes = dto.Notes;
+        if (dto.InterceptionEnabled.HasValue) device.InterceptionEnabled = dto.InterceptionEnabled.Value;
+
+        return Ok(await devices.UpdateAsync(device));
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        await devices.DeleteAsync(id);
+        return NoContent();
+    }
+}
+
+public record DevicePatchDto(
+    string? Label,
+    string? Notes,
+    bool? InterceptionEnabled
+);
