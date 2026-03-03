@@ -36,10 +36,10 @@ README / quick start: [`README.md`](../README.md)
 | 1.13 | Frontend — proxy start/stop controls + settings form | ✅ Done |
 | 1.14 | Frontend — CA download button | ✅ Done |
 | 1.15 | Frontend — SignalR live stream connection | ✅ Done |
-| 1.16 | Docker / docker-compose for single-command local run | Not started |
+| 1.16 | Docker / docker-compose for single-command local run | ✅ Done |
 | 1.17 | `.gitignore` updates, README, docs | ✅ Done (this session) |
 
-**Phase 1 is complete** (backend + frontend). Remaining work: Docker packaging (1.16).
+**Phase 1 is complete** (backend + frontend + Docker).
 
 ---
 
@@ -124,14 +124,11 @@ The entire Phase 1 backend and frontend are scaffolded and functional:
 
 ### What to do next
 
-The highest-value next task is **Docker packaging (Phase 1.16)**:
+Phase 1 is fully complete. Proceed to **Phase 2**:
 
-```dockerfile
-# Dockerfile target: src/IoTSpy.Api
-# Multi-stage: build with dotnet:10-sdk, run with dotnet:10-aspnet
-```
-
-Then proceed to Phase 2 (ARP spoof / gateway mode + MQTT decoder).
+1. **MQTT decoder** (`IoTSpy.Protocols`) — MQTT 3.1.1 / 5.0 packet parsing.
+2. **GatewayRedirect / ArpSpoof modes** (`IoTSpy.Proxy`) — transparent interception without device proxy config.
+3. **Real-time stream filter subscriptions** (`IoTSpy.Api`) — per-device SignalR groups.
 
 ---
 

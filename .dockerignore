@@ -1,0 +1,22 @@
+**/.git
+**/.vs
+**/.vscode
+**/.idea
+
+# .NET build artifacts
+**/bin
+**/obj
+**/TestResults
+
+# Frontend artifacts and local deps
+frontend/node_modules
+frontend/dist
+
+# Local dev / test databases
+**/*.db
+**/*.db-shm
+**/*.db-wal
+
+# Environment files with secrets
+.env
+.env.*

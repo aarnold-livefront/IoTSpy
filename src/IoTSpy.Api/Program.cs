@@ -94,10 +94,17 @@ if (app.Environment.IsDevelopment())
     app.MapScalarApiReference();
 }
 
+// Serve the Vite-built frontend from wwwroot (production / Docker)
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<TrafficHub>("/hubs/traffic");
+
+// SPA fallback — any unmatched route serves index.html for client-side routing
+app.MapFallbackToFile("index.html");
 
 app.Run();
