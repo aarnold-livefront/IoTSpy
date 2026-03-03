@@ -1,0 +1,125 @@
+.header {
+  height: var(--header-height);
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+  gap: var(--space-3);
+  flex-shrink: 0;
+  z-index: 10;
+}
+
+.header__logo {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-decoration: none;
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: var(--font-size-lg);
+}
+
+.header__logo-icon {
+  width: 28px;
+  height: 28px;
+  background-color: var(--color-primary);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.header__spacer {
+  flex: 1;
+}
+
+.header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.header__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text);
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  transition: background-color 0.15s, border-color 0.15s;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.header__btn:hover {
+  background-color: var(--color-surface-2);
+  border-color: var(--color-border-focus);
+}
+
+.header__btn--icon {
+  padding: var(--space-1);
+  width: 32px;
+  height: 32px;
+}
+
+.header__btn--start {
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.header__btn--start:hover {
+  background-color: rgba(46, 204, 113, 0.1);
+}
+
+.header__btn--stop {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.header__btn--stop:hover {
+  background-color: rgba(231, 76, 60, 0.1);
+}
+
+.proxy-status-badge {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-2);
+}
+
+.proxy-status-badge__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--color-text-faint);
+  flex-shrink: 0;
+}
+
+.proxy-status-badge__dot--running {
+  background-color: var(--color-success);
+  box-shadow: 0 0 6px var(--color-success);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.proxy-status-badge__dot--connecting {
+  background-color: var(--color-warning);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}

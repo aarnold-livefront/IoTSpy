@@ -1,0 +1,69 @@
+:root {
+  /* Colors */
+  --color-bg: #0f1117;
+  --color-surface: #1a1d27;
+  --color-surface-2: #22263a;
+  --color-surface-3: #2c3050;
+  --color-border: #2e3247;
+  --color-border-focus: #4e7aff;
+
+  --color-text: #e2e5f0;
+  --color-text-muted: #8b93b0;
+  --color-text-faint: #555d7a;
+
+  --color-primary: #4e7aff;
+  --color-primary-hover: #6b91ff;
+  --color-primary-active: #3a64e0;
+
+  --color-success: #2ecc71;
+  --color-warning: #f39c12;
+  --color-danger: #e74c3c;
+  --color-danger-hover: #c0392b;
+  --color-info: #3498db;
+
+  /* Status badges */
+  --color-method-get: #2ecc71;
+  --color-method-post: #3498db;
+  --color-method-put: #f39c12;
+  --color-method-delete: #e74c3c;
+  --color-method-patch: #9b59b6;
+  --color-method-other: #8b93b0;
+
+  --color-status-2xx: #2ecc71;
+  --color-status-3xx: #3498db;
+  --color-status-4xx: #f39c12;
+  --color-status-5xx: #e74c3c;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 24px;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
+
+  /* Layout */
+  --header-height: 48px;
+  --split-divider-width: 4px;
+}
