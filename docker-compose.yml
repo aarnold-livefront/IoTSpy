@@ -1,0 +1,19 @@
+services:
+  iotspy:
+    build: .
+    ports:
+      - "5000:5000"   # REST API + SignalR + static frontend
+      - "8888:8888"   # Explicit proxy listener
+    environment:
+      # REQUIRED: set a 32+ character secret (override via .env or shell export)
+      - Auth__JwtSecret=${AUTH_JWT_SECRET:-change-me-to-a-secret-that-is-at-least-32-chars}
+      - Database__Provider=sqlite
+      - Database__ConnectionString=Data Source=/data/iotspy.db
+      # Frontend is served from the same origin in Docker — no separate CORS origin needed
+      - Frontend__Origin=http://localhost:5000
+    volumes:
+      - iotspy-data:/data
+    restart: unless-stopped
+
+volumes:
+  iotspy-data:

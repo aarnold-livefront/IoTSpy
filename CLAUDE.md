@@ -92,11 +92,11 @@ Single-user model. BCrypt password hash stored in the single `ProxySettings` row
 
 ## Current status
 
-Phase 1 backend is complete. `IoTSpy.Protocols`, `IoTSpy.Scanner`, and `IoTSpy.Manipulation` are empty stubs. No tests exist yet. EF Core migrations should be verified before adding new ones (`MigrateAsync` calls `db.Database.MigrateAsync()`).
+Phase 1 is fully complete (backend + frontend + Docker). `IoTSpy.Protocols`, `IoTSpy.Scanner`, and `IoTSpy.Manipulation` are empty stubs. No tests exist yet. EF Core migrations should be verified before adding new ones (`MigrateAsync` calls `db.Database.MigrateAsync()`).
 
 Next priorities per `docs/PLAN.md`:
-1. Vinext frontend scaffold (`npx skills add cloudflare/vinext` from `frontend/`)
-2. Docker packaging (multi-stage: `dotnet:10-sdk` build → `dotnet:10-aspnet` runtime, entry project `src/IoTSpy.Api`)
-3. Phase 2: MQTT decoder + ARP spoof / gateway redirect modes
+1. Phase 2: MQTT decoder (`IoTSpy.Protocols`) — MQTT 3.1.1 / 5.0 packet parsing
+2. Phase 2: GatewayRedirect / ArpSpoof modes (`IoTSpy.Proxy`)
+3. Phase 2: Real-time stream filter subscriptions per device (SignalR groups)
 
 See `docs/architecture.md` for full architecture spec and `docs/PLAN.md` for the phased task list.
