@@ -16,7 +16,7 @@ IoT network security platform: transparent MITM proxy, protocol analyzer, and pe
 | TLS MITM | BouncyCastle (dynamic per-host certificate generation) |
 | Resilience | Polly 8 (retry, circuit-breaker, timeout) |
 | Storage | SQLite (default) / PostgreSQL (pluggable via appsettings) — EF Core 10 |
-| Frontend | Vinext (Cloudflare) |
+| Frontend | Vite 6 + React 19 + TypeScript |
 | AI | Pluggable: Claude API / OpenAI / local Ollama |
 
 ---
@@ -43,23 +43,34 @@ dotnet run --project src/IoTSpy.Api
 The API starts at `http://localhost:5000`.
 Interactive API docs (Scalar) are available at `http://localhost:5000/scalar` in Development mode.
 
+In a separate terminal, start the frontend dev server:
+
+```bash
+cd frontend
+npm install
+npm run dev
+# → http://localhost:3000
+```
+
 ### First-time setup
 
-1. **Set a password** via the setup endpoint (only works once, before any password is configured):
+Open `http://localhost:3000` in your browser.
 
-   ```http
-   POST http://localhost:5000/api/auth/setup
-   { "password": "your-password" }
-   ```
+1. On first run, you will be redirected to `http://localhost:3000/setup`. Set an admin password.
+2. You will then be redirected to the login page. Log in with username `admin` and the password you set.
+3. The dashboard opens; use the **Start Proxy** button in the header to begin capturing traffic.
 
-2. **Log in** to receive a JWT:
+Alternatively, you can set up via the raw API:
 
-   ```http
-   POST http://localhost:5000/api/auth/login
-   { "username": "admin", "password": "your-password" }
-   ```
+```http
+POST http://localhost:5000/api/auth/setup
+{ "password": "your-password" }
 
-3. Use the returned token as `Authorization: Bearer <token>` on all subsequent requests.
+POST http://localhost:5000/api/auth/login
+{ "username": "admin", "password": "your-password" }
+```
+
+Use the returned token as `Authorization: Bearer <token>` on all subsequent API requests.
 
 ### Configure an IoT device
 
@@ -76,8 +87,9 @@ HTTPS is intercepted by default. To trust the generated CA, download it:
 
 ```http
 GET http://localhost:5000/api/certificates/root-ca/download
-Authorization: Bearer <token>
 ```
+
+(No auth header required — this endpoint is public so you can download the CA before logging in.)
 
 Install the downloaded `.crt` on the IoT device (or in the OS trust store of the machine you are testing from).
 
@@ -222,7 +234,7 @@ src/
   IoTSpy.Manipulation/  # Rules engine, replay/fuzzer, AI mock (Phase 4-5+)
   IoTSpy.Storage/       # EF Core DbContext, repositories, migrations
   IoTSpy.Api/           # ASP.NET Core host, controllers, SignalR hub
-frontend/               # Vinext dashboard (Phase 1+)
+frontend/               # Vite 6 + React 19 + TypeScript dashboard
 docs/
   architecture.md       # Full architecture spec and phase breakdown
   PLAN.md               # Implementation plan and session handoff notes
@@ -236,7 +248,7 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full phased implementation plan and c
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Scaffold, explicit proxy, HTTP/TLS capture, SQLite, basic dashboard | In progress |
+| 1 | Scaffold, explicit proxy, HTTP/TLS capture, SQLite, React dashboard | **Complete** (Docker packaging remaining) |
 | 2 | ARP spoof, gateway redirect mode, MQTT, DNS, real-time SignalR stream | Planned |
 | 3 | Port scan, service fingerprinting, default-credential testing, CVE lookup | Planned |
 | 4 | Rules engine, request replay, scripted breakpoints (Roslyn + Jint) | Planned |

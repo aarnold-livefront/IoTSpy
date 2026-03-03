@@ -27,19 +27,19 @@ README / quick start: [`README.md`](../README.md)
 | 1.4 | `IoTSpy.Proxy` — ExplicitProxyServer (HTTP + HTTPS CONNECT) | ✅ Done |
 | 1.5 | `IoTSpy.Proxy` — TLS MITM CA (BouncyCastle) | ✅ Done |
 | 1.6 | `IoTSpy.Proxy` — Polly 8 resilience pipelines | ✅ Done |
-| 1.7 | `IoTSpy.Api` — JWT auth (single-user, BCrypt), setup endpoint | ✅ Done |
+| 1.7 | `IoTSpy.Api` — JWT auth (single-user, PBKDF2), setup endpoint | ✅ Done |
 | 1.8 | `IoTSpy.Api` — ProxyController, CapturesController, DevicesController, CertificatesController | ✅ Done |
 | 1.9 | `IoTSpy.Api` — SignalR TrafficHub + SignalRCapturePublisher | ✅ Done |
 | 1.10 | `IoTSpy.Api` — CORS, OpenAPI (Scalar), DB auto-migration on startup | ✅ Done |
-| 1.11 | Frontend scaffold (Vinext) | Not started |
-| 1.12 | Frontend — split-pane capture list + detail view | Not started |
-| 1.13 | Frontend — proxy start/stop controls + settings form | Not started |
-| 1.14 | Frontend — CA download button | Not started |
-| 1.15 | Frontend — SignalR live stream connection | Not started |
+| 1.11 | Frontend scaffold (Vite + React 19 + TypeScript) | ✅ Done |
+| 1.12 | Frontend — split-pane capture list + detail view | ✅ Done |
+| 1.13 | Frontend — proxy start/stop controls + settings form | ✅ Done |
+| 1.14 | Frontend — CA download button | ✅ Done |
+| 1.15 | Frontend — SignalR live stream connection | ✅ Done |
 | 1.16 | Docker / docker-compose for single-command local run | Not started |
 | 1.17 | `.gitignore` updates, README, docs | ✅ Done (this session) |
 
-**Phase 1 backend is complete.** Remaining work is the Vinext frontend and Docker packaging.
+**Phase 1 is complete** (backend + frontend). Remaining work: Docker packaging (1.16).
 
 ---
 
@@ -98,31 +98,33 @@ README / quick start: [`README.md`](../README.md)
 
 ## Resuming this project
 
-### What is done (Phase 1 backend)
+### What is done (Phase 1 — complete)
 
-The entire backend is scaffolded and functional:
+The entire Phase 1 backend and frontend are scaffolded and functional:
 
+**Backend:**
 - `ExplicitProxyServer` listens on `:8888`, handles HTTP and HTTPS CONNECT.
 - TLS MITM works via BouncyCastle dynamic CA (root CA auto-generated, per-host leaf certs cached).
 - Polly 8 resilience: per-host circuit breaker + retry + timeout for TCP connect; timeout-only for TLS handshake.
-- EF Core 10 with SQLite default; Postgres switchable via config.
-- JWT single-user auth with BCrypt password hash.
+- EF Core 10 with SQLite default; Postgres switchable via config. `DateTimeOffset` stored as Unix ms (long) via `ValueConverter` for SQLite compatibility.
+- JWT single-user auth with PBKDF2 (`Rfc2898DeriveBytes.Pbkdf2`) password hash stored in DB.
 - SignalR hub `/hubs/traffic` streams every captured request in real time.
 - Five REST controllers fully implemented.
 - OpenAPI (Scalar) in Development mode at `/scalar`.
 
+**Frontend (`frontend/`):**
+- Vite 6 + React 19 + TypeScript; dev server on port 3000.
+- Auth flow: `/setup` (first-run password) → `/login` → dashboard. JWT in `localStorage`.
+- Split-pane capture dashboard with draggable divider: capture list on left, request/response/TLS detail on right.
+- `CaptureFilterBar`: filter by device, method, status code, host, date range, body search.
+- SignalR live stream via `useTrafficStream` — new captures prepended in real time.
+- Proxy start/stop + settings modal (port, listen address, TLS/body capture flags).
+- CA download link (no auth required on that endpoint).
+- React Context + `useReducer` for auth state; no Redux.
+
 ### What to do next
 
-The highest-value next task is the **Vinext frontend (Phase 1.11–1.15)**:
-
-1. Scaffold the frontend: `npx skills add cloudflare/vinext` (from project root or `frontend/`)
-2. Connect to `/api/auth/login` and store the JWT.
-3. Connect to `/hubs/traffic` via SignalR for real-time traffic.
-4. Build split-pane view: left = capture list, right = request/response detail.
-5. Add proxy start/stop button calling `POST /api/proxy/start` / `POST /api/proxy/stop`.
-6. Add CA download link: `GET /api/certificates/root-ca/download`.
-
-After the frontend, add **Docker packaging (Phase 1.16)**:
+The highest-value next task is **Docker packaging (Phase 1.16)**:
 
 ```dockerfile
 # Dockerfile target: src/IoTSpy.Api
@@ -143,7 +145,7 @@ Then proceed to Phase 2 (ARP spoof / gateway mode + MQTT decoder).
 | TLS MITM | BouncyCastle (pure .NET) | No native dependency; works cross-platform |
 | Resilience | Per-host Polly circuit breaker | A dead IoT cloud endpoint must not stall the whole proxy |
 | Real-time | SignalR | Native .NET, easy JS client, supports group subscriptions per device |
-| Frontend | Vinext (Cloudflare) | Specified in project requirements |
+| Frontend | Vite 6 + React 19 + TypeScript | Lightweight, no framework overhead; compatible with existing CORS config |
 | AI mock | Pluggable (Claude / OpenAI / Ollama) | Avoid lock-in; local Ollama for offline use |
 
 ---
@@ -191,8 +193,9 @@ dotnet run --project src/IoTSpy.Api
 
 ## Notes for Claude Code sessions
 
-- The `.claude/settings.local.json` in the repo root stores tool permissions for this project.
-- Project memory is maintained at `~/.claude/projects/-Users-annalise-git-aarnold-livefront-iotspy/memory/MEMORY.md`.
+- The `.claude/` directory in the repo root stores tool permissions and session memory for this project.
+- Project memory is maintained at `~/.claude/projects/C--Users-annag-source-repos-IoTSpy/memory/MEMORY.md`.
 - The `IoTSpy.Protocols`, `IoTSpy.Scanner`, and `IoTSpy.Manipulation` projects are empty stubs — no source files yet, just `.csproj` files with placeholder dependencies.
-- EF Core migrations have **not** been generated yet (the DB is created via `EnsureCreated` or a pending migration — check `StorageExtensions` before adding migrations).
-- No tests exist yet. Phase 1 completion should include at minimum unit tests for `CertificateAuthority` and integration tests for the proxy intercept logic.
+- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` (`InitialCreate` applied). Run `dotnet ef migrations add <Name>` from repo root when adding new entities/properties.
+- `DateTimeOffset` properties are stored as Unix milliseconds (`long`) via a `ValueConverter` in `IoTSpyDbContext` — required for SQLite `ORDER BY` compatibility.
+- No tests exist yet. Recommended: unit tests for `CertificateAuthority` + integration tests for proxy intercept logic.

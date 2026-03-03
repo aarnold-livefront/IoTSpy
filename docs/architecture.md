@@ -2,7 +2,7 @@
 
 ## Overview
 
-IoTSpy is a .NET 10 / C# solution that functions as a transparent MITM proxy, protocol analyzer, and lightweight pen-test suite for IoT network research. The backend exposes a REST + SignalR API; the frontend is a Vinext (Cloudflare) single-page app.
+IoTSpy is a .NET 10 / C# solution that functions as a transparent MITM proxy, protocol analyzer, and lightweight pen-test suite for IoT network research. The backend exposes a REST + SignalR API; the frontend is a Vite 6 + React 19 + TypeScript single-page app.
 
 ---
 
@@ -89,7 +89,7 @@ ASP.NET Core 10 host.
 - Controllers: `AuthController`, `ProxyController`, `CapturesController`, `DevicesController`, `CertificatesController`
 - `Hubs/TrafficHub` — SignalR hub; device-scoped group subscriptions
 - `Hubs/SignalRCapturePublisher` — singleton `ICapturePublisher`; broadcasts to all clients and device groups
-- `Services/AuthService` — BCrypt password hashing, JWT generation (issuer/audience: `iotspy`)
+- `Services/AuthService` — PBKDF2 password hashing (`Rfc2898DeriveBytes.Pbkdf2`), JWT generation (issuer/audience: `iotspy`)
 - OpenAPI spec via `Microsoft.AspNetCore.OpenApi`; Scalar UI at `/scalar` in Development
 
 ---
@@ -137,7 +137,7 @@ All three modes funnel into the same unified capture pipeline (`InterceptHttpStr
 
 ## Authentication
 
-- Single-user model: one password stored as BCrypt hash in `ProxySettings`.
+- Single-user model: one password stored as a PBKDF2 hash (`Rfc2898DeriveBytes.Pbkdf2`) in `ProxySettings`.
 - `POST /api/auth/setup` — sets password (one-time; fails if already set).
 - `POST /api/auth/login` — returns JWT (issuer: `iotspy`, audience: `iotspy`).
 - JWT passed as `Authorization: Bearer` for REST; as `?access_token=` query param for SignalR.
@@ -192,22 +192,39 @@ The root CA is generated lazily on first use, stored as PEM in the database, and
 |---|---|
 | `CapturedRequests` | `Id` (GUID), `DeviceId` FK, method/scheme/host/port/path/query, request+response headers+body, TLS info, timestamp, durationMs |
 | `Devices` | `Id` (GUID), `IpAddress`, `Hostname`, `Name`, `LastSeen` |
-| `ProxySettings` | Single row (Id=1), port, mode, flags, password hash |
+| `ProxySettings` | Single row (Id=1), port, mode, flags, PBKDF2 password hash |
 | `CertificateEntries` | `Id` (GUID), `CommonName`, `IsRootCa`, PEM fields, serial, validity range |
+
+All `DateTimeOffset` properties are stored as Unix milliseconds (`long`) via an EF Core `ValueConverter` — required because SQLite cannot translate `ORDER BY DateTimeOffset` expressions.
 
 ---
 
-## Frontend (Vinext / Cloudflare)
+## Frontend (Vite 6 + React 19 + TypeScript)
 
-Scaffold via: `npx skills add cloudflare/vinext`
+Located in `frontend/`. Dev server runs on port 3000; Vite proxies `/api` and `/hubs` to `http://localhost:5000`.
 
-Dashboard layout (Phase 1 target):
+**Auth flow:** `GET /api/auth/status` on mount → `/setup` if no password set → `/login` if no token → dashboard. JWT stored in `localStorage['iotspy_token']`; passed as `?access_token=` for SignalR.
 
-- **Split-pane detail view** (left: capture list, right: request/response detail)
-- **Timeline swimlane view** (per-device horizontal lanes, toggleable)
-- Real-time updates via SignalR connection to `/hubs/traffic`
-- Proxy start/stop controls
-- CA certificate download button
+**Dashboard layout (Phase 1 — implemented):**
+
+- **Header** — proxy status badge, Start/Stop button, gear icon (settings modal), CA download link, logout
+- **Split-pane detail view** (draggable divider) — left: scrollable capture list with infinite scroll; right: request / response / TLS tabs
+- **Filter bar** — device dropdown, method, status code, host contains, date range, body search
+- **Real-time stream** — SignalR `TrafficCapture` events prepended to list via `useTrafficStream`
+- **Settings modal** — proxy port, listen address, TLS/body capture toggles, max body size
+
+**Key source structure:**
+
+```
+frontend/src/
+  types/api.ts          # TS interfaces matching backend DTOs
+  api/                  # apiFetch wrapper + per-resource modules
+  store/authStore.tsx   # React Context + useReducer auth state
+  hooks/                # useAuth, useCaptures, useDevices, useProxy, useTrafficStream
+  pages/                # SetupPage, LoginPage, DashboardPage
+  components/           # layout, captures, capture-detail, proxy, devices, common
+  styles/               # CSS custom properties + per-component sheets
+```
 
 ---
 
