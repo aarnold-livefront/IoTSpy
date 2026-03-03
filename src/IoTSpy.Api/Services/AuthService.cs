@@ -10,11 +10,8 @@ public class AuthService(IConfiguration config)
 {
     private const string AdminUser = "admin";
 
-    public string? GenerateToken(string username, string password)
+    public string? GenerateToken(string username, string password, string storedHash)
     {
-        var settings = config.GetSection("Auth");
-        var storedHash = settings["PasswordHash"] ?? string.Empty;
-
         if (username != AdminUser || !VerifyPassword(password, storedHash))
             return null;
 

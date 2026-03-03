@@ -19,16 +19,16 @@ public class ProxyService(
 
     public ProxySettings GetSettings() => _settings ?? new ProxySettings();
 
+    // Called by POST /api/proxy/start — always starts and persists IsRunning=true
     public async Task StartAsync(CancellationToken ct = default)
     {
         using var scope = scopeFactory.CreateScope();
         var settingsRepo = scope.ServiceProvider.GetRequiredService<IProxySettingsRepository>();
         _settings = await settingsRepo.GetAsync(ct);
-        if (_settings.IsRunning)
-        {
-            await explicitProxy.StartAsync(_settings.ProxyPort, _settings.ListenAddress, ct);
-            logger.LogInformation("ProxyService started on port {Port}", _settings.ProxyPort);
-        }
+        _settings.IsRunning = true;
+        await settingsRepo.SaveAsync(_settings, ct);
+        await explicitProxy.StartAsync(_settings.ProxyPort, _settings.ListenAddress, ct);
+        logger.LogInformation("ProxyService started on port {Port}", _settings.ProxyPort);
     }
 
     public async Task StopAsync(CancellationToken ct = default)
@@ -56,7 +56,18 @@ public class ProxyService(
             await explicitProxy.StartAsync(settings.ProxyPort, settings.ListenAddress, ct);
     }
 
-    // IHostedService delegates
-    Task IHostedService.StartAsync(CancellationToken ct) => StartAsync(ct);
+    // IHostedService: at app boot, only auto-start if DB says IsRunning=true
+    async Task IHostedService.StartAsync(CancellationToken ct)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var settingsRepo = scope.ServiceProvider.GetRequiredService<IProxySettingsRepository>();
+        _settings = await settingsRepo.GetAsync(ct);
+        if (_settings.IsRunning)
+        {
+            await explicitProxy.StartAsync(_settings.ProxyPort, _settings.ListenAddress, ct);
+            logger.LogInformation("ProxyService auto-started on port {Port}", _settings.ProxyPort);
+        }
+    }
+
     Task IHostedService.StopAsync(CancellationToken ct) => StopAsync(ct);
 }

@@ -1,5 +1,6 @@
 using IoTSpy.Core.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace IoTSpy.Storage;
 
@@ -42,5 +43,18 @@ public class IoTSpyDbContext(DbContextOptions<IoTSpyDbContext> options) : DbCont
         {
             e.HasKey(p => p.Id);
         });
+
+        // SQLite cannot ORDER BY DateTimeOffset columns; store all as Unix ms (long) so
+        // LINQ ordering translates correctly.
+        var dtoConverter = new ValueConverter<DateTimeOffset, long>(
+            v => v.ToUnixTimeMilliseconds(),
+            v => DateTimeOffset.FromUnixTimeMilliseconds(v));
+
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        foreach (var property in entityType.GetProperties())
+        {
+            if (property.ClrType == typeof(DateTimeOffset))
+                property.SetValueConverter(dtoConverter);
+        }
     }
 }

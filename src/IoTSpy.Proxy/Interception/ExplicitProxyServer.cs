@@ -27,7 +27,6 @@ public class ExplicitProxyServer(
     ICapturePublisher publisher,
     IServiceScopeFactory scopeFactory,
     ResiliencePipelineProvider<string> connectPipelineProvider,
-    ResiliencePipeline tlsPipeline,
     ILogger<ExplicitProxyServer> logger)
 {
     private TcpListener? _listener;
@@ -183,7 +182,7 @@ public class ExplicitProxyServer(
         {
             using var sslUpstream = new SslStream(upstreamTcp.GetStream());
             // Resilient TLS handshake
-            await tlsPipeline.ExecuteAsync(async token =>
+            await connectPipelineProvider.GetPipeline(ProxyResiliencePipelines.TlsPipelineKey).ExecuteAsync(async token =>
             {
                 await sslUpstream.AuthenticateAsClientAsync(new SslClientAuthenticationOptions
                 {

@@ -15,7 +15,8 @@ public class AuthController(AuthService auth, IProxySettingsRepository settingsR
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest req)
     {
-        var token = auth.GenerateToken(req.Username, req.Password);
+        var settings = await settingsRepo.GetAsync();
+        var token = auth.GenerateToken(req.Username, req.Password, settings.PasswordHash);
         if (token is null) return Unauthorized(new { error = "Invalid credentials" });
         return Ok(new { token });
     }
