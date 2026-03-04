@@ -60,12 +60,12 @@ README / quick start: [`README.md`](../README.md)
 
 | # | Task | Status |
 |---|---|---|
-| 3.1 | `IoTSpy.Scanner` — TCP port scan | Planned |
-| 3.2 | `IoTSpy.Scanner` — Service fingerprinting (banner grab + CPE) | Planned |
-| 3.3 | `IoTSpy.Scanner` — Default credential testing | Planned |
-| 3.4 | `IoTSpy.Scanner` — CVE lookup (NVD / OSV APIs) | Planned |
-| 3.5 | `IoTSpy.Scanner` — Config audit (Telnet, UPnP, anon MQTT, etc.) | Planned |
-| 3.6 | `IoTSpy.Api` — ScannerController | Planned |
+| 3.1 | `IoTSpy.Scanner` — TCP port scan | ✅ Done |
+| 3.2 | `IoTSpy.Scanner` — Service fingerprinting (banner grab + CPE) | ✅ Done |
+| 3.3 | `IoTSpy.Scanner` — Default credential testing | ✅ Done |
+| 3.4 | `IoTSpy.Scanner` — CVE lookup (NVD / OSV APIs) | ✅ Done |
+| 3.5 | `IoTSpy.Scanner` — Config audit (Telnet, UPnP, anon MQTT, etc.) | ✅ Done |
+| 3.6 | `IoTSpy.Api` — ScannerController | ✅ Done |
 | 3.7 | Frontend — scan results panel | Planned |
 
 ---
@@ -124,13 +124,11 @@ The entire Phase 1 backend and frontend are scaffolded and functional:
 
 ### What to do next
 
-Phases 1 and 2 are fully complete. Proceed to **Phase 3**:
+Phases 1, 2, and 3 (backend) are complete. Remaining work:
 
-1. **TCP port scan** (`IoTSpy.Scanner`) — enumerate open ports on target IoT devices.
-2. **Service fingerprinting** (`IoTSpy.Scanner`) — banner grab + CPE identification.
-3. **Default credential testing** (`IoTSpy.Scanner`) — check for common default passwords.
-4. **CVE lookup** (`IoTSpy.Scanner`) — query NVD / OSV APIs for known vulnerabilities.
-5. **ScannerController** (`IoTSpy.Api`) — REST endpoints for triggering and viewing scans.
+1. **Frontend scan results panel** (Phase 3.7) — UI for triggering scans and viewing results.
+2. **Phase 4** — Active manipulation (rules engine, scripted breakpoints, replay, fuzzer).
+3. **Phase 5** — AI mock engine + advanced protocol decoders.
 
 ---
 
