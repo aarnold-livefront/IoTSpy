@@ -519,12 +519,8 @@ public sealed class MqttDecoder : IProtocolDecoder<MqttMessage>
             0x0B =>
                 ReadVariableIntBytes(span, ref pos),
 
-            // UTF-8 string properties
+            // UTF-8 string and binary data properties (both length-prefixed)
             0x03 or 0x08 or 0x09 or 0x12 or 0x15 or 0x16 or 0x1A or 0x1C or 0x1F =>
-                ReadLengthPrefixedBytes(span, ref pos),
-
-            // Binary data properties
-            0x09 or 0x16 =>
                 ReadLengthPrefixedBytes(span, ref pos),
 
             // UTF-8 string pair (User Property 0x26)

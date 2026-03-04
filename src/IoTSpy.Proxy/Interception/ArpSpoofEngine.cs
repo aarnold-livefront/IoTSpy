@@ -186,7 +186,8 @@ public sealed class ArpSpoofEngine(ILogger<ArpSpoofEngine> logger)
                 continue;
             }
 
-            var packet = Packet.ParsePacket(capture.GetPacket().LinkLayerType, capture.Data);
+            var rawPacket = capture.GetPacket();
+            var packet = Packet.ParsePacket(rawPacket.LinkLayerType, rawPacket.Data);
             var arpReply = packet.Extract<ArpPacket>();
             if (arpReply is not null &&
                 arpReply.Operation == ArpOperation.Response &&
