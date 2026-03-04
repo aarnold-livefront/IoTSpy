@@ -73,7 +73,7 @@ public class CertificateAuthority(
     public async Task<byte[]> ExportRootCaDerAsync(CancellationToken ct = default)
     {
         var rootCa = await GetOrCreateRootCaAsync(ct);
-        var cert = new X509Certificate2(PemToBytes(rootCa.CertificatePem));
+        var cert = X509CertificateLoader.LoadCertificate(PemToBytes(rootCa.CertificatePem));
         return cert.Export(X509ContentType.Cert);
     }
 
@@ -96,7 +96,7 @@ public class CertificateAuthority(
         gen.AddExtension(X509Extensions.KeyUsage, true,
             new KeyUsage(KeyUsage.KeyCertSign | KeyUsage.CrlSign));
         gen.AddExtension(X509Extensions.SubjectKeyIdentifier, false,
-            new SubjectKeyIdentifierStructure(keyPair.Public));
+            X509ExtensionUtilities.CreateSubjectKeyIdentifier(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keyPair.Public)));
 
         var signer = new Asn1SignatureFactory("SHA256WithRSA", keyPair.Private, SecureRandom);
         var cert = gen.Generate(signer);
@@ -135,7 +135,7 @@ public class CertificateAuthority(
         gen.AddExtension(X509Extensions.KeyUsage, true,
             new KeyUsage(KeyUsage.DigitalSignature | KeyUsage.KeyEncipherment));
         gen.AddExtension(X509Extensions.ExtendedKeyUsage, false,
-            new ExtendedKeyUsage(KeyPurposeID.IdKPServerAuth));
+            new ExtendedKeyUsage(KeyPurposeID.id_kp_serverAuth));
 
         // Subject Alternative Names
         var sanList = new GeneralNames(new GeneralName(GeneralName.DnsName, hostname));

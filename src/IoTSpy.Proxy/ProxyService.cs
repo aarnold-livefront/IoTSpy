@@ -1,3 +1,4 @@
+using IoTSpy.Core.Enums;
 using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using IoTSpy.Proxy.Interception;
@@ -9,17 +10,19 @@ namespace IoTSpy.Proxy;
 
 public class ProxyService(
     ExplicitProxyServer explicitProxy,
+    TransparentProxyServer transparentProxy,
+    IptablesHelper iptablesHelper,
+    ArpSpoofEngine arpSpoofEngine,
     IServiceScopeFactory scopeFactory,
     ILogger<ProxyService> logger) : IProxyService, IHostedService
 {
     private ProxySettings? _settings;
 
-    public bool IsRunning => explicitProxy.IsRunning;
+    public bool IsRunning => explicitProxy.IsRunning || transparentProxy.IsRunning;
     public int Port => _settings?.ProxyPort ?? 8888;
 
     public ProxySettings GetSettings() => _settings ?? new ProxySettings();
 
-    // Called by POST /api/proxy/start — always starts and persists IsRunning=true
     public async Task StartAsync(CancellationToken ct = default)
     {
         using var scope = scopeFactory.CreateScope();
@@ -27,13 +30,13 @@ public class ProxyService(
         _settings = await settingsRepo.GetAsync(ct);
         _settings.IsRunning = true;
         await settingsRepo.SaveAsync(_settings, ct);
-        await explicitProxy.StartAsync(_settings.ProxyPort, _settings.ListenAddress, ct);
-        logger.LogInformation("ProxyService started on port {Port}", _settings.ProxyPort);
+
+        await StartByModeAsync(_settings, ct);
     }
 
     public async Task StopAsync(CancellationToken ct = default)
     {
-        await explicitProxy.StopAsync();
+        await StopAllAsync();
         if (_settings is not null)
         {
             _settings.IsRunning = false;
@@ -45,18 +48,17 @@ public class ProxyService(
 
     public async Task UpdateSettingsAsync(ProxySettings settings, CancellationToken ct = default)
     {
-        var wasRunning = explicitProxy.IsRunning;
-        if (wasRunning) await explicitProxy.StopAsync();
+        var wasRunning = IsRunning;
+        if (wasRunning) await StopAllAsync();
 
         using var scope = scopeFactory.CreateScope();
         var settingsRepo = scope.ServiceProvider.GetRequiredService<IProxySettingsRepository>();
         _settings = await settingsRepo.SaveAsync(settings, ct);
 
         if (settings.IsRunning)
-            await explicitProxy.StartAsync(settings.ProxyPort, settings.ListenAddress, ct);
+            await StartByModeAsync(settings, ct);
     }
 
-    // IHostedService: at app boot, only auto-start if DB says IsRunning=true
     async Task IHostedService.StartAsync(CancellationToken ct)
     {
         using var scope = scopeFactory.CreateScope();
@@ -64,10 +66,48 @@ public class ProxyService(
         _settings = await settingsRepo.GetAsync(ct);
         if (_settings.IsRunning)
         {
-            await explicitProxy.StartAsync(_settings.ProxyPort, _settings.ListenAddress, ct);
-            logger.LogInformation("ProxyService auto-started on port {Port}", _settings.ProxyPort);
+            await StartByModeAsync(_settings, ct);
+            logger.LogInformation("ProxyService auto-started in {Mode} mode", _settings.Mode);
         }
     }
 
     Task IHostedService.StopAsync(CancellationToken ct) => StopAsync(ct);
+
+    // ── Private helpers ──────────────────────────────────────────────────────
+
+    private async Task StartByModeAsync(ProxySettings settings, CancellationToken ct)
+    {
+        switch (settings.Mode)
+        {
+            case ProxyMode.ExplicitProxy:
+                await explicitProxy.StartAsync(settings.ProxyPort, settings.ListenAddress, ct);
+                logger.LogInformation("Explicit proxy started on port {Port}", settings.ProxyPort);
+                break;
+
+            case ProxyMode.GatewayRedirect:
+                await transparentProxy.StartAsync(settings.TransparentProxyPort, settings.ListenAddress, ct);
+                await iptablesHelper.InstallRedirectRulesAsync(settings.TransparentProxyPort);
+                logger.LogInformation("GatewayRedirect mode started on port {Port}", settings.TransparentProxyPort);
+                break;
+
+            case ProxyMode.ArpSpoof:
+                await transparentProxy.StartAsync(settings.TransparentProxyPort, settings.ListenAddress, ct);
+                await iptablesHelper.InstallRedirectRulesAsync(settings.TransparentProxyPort);
+                await arpSpoofEngine.StartAsync(
+                    settings.TargetDeviceIp,
+                    settings.GatewayIp,
+                    settings.NetworkInterface, ct);
+                logger.LogInformation("ArpSpoof mode started targeting {Target} via {Gateway}",
+                    settings.TargetDeviceIp, settings.GatewayIp);
+                break;
+        }
+    }
+
+    private async Task StopAllAsync()
+    {
+        await arpSpoofEngine.StopAsync();
+        await iptablesHelper.RemoveRedirectRulesAsync();
+        await transparentProxy.StopAsync();
+        await explicitProxy.StopAsync();
+    }
 }

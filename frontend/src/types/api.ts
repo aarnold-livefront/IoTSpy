@@ -72,6 +72,11 @@ export interface ProxySettings {
   maxBodySizeKb: number
   listenAddress: string
   passwordHash: string
+  // Phase 2 — GatewayRedirect / ArpSpoof settings
+  transparentProxyPort: number
+  targetDeviceIp: string
+  gatewayIp: string
+  networkInterface: string
 }
 
 export interface CertificateEntry {
@@ -147,6 +152,10 @@ export interface ProxySettingsUpdate {
   captureResponseBodies?: boolean
   maxBodySizeKb?: number
   mode?: ProxyMode
+  transparentProxyPort?: number
+  targetDeviceIp?: string
+  gatewayIp?: string
+  networkInterface?: string
 }
 
 // ── Filter params ─────────────────────────────────────────────────────────────
