@@ -25,6 +25,10 @@ public static class StorageExtensions
         services.AddScoped<ICertificateRepository, CertificateRepository>();
         services.AddScoped<IProxySettingsRepository, ProxySettingsRepository>();
         services.AddScoped<IScanJobRepository, ScanJobRepository>();
+        services.AddScoped<IManipulationRuleRepository, ManipulationRuleRepository>();
+        services.AddScoped<IBreakpointRepository, BreakpointRepository>();
+        services.AddScoped<IReplaySessionRepository, ReplaySessionRepository>();
+        services.AddScoped<IFuzzerJobRepository, FuzzerJobRepository>();
 
         return services;
     }

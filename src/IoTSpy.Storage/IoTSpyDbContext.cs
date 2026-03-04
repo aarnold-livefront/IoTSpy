@@ -12,6 +12,11 @@ public class IoTSpyDbContext(DbContextOptions<IoTSpyDbContext> options) : DbCont
     public DbSet<ProxySettings> ProxySettings => Set<ProxySettings>();
     public DbSet<ScanJob> ScanJobs => Set<ScanJob>();
     public DbSet<ScanFinding> ScanFindings => Set<ScanFinding>();
+    public DbSet<ManipulationRule> ManipulationRules => Set<ManipulationRule>();
+    public DbSet<Breakpoint> Breakpoints => Set<Breakpoint>();
+    public DbSet<ReplaySession> ReplaySessions => Set<ReplaySession>();
+    public DbSet<FuzzerJob> FuzzerJobs => Set<FuzzerJob>();
+    public DbSet<FuzzerResult> FuzzerResults => Set<FuzzerResult>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -68,6 +73,52 @@ public class IoTSpyDbContext(DbContextOptions<IoTSpyDbContext> options) : DbCont
         modelBuilder.Entity<ProxySettings>(e =>
         {
             e.HasKey(p => p.Id);
+        });
+
+        modelBuilder.Entity<ManipulationRule>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => r.Enabled);
+            e.HasIndex(r => r.Priority);
+        });
+
+        modelBuilder.Entity<Breakpoint>(e =>
+        {
+            e.HasKey(b => b.Id);
+            e.HasIndex(b => b.Enabled);
+        });
+
+        modelBuilder.Entity<ReplaySession>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => r.OriginalCaptureId);
+            e.HasIndex(r => r.CreatedAt);
+            e.HasOne(r => r.OriginalCapture)
+             .WithMany()
+             .HasForeignKey(r => r.OriginalCaptureId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FuzzerJob>(e =>
+        {
+            e.HasKey(j => j.Id);
+            e.HasIndex(j => j.BaseCaptureId);
+            e.HasIndex(j => j.Status);
+            e.HasOne(j => j.BaseCapture)
+             .WithMany()
+             .HasForeignKey(j => j.BaseCaptureId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FuzzerResult>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => r.FuzzerJobId);
+            e.HasIndex(r => r.IsAnomaly);
+            e.HasOne(r => r.FuzzerJob)
+             .WithMany(j => j.Results)
+             .HasForeignKey(r => r.FuzzerJobId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         // SQLite cannot ORDER BY DateTimeOffset columns; store all as Unix ms (long) so

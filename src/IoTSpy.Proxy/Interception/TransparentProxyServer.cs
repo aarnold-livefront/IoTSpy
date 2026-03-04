@@ -29,6 +29,7 @@ namespace IoTSpy.Proxy.Interception;
 public class TransparentProxyServer(
     ICertificateAuthority ca,
     ICapturePublisher publisher,
+    IManipulationService manipulationService,
     IServiceScopeFactory scopeFactory,
     ResiliencePipelineProvider<string> connectPipelineProvider,
     ILogger<TransparentProxyServer> logger)
@@ -245,15 +246,50 @@ public class TransparentProxyServer(
             var started = DateTimeOffset.UtcNow;
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
-            await WriteHttpMessageAsync(upstreamStream, reqLine, reqHeaders, reqBody, ct);
+            // Phase 4: Apply request-phase manipulation rules
+            ParseRequestLine(reqLine, out var method, out var path, out var query);
+            var httpMsg = new HttpMessage
+            {
+                Method = method, Host = host, Port = port, Path = path, Query = query, Scheme = scheme,
+                RequestLine = reqLine, RequestHeaders = reqHeaders, RequestBody = reqBody
+            };
+            var modified = await manipulationService.ApplyAsync(httpMsg, ManipulationPhase.Request, ct);
+            if (modified)
+            {
+                reqLine = httpMsg.RequestLine;
+                reqHeaders = httpMsg.RequestHeaders;
+                reqBody = httpMsg.RequestBody;
+            }
+
+            if (!string.IsNullOrEmpty(reqLine))
+                await WriteHttpMessageAsync(upstreamStream, reqLine, reqHeaders, reqBody, ct);
 
             var (statusLine, respHeaders, respBody) = await ReadHttpMessageAsync(upstreamStream, settings.MaxBodySizeKb, ct);
+
+            // Phase 4: Apply response-phase manipulation rules
+            if (statusLine is not null)
+            {
+                ParseStatusLine(statusLine, out var sc, out _);
+                httpMsg.StatusLine = statusLine;
+                httpMsg.StatusCode = sc;
+                httpMsg.ResponseHeaders = respHeaders;
+                httpMsg.ResponseBody = respBody;
+                var respModified = await manipulationService.ApplyAsync(httpMsg, ManipulationPhase.Response, ct);
+                if (respModified)
+                {
+                    modified = true;
+                    statusLine = httpMsg.StatusLine;
+                    respHeaders = httpMsg.ResponseHeaders;
+                    respBody = httpMsg.ResponseBody;
+                }
+            }
+
             sw.Stop();
 
             if (statusLine is not null)
                 await WriteHttpMessageAsync(clientStream, statusLine, respHeaders, respBody, ct);
 
-            ParseRequestLine(reqLine, out var method, out var path, out var query);
+            ParseRequestLine(reqLine ?? "", out method, out path, out query);
             ParseStatusLine(statusLine, out var statusCode, out var statusMsg);
 
             var device = await GetOrRegisterDeviceAsync(devices, clientIp, ct);
@@ -280,14 +316,15 @@ public class TransparentProxyServer(
                 Protocol = scheme == "https" ? InterceptionProtocol.Https : InterceptionProtocol.Http,
                 Timestamp = started,
                 DurationMs = sw.ElapsedMilliseconds,
-                ClientIp = clientIp
+                ClientIp = clientIp,
+                IsModified = modified
             };
 
             await captures.AddAsync(capture, ct);
             await publisher.PublishAsync(capture, ct);
 
             if (respHeaders.Contains("Connection: close", StringComparison.OrdinalIgnoreCase) ||
-                reqLine.EndsWith("HTTP/1.0"))
+                (reqLine ?? "").EndsWith("HTTP/1.0"))
                 break;
         }
     }

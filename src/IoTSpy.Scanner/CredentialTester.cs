@@ -109,7 +109,7 @@ public class CredentialTester(ILogger<CredentialTester> logger)
             var buffer = new byte[1024];
 
             // Read welcome banner
-            await stream.ReadAsync(buffer, cts.Token);
+            _ = await stream.ReadAsync(buffer, cts.Token);
 
             // Send USER
             await stream.WriteAsync(Encoding.ASCII.GetBytes($"USER {user}\r\n"), cts.Token);
@@ -151,13 +151,13 @@ public class CredentialTester(ILogger<CredentialTester> logger)
             // Read initial negotiation / banner
             await Task.Delay(500, cts.Token);
             if (stream.DataAvailable)
-                await stream.ReadAsync(buffer, cts.Token);
+                _ = await stream.ReadAsync(buffer, cts.Token);
 
             // Send username
             await stream.WriteAsync(Encoding.ASCII.GetBytes($"{user}\r\n"), cts.Token);
             await Task.Delay(500, cts.Token);
             if (stream.DataAvailable)
-                await stream.ReadAsync(buffer, cts.Token);
+                _ = await stream.ReadAsync(buffer, cts.Token);
 
             // Send password
             await stream.WriteAsync(Encoding.ASCII.GetBytes($"{pass}\r\n"), cts.Token);

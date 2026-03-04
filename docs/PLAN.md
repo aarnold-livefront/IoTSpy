@@ -74,12 +74,12 @@ README / quick start: [`README.md`](../README.md)
 
 | # | Task | Status |
 |---|---|---|
-| 4.1 | `IoTSpy.Manipulation` — Declarative rules engine (match → modify) | Planned |
-| 4.2 | `IoTSpy.Manipulation` — C# Roslyn scripted breakpoints | Planned |
-| 4.3 | `IoTSpy.Manipulation` — JavaScript (Jint) scripted breakpoints | Planned |
-| 4.4 | `IoTSpy.Manipulation` — Request replay with diff view | Planned |
-| 4.5 | `IoTSpy.Manipulation` — Mutation-based fuzzer | Planned |
-| 4.6 | `IoTSpy.Api` — ManipulationController | Planned |
+| 4.1 | `IoTSpy.Manipulation` — Declarative rules engine (match → modify) | ✅ Done |
+| 4.2 | `IoTSpy.Manipulation` — C# Roslyn scripted breakpoints | ✅ Done |
+| 4.3 | `IoTSpy.Manipulation` — JavaScript (Jint) scripted breakpoints | ✅ Done |
+| 4.4 | `IoTSpy.Manipulation` — Request replay with diff view | ✅ Done |
+| 4.5 | `IoTSpy.Manipulation` — Mutation-based fuzzer | ✅ Done |
+| 4.6 | `IoTSpy.Api` — ManipulationController | ✅ Done |
 | 4.7 | Frontend — rules editor, breakpoint UI, replay panel | Planned |
 
 ---
