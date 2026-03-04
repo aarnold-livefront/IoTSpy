@@ -47,12 +47,12 @@ README / quick start: [`README.md`](../README.md)
 
 | # | Task | Status |
 |---|---|---|
-| 2.1 | `IoTSpy.Protocols` — MQTT 3.1.1 / 5.0 decoder | Planned |
-| 2.2 | `IoTSpy.Protocols` — DNS / mDNS decoder | Planned |
-| 2.3 | `IoTSpy.Proxy` — GatewayRedirect mode (iptables REDIRECT) | Planned |
-| 2.4 | `IoTSpy.Proxy` — ArpSpoof mode (SharpPcap) | Planned |
-| 2.5 | `IoTSpy.Api` — Real-time stream improvements (filter subscriptions) | Planned |
-| 2.6 | Frontend — timeline swimlane view per device | Planned |
+| 2.1 | `IoTSpy.Protocols` — MQTT 3.1.1 / 5.0 decoder | ✅ Done |
+| 2.2 | `IoTSpy.Protocols` — DNS / mDNS decoder | ✅ Done |
+| 2.3 | `IoTSpy.Proxy` — GatewayRedirect mode (iptables REDIRECT) | ✅ Done |
+| 2.4 | `IoTSpy.Proxy` — ArpSpoof mode (SharpPcap) | ✅ Done |
+| 2.5 | `IoTSpy.Api` — Real-time stream improvements (filter subscriptions) | ✅ Done |
+| 2.6 | Frontend — timeline swimlane view per device | ✅ Done |
 
 ---
 
@@ -124,11 +124,13 @@ The entire Phase 1 backend and frontend are scaffolded and functional:
 
 ### What to do next
 
-Phase 1 is fully complete. Proceed to **Phase 2**:
+Phases 1 and 2 are fully complete. Proceed to **Phase 3**:
 
-1. **MQTT decoder** (`IoTSpy.Protocols`) — MQTT 3.1.1 / 5.0 packet parsing.
-2. **GatewayRedirect / ArpSpoof modes** (`IoTSpy.Proxy`) — transparent interception without device proxy config.
-3. **Real-time stream filter subscriptions** (`IoTSpy.Api`) — per-device SignalR groups.
+1. **TCP port scan** (`IoTSpy.Scanner`) — enumerate open ports on target IoT devices.
+2. **Service fingerprinting** (`IoTSpy.Scanner`) — banner grab + CPE identification.
+3. **Default credential testing** (`IoTSpy.Scanner`) — check for common default passwords.
+4. **CVE lookup** (`IoTSpy.Scanner`) — query NVD / OSV APIs for known vulnerabilities.
+5. **ScannerController** (`IoTSpy.Api`) — REST endpoints for triggering and viewing scans.
 
 ---
 

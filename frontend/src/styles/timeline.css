@@ -1,0 +1,244 @@
+/* ── Timeline swimlane view ──────────────────────────────────────────────── */
+
+.timeline-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-bg);
+}
+
+/* ── Toolbar ──────────────────────────────────────────────────────────── */
+
+.timeline-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.timeline-toolbar button {
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.timeline-toolbar button:hover {
+  background: var(--color-surface-3);
+  color: var(--color-text);
+}
+
+.timeline-toolbar button.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #fff;
+}
+
+.timeline-time-range {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-left: auto;
+}
+
+/* ── Scrollable body ──────────────────────────────────────────────────── */
+
+.timeline-body {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+.timeline-inner {
+  display: flex;
+  min-height: 100%;
+}
+
+/* ── Device labels column ─────────────────────────────────────────────── */
+
+.timeline-labels {
+  width: 160px;
+  min-width: 160px;
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+.timeline-label-header {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.timeline-label-row {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline-label-row .label-name {
+  font-weight: 500;
+  margin-right: var(--space-2);
+}
+
+.timeline-label-row .label-ip {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  font-family: var(--font-mono);
+}
+
+/* ── Timeline canvas (grid area) ──────────────────────────────────────── */
+
+.timeline-canvas {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+/* ── Time axis header ─────────────────────────────────────────────────── */
+
+.timeline-axis {
+  height: 28px;
+  position: sticky;
+  top: 0;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+}
+
+.timeline-axis-tick {
+  position: absolute;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-faint);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+/* ── Swimlane rows ────────────────────────────────────────────────────── */
+
+.timeline-swimlane {
+  height: 40px;
+  position: relative;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.timeline-swimlane:nth-child(even) {
+  background: rgba(255, 255, 255, 0.01);
+}
+
+/* ── Capture events ───────────────────────────────────────────────────── */
+
+.timeline-event {
+  position: absolute;
+  top: 6px;
+  height: 28px;
+  min-width: 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: var(--font-size-xs);
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+}
+
+.timeline-event:hover {
+  opacity: 0.8;
+  z-index: 1;
+  box-shadow: var(--shadow-sm);
+}
+
+.timeline-event.selected {
+  outline: 2px solid var(--color-text);
+  outline-offset: 1px;
+  z-index: 2;
+}
+
+/* Protocol / status color coding */
+.timeline-event.status-2xx { background: var(--color-status-2xx); }
+.timeline-event.status-3xx { background: var(--color-status-3xx); }
+.timeline-event.status-4xx { background: var(--color-status-4xx); }
+.timeline-event.status-5xx { background: var(--color-status-5xx); }
+.timeline-event.status-0   { background: var(--color-text-faint); }
+
+.timeline-event.protocol-mqtt { background: #9b59b6; }
+.timeline-event.protocol-dns  { background: #e67e22; }
+.timeline-event.protocol-coap { background: #1abc9c; }
+
+/* ── Grid lines ───────────────────────────────────────────────────────── */
+
+.timeline-gridline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--color-border);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────── */
+
+.timeline-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-md);
+}
+
+/* ── Tooltip ──────────────────────────────────────────────────────────── */
+
+.timeline-tooltip {
+  position: fixed;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text);
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+  pointer-events: none;
+  max-width: 300px;
+  white-space: nowrap;
+}
+
+.timeline-tooltip .tooltip-row {
+  display: flex;
+  gap: var(--space-2);
+  line-height: 1.6;
+}
+
+.timeline-tooltip .tooltip-label {
+  color: var(--color-text-muted);
+}

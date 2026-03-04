@@ -14,4 +14,12 @@ public class ProxySettings
     public int MaxBodySizeKb { get; set; } = 1024;
     public string ListenAddress { get; set; } = "127.0.0.1";
     public string PasswordHash { get; set; } = string.Empty;
+
+    // ── GatewayRedirect mode ─────────────────────────────────────────────
+    public int TransparentProxyPort { get; set; } = 9999;
+
+    // ── ArpSpoof mode ────────────────────────────────────────────────────
+    public string TargetDeviceIp { get; set; } = string.Empty;
+    public string GatewayIp { get; set; } = string.Empty;
+    public string NetworkInterface { get; set; } = string.Empty;
 }

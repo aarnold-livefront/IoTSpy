@@ -63,8 +63,11 @@ var resilienceOptions = builder.Configuration
 builder.Services.AddProxyResilience(resilienceOptions);
 
 // ── Proxy ────────────────────────────────────────────────────────────────────
-// ExplicitProxyServer is a long-lived TCP listener — singleton lifetime
+// All proxy servers and supporting engines are singletons (long-lived TCP listeners)
 builder.Services.AddSingleton<ExplicitProxyServer>();
+builder.Services.AddSingleton<TransparentProxyServer>();
+builder.Services.AddSingleton<IptablesHelper>();
+builder.Services.AddSingleton<ArpSpoofEngine>();
 builder.Services.AddSingleton<ICertificateAuthority, CertificateAuthority>();
 builder.Services.AddSingleton<IProxyService, ProxyService>();
 builder.Services.AddHostedService(sp => (ProxyService)sp.GetRequiredService<IProxyService>());

@@ -38,30 +38,31 @@ IoTSpy.Api (ASP.NET Core host)
   ├── IoTSpy.Core          (domain models, interfaces, enums — no infrastructure deps)
   ├── IoTSpy.Proxy         (TCP listener, TLS MITM, Polly resilience)
   ├── IoTSpy.Storage       (EF Core DbContext + repositories; SQLite/Postgres)
-  ├── IoTSpy.Protocols     (Phase 2+ — empty stub)
+  ├── IoTSpy.Protocols     (MQTT 3.1.1/5.0 + DNS/mDNS decoders)
   ├── IoTSpy.Scanner       (Phase 3+ — empty stub)
   └── IoTSpy.Manipulation  (Phase 4+ — empty stub)
 ```
 
-All stubs (`Protocols`, `Scanner`, `Manipulation`) contain only a `.csproj`; no source files yet.
+`Scanner` and `Manipulation` are empty stubs (`.csproj` only). `Protocols` has MQTT and DNS decoders.
 
-### Data flow (Phase 1)
+### Data flow
 
 ```
-IoT Device → HTTP/CONNECT :8888
-  └─ ExplicitProxyServer (TcpListener)
+IoT Device → ExplicitProxy :8888      (explicit mode — device configured to use proxy)
+           → TransparentProxy :9999   (gateway/ARP mode — iptables REDIRECT)
+  └─ ExplicitProxyServer / TransparentProxyServer
        ├─ Plain HTTP → InterceptHttpStreamAsync
-       └─ CONNECT tunnel
+       └─ TLS (CONNECT or transparent)
             ├─ CaptureTls=false → passthrough
             └─ CaptureTls=true  → CertificateAuthority.GetOrCreateHostCertAsync()
                                    SslStream MITM → InterceptHttpStreamAsync
                                         ├─ CaptureRepository (SQLite/PG)
-                                        └─ ICapturePublisher → SignalR → dashboard
+                                        └─ ICapturePublisher → SignalR (group-routed) → dashboard
 ```
 
 ### Key service lifetimes (Program.cs)
 
-- `ExplicitProxyServer`, `CertificateAuthority`, `ProxyService`, `SignalRCapturePublisher` — **Singleton** (TCP listener must live for the app lifetime).
+- `ExplicitProxyServer`, `TransparentProxyServer`, `CertificateAuthority`, `ProxyService`, `ArpSpoofEngine`, `IptablesHelper`, `SignalRCapturePublisher` — **Singleton** (TCP listeners must live for the app lifetime).
 - `ProxyService` is registered both as `IProxyService` (singleton) and as `IHostedService` via `AddHostedService(sp => ...)` to avoid double instantiation.
 - Repositories are **Scoped** (EF Core DbContext).
 
@@ -92,11 +93,18 @@ Single-user model. BCrypt password hash stored in the single `ProxySettings` row
 
 ## Current status
 
-Phase 1 is fully complete (backend + frontend + Docker). `IoTSpy.Protocols`, `IoTSpy.Scanner`, and `IoTSpy.Manipulation` are empty stubs. No tests exist yet. EF Core migrations should be verified before adding new ones (`MigrateAsync` calls `db.Database.MigrateAsync()`).
+Phases 1 and 2 are complete. `IoTSpy.Scanner` and `IoTSpy.Manipulation` are empty stubs. No tests exist yet. EF Core migrations: `InitialCreate` + `AddPhase2ProxySettings`.
+
+**Phase 2 additions:**
+- `IoTSpy.Protocols` — MQTT 3.1.1/5.0 binary decoder + DNS/mDNS decoder (RFC 1035/6762)
+- `IoTSpy.Proxy` — `TransparentProxyServer` (GatewayRedirect via iptables SO_ORIGINAL_DST), `ArpSpoofEngine` (SharpPcap ARP cache poisoning), `IptablesHelper`
+- `IoTSpy.Api` — SignalR group-based filter subscriptions (host, method, status code, protocol)
+- Frontend — timeline swimlane view (per-device horizontal timeline, zoom controls, tooltips)
+- `ProxySettings` new fields: `TransparentProxyPort`, `TargetDeviceIp`, `GatewayIp`, `NetworkInterface`
 
 Next priorities per `docs/PLAN.md`:
-1. Phase 2: MQTT decoder (`IoTSpy.Protocols`) — MQTT 3.1.1 / 5.0 packet parsing
-2. Phase 2: GatewayRedirect / ArpSpoof modes (`IoTSpy.Proxy`)
-3. Phase 2: Real-time stream filter subscriptions per device (SignalR groups)
+1. Phase 3: TCP port scan, service fingerprinting, default credential testing
+2. Phase 3: CVE lookup (NVD / OSV APIs), config audits
+3. Phase 3: ScannerController + frontend scan results panel
 
 See `docs/architecture.md` for full architecture spec and `docs/PLAN.md` for the phased task list.
