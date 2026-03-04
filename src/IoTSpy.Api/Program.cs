@@ -7,6 +7,7 @@ using IoTSpy.Proxy;
 using IoTSpy.Proxy.Interception;
 using IoTSpy.Proxy.Resilience;
 using IoTSpy.Proxy.Tls;
+using IoTSpy.Scanner;
 using IoTSpy.Storage.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -71,6 +72,9 @@ builder.Services.AddSingleton<ArpSpoofEngine>();
 builder.Services.AddSingleton<ICertificateAuthority, CertificateAuthority>();
 builder.Services.AddSingleton<IProxyService, ProxyService>();
 builder.Services.AddHostedService(sp => (ProxyService)sp.GetRequiredService<IProxyService>());
+
+// ── Scanner ─────────────────────────────────────────────────────────────────
+builder.Services.AddIoTSpyScanner();
 
 // ── API ──────────────────────────────────────────────────────────────────────
 builder.Services.AddControllers();

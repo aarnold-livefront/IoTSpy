@@ -39,11 +39,11 @@ IoTSpy.Api (ASP.NET Core host)
   ├── IoTSpy.Proxy         (TCP listener, TLS MITM, Polly resilience)
   ├── IoTSpy.Storage       (EF Core DbContext + repositories; SQLite/Postgres)
   ├── IoTSpy.Protocols     (MQTT 3.1.1/5.0 + DNS/mDNS decoders)
-  ├── IoTSpy.Scanner       (Phase 3+ — empty stub)
+  ├── IoTSpy.Scanner       (TCP port scan, service fingerprinting, credential testing, CVE lookup, config audit)
   └── IoTSpy.Manipulation  (Phase 4+ — empty stub)
 ```
 
-`Scanner` and `Manipulation` are empty stubs (`.csproj` only). `Protocols` has MQTT and DNS decoders.
+`Manipulation` is an empty stub (`.csproj` only). `Protocols` has MQTT and DNS decoders. `Scanner` has the full pen-test suite.
 
 ### Data flow
 
@@ -62,7 +62,7 @@ IoT Device → ExplicitProxy :8888      (explicit mode — device configured to 
 
 ### Key service lifetimes (Program.cs)
 
-- `ExplicitProxyServer`, `TransparentProxyServer`, `CertificateAuthority`, `ProxyService`, `ArpSpoofEngine`, `IptablesHelper`, `SignalRCapturePublisher` — **Singleton** (TCP listeners must live for the app lifetime).
+- `ExplicitProxyServer`, `TransparentProxyServer`, `CertificateAuthority`, `ProxyService`, `ArpSpoofEngine`, `IptablesHelper`, `SignalRCapturePublisher`, `PortScanner`, `ServiceFingerprinter`, `CredentialTester`, `ConfigAuditor`, `ScannerService` — **Singleton** (TCP listeners / long-lived services).
 - `ProxyService` is registered both as `IProxyService` (singleton) and as `IHostedService` via `AddHostedService(sp => ...)` to avoid double instantiation.
 - Repositories are **Scoped** (EF Core DbContext).
 
@@ -93,18 +93,17 @@ Single-user model. BCrypt password hash stored in the single `ProxySettings` row
 
 ## Current status
 
-Phases 1 and 2 are complete. `IoTSpy.Scanner` and `IoTSpy.Manipulation` are empty stubs. No tests exist yet. EF Core migrations: `InitialCreate` + `AddPhase2ProxySettings`.
+Phases 1, 2, and 3 (backend) are complete. `IoTSpy.Manipulation` is an empty stub. No tests exist yet. EF Core migrations: `InitialCreate` + `AddPhase2ProxySettings` + `AddPhase3Scanner`.
 
-**Phase 2 additions:**
-- `IoTSpy.Protocols` — MQTT 3.1.1/5.0 binary decoder + DNS/mDNS decoder (RFC 1035/6762)
-- `IoTSpy.Proxy` — `TransparentProxyServer` (GatewayRedirect via iptables SO_ORIGINAL_DST), `ArpSpoofEngine` (SharpPcap ARP cache poisoning), `IptablesHelper`
-- `IoTSpy.Api` — SignalR group-based filter subscriptions (host, method, status code, protocol)
-- Frontend — timeline swimlane view (per-device horizontal timeline, zoom controls, tooltips)
-- `ProxySettings` new fields: `TransparentProxyPort`, `TargetDeviceIp`, `GatewayIp`, `NetworkInterface`
+**Phase 3 additions:**
+- `IoTSpy.Scanner` — `PortScanner` (TCP connect scan, configurable concurrency/port ranges), `ServiceFingerprinter` (banner grab, CPE extraction via regex), `CredentialTester` (FTP/Telnet/MQTT default credential checks), `CveLookupService` (OSV.dev API), `ConfigAuditor` (Telnet, UPnP, anon MQTT, exposed DB, HTTP admin detection)
+- `IoTSpy.Scanner` — `ScannerService` orchestrator implementing `IScannerService` — runs scan pipeline in background, updates device `SecurityScore`
+- `IoTSpy.Core` — `ScanJob`, `ScanFinding` models; `ScanStatus`, `ScanFindingSeverity`, `ScanFindingType` enums; `IScanJobRepository`, `IScannerService` interfaces
+- `IoTSpy.Storage` — `ScanJobs` + `ScanFindings` DbSets, `ScanJobRepository`, `AddPhase3Scanner` migration
+- `IoTSpy.Api` — `ScannerController` (POST scan, GET jobs/findings/status, cancel, delete)
 
 Next priorities per `docs/PLAN.md`:
-1. Phase 3: TCP port scan, service fingerprinting, default credential testing
-2. Phase 3: CVE lookup (NVD / OSV APIs), config audits
-3. Phase 3: ScannerController + frontend scan results panel
+1. Phase 3.7: Frontend scan results panel
+2. Phase 4: Active manipulation (rules engine, scripted breakpoints, replay, fuzzer)
 
 See `docs/architecture.md` for full architecture spec and `docs/PLAN.md` for the phased task list.
