@@ -141,6 +141,7 @@ public class ManipulationService(
             var semaphore = new SemaphoreSlim(job.ConcurrentRequests);
             var tasks = new List<Task>();
             var anomalyCount = 0;
+            var completedCount = 0;
 
             for (var i = 0; i < job.MutationCount; i++)
             {
@@ -159,7 +160,7 @@ public class ManipulationService(
                         if (result.IsAnomaly)
                             Interlocked.Increment(ref anomalyCount);
 
-                        Interlocked.Increment(ref job.CompletedMutations);
+                        Interlocked.Increment(ref completedCount);
                     }
                     finally
                     {
@@ -174,6 +175,7 @@ public class ManipulationService(
             job = await fuzzerRepo.GetByIdAsync(jobId, ct);
             if (job is null) return;
 
+            job.CompletedMutations = completedCount;
             job.Anomalies = anomalyCount;
             job.Status = FuzzerJobStatus.Completed;
             job.CompletedAt = DateTimeOffset.UtcNow;
