@@ -40,10 +40,10 @@ IoTSpy.Api (ASP.NET Core host)
   ├── IoTSpy.Storage       (EF Core DbContext + repositories; SQLite/Postgres)
   ├── IoTSpy.Protocols     (MQTT 3.1.1/5.0 + DNS/mDNS decoders)
   ├── IoTSpy.Scanner       (TCP port scan, service fingerprinting, credential testing, CVE lookup, config audit)
-  └── IoTSpy.Manipulation  (Phase 4+ — empty stub)
+  └── IoTSpy.Manipulation  (rules engine, scripted breakpoints, replay, fuzzer)
 ```
 
-`Manipulation` is an empty stub (`.csproj` only). `Protocols` has MQTT and DNS decoders. `Scanner` has the full pen-test suite.
+`Protocols` has MQTT and DNS decoders. `Scanner` has the full pen-test suite. `Manipulation` has the rules engine, C#/JS scripted breakpoints, request replay, and mutation fuzzer.
 
 ### Data flow
 
@@ -93,7 +93,7 @@ Single-user model. BCrypt password hash stored in the single `ProxySettings` row
 
 ## Current status
 
-Phases 1, 2, and 3 (backend) are complete. `IoTSpy.Manipulation` is an empty stub. No tests exist yet. EF Core migrations: `InitialCreate` + `AddPhase2ProxySettings` + `AddPhase3Scanner`.
+Phases 1, 2, 3 (backend), and 4 (backend) are complete. No tests exist yet. EF Core migrations: `InitialCreate` + `AddPhase2ProxySettings` + `AddPhase3Scanner` + `AddPhase4Manipulation`.
 
 **Phase 3 additions:**
 - `IoTSpy.Scanner` — `PortScanner` (TCP connect scan, configurable concurrency/port ranges), `ServiceFingerprinter` (banner grab, CPE extraction via regex), `CredentialTester` (FTP/Telnet/MQTT default credential checks), `CveLookupService` (OSV.dev API), `ConfigAuditor` (Telnet, UPnP, anon MQTT, exposed DB, HTTP admin detection)
@@ -102,8 +102,20 @@ Phases 1, 2, and 3 (backend) are complete. `IoTSpy.Manipulation` is an empty stu
 - `IoTSpy.Storage` — `ScanJobs` + `ScanFindings` DbSets, `ScanJobRepository`, `AddPhase3Scanner` migration
 - `IoTSpy.Api` — `ScannerController` (POST scan, GET jobs/findings/status, cancel, delete)
 
+**Phase 4 additions:**
+- `IoTSpy.Manipulation` — `RulesEngine` (declarative match→modify rules, regex-based host/path/method matching, header/body modification, status override, delay, drop actions)
+- `IoTSpy.Manipulation` — `CSharpScriptEngine` (Roslyn-based C# scripted breakpoints) + `JavaScriptEngine` (Jint-based JS scripted breakpoints)
+- `IoTSpy.Manipulation` — `ReplayService` (replay captured requests with modifications, record response)
+- `IoTSpy.Manipulation` — `FuzzerService` (mutation-based fuzzer: Random, Boundary, BitFlip strategies with anomaly detection)
+- `IoTSpy.Manipulation` — `ManipulationService` orchestrator implementing `IManipulationService` — applies rules+scripts inline in the proxy pipeline
+- `IoTSpy.Core` — `ManipulationRule`, `Breakpoint`, `ReplaySession`, `FuzzerJob`, `FuzzerResult`, `HttpMessage` models; `ManipulationRuleAction`, `ManipulationPhase`, `ScriptLanguage`, `FuzzerStrategy`, `FuzzerJobStatus` enums; `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService` interfaces
+- `IoTSpy.Storage` — `ManipulationRules`, `Breakpoints`, `ReplaySessions`, `FuzzerJobs`, `FuzzerResults` DbSets + repositories + `AddPhase4Manipulation` migration
+- `IoTSpy.Api` — `ManipulationController` (CRUD rules/breakpoints, replay, fuzzer start/cancel/status/results)
+- `IoTSpy.Proxy` — Both `ExplicitProxyServer` and `TransparentProxyServer` now call `IManipulationService.ApplyAsync()` for request and response phases, setting `IsModified` on captured requests
+
 Next priorities per `docs/PLAN.md`:
 1. Phase 3.7: Frontend scan results panel
-2. Phase 4: Active manipulation (rules engine, scripted breakpoints, replay, fuzzer)
+2. Phase 4.7: Frontend — rules editor, breakpoint UI, replay panel
+3. Phase 5: AI mock engine + advanced protocol decoders
 
 See `docs/architecture.md` for full architecture spec and `docs/PLAN.md` for the phased task list.

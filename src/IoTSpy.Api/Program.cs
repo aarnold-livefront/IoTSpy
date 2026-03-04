@@ -7,6 +7,7 @@ using IoTSpy.Proxy;
 using IoTSpy.Proxy.Interception;
 using IoTSpy.Proxy.Resilience;
 using IoTSpy.Proxy.Tls;
+using IoTSpy.Manipulation;
 using IoTSpy.Scanner;
 using IoTSpy.Storage.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -75,6 +76,9 @@ builder.Services.AddHostedService(sp => (ProxyService)sp.GetRequiredService<IPro
 
 // ── Scanner ─────────────────────────────────────────────────────────────────
 builder.Services.AddIoTSpyScanner();
+
+// ── Manipulation ────────────────────────────────────────────────────────────
+builder.Services.AddIoTSpyManipulation();
 
 // ── API ──────────────────────────────────────────────────────────────────────
 builder.Services.AddControllers();
