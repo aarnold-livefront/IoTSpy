@@ -113,12 +113,15 @@ Phases 1–4 (backend + frontend) are complete. Phase 5 is partially complete (A
 - `IoTSpy.Api` — `ManipulationController` (CRUD rules/breakpoints, replay, fuzzer start/cancel/status/results)
 - `IoTSpy.Proxy` — Both `ExplicitProxyServer` and `TransparentProxyServer` now call `IManipulationService.ApplyAsync()` for request and response phases, setting `IsModified` on captured requests
 
-**Phase 5 additions (partial):**
+**Phase 5 additions (complete):**
 - `IoTSpy.Manipulation` — `AiMockService` (schema learning + LLM response generation), `AiProviderFactory`, `IAiProvider` interface
 - `IoTSpy.Manipulation` — `ClaudeProvider`, `OpenAiProvider`, `OllamaProvider` (pluggable AI backends)
 - `IoTSpy.Core` — `AiMockResponse`, `AiProviderConfig`, `AnomalyAlert`, `IAiMockService` models/interfaces
 - `IoTSpy.Protocols` — CoAP message decoder (`CoapMessage`, `CoapCode`, `CoapMessageType`, `CoapOptionNumber`)
 - `IoTSpy.Api` — AI mock endpoints in `ManipulationController` (generate, invalidate cache)
+- `IoTSpy.Protocols` — Telemetry decoders: `DatadogDecoder`, `FirehoseDecoder`, `SplunkHecDecoder`, `AzureMonitorDecoder`; all implement `IProtocolDecoder<TelemetryMessage>`
+- `IoTSpy.Protocols` — Anomaly detection: `AnomalyDetector` (Welford online algorithm, per-host baseline for duration/size/status/rate); `IAnomalyDetector` interface in Core; `HostBaseline` model in Core
+- Tests: `TelemetryDecoderTests`, `AnomalyDetectorTests` added to `IoTSpy.Protocols.Tests`
 
 **Frontend additions (Phases 3-4):**
 - Scanner panel: `ScannerPanel`, `ScanJobList`, `ScanFindingsView` components
@@ -127,9 +130,6 @@ Phases 1–4 (backend + frontend) are complete. Phase 5 is partially complete (A
 - React hooks: `useManipulation`, `useScanner`
 - TypeScript types in `api.ts` aligned with backend C# models
 
-Next priorities per `docs/PLAN.md`:
-1. Phase 5.4: Telemetry protocol decoders (Datadog, Firehose, Splunk HEC, Azure Monitor)
-2. Phase 5.5: Anomaly detection (statistical baseline + alert)
-3. Tests: Unit tests for core services, integration tests for proxy pipeline
+All phases (1–5) are now complete. The codebase is fully implemented per `docs/PLAN.md`.
 
 See `docs/architecture.md` for full architecture spec and `docs/PLAN.md` for the phased task list.
