@@ -3,6 +3,7 @@ using System;
 using IoTSpy.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IoTSpy.Storage.Migrations
 {
     [DbContext(typeof(IoTSpyDbContext))]
-    partial class IoTSpyDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260305120000_AddPhase4Manipulation")]
+    partial class AddPhase4Manipulation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.3");
@@ -436,10 +439,6 @@ namespace IoTSpy.Storage.Migrations
                     b.Property<bool>("CaptureTls")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("GatewayIp")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<bool>("IsRunning")
                         .HasColumnType("INTEGER");
 
@@ -453,10 +452,6 @@ namespace IoTSpy.Storage.Migrations
                     b.Property<int>("Mode")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("NetworkInterface")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -464,12 +459,20 @@ namespace IoTSpy.Storage.Migrations
                     b.Property<int>("ProxyPort")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("TransparentProxyPort")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("TargetDeviceIp")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("TransparentProxyPort")
-                        .HasColumnType("INTEGER");
+                    b.Property<string>("GatewayIp")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NetworkInterface")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
@@ -548,45 +551,11 @@ namespace IoTSpy.Storage.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Banner")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Cpe")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CveDescription")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CveId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<double?>("CvssScore")
-                        .HasColumnType("REAL");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<long>("FoundAt")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Password")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("Port")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Protocol")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Reference")
-                        .HasColumnType("TEXT");
-
                     b.Property<Guid>("ScanJobId")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("ServiceName")
-                        .HasColumnType("TEXT");
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Severity")
                         .HasColumnType("INTEGER");
@@ -595,19 +564,53 @@ namespace IoTSpy.Storage.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("Type")
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("Port")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Protocol")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ServiceName")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Banner")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Cpe")
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Username")
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("Password")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CveId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double?>("CvssScore")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("CveDescription")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reference")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("FoundAt")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
                     b.HasIndex("ScanJobId");
 
-                    b.HasIndex("Severity");
-
                     b.HasIndex("Type");
+
+                    b.HasIndex("Severity");
 
                     b.ToTable("ScanFindings");
                 });
@@ -618,16 +621,27 @@ namespace IoTSpy.Storage.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("TEXT");
 
-                    b.Property<long?>("CompletedAt")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<long>("CreatedAt")
-                        .HasColumnType("INTEGER");
-
                     b.Property<Guid>("DeviceId")
                         .HasColumnType("TEXT");
 
-                    b.Property<bool>("EnableConfigAudit")
+                    b.Property<string>("TargetIp")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PortRange")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("MaxConcurrency")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TimeoutMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EnableFingerprinting")
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("EnableCredentialTest")
@@ -636,42 +650,31 @@ namespace IoTSpy.Storage.Migrations
                     b.Property<bool>("EnableCveLookup")
                         .HasColumnType("INTEGER");
 
-                    b.Property<bool>("EnableFingerprinting")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("MaxConcurrency")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("PortRange")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<long?>("StartedAt")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("TargetIp")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("TimeoutMs")
+                    b.Property<bool>("EnableConfigAudit")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("TotalFindings")
                         .HasColumnType("INTEGER");
 
-                    b.HasKey("Id");
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("TEXT");
 
-                    b.HasIndex("CreatedAt");
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("StartedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long?>("CompletedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
 
                     b.HasIndex("DeviceId");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("CreatedAt");
 
                     b.ToTable("ScanJobs");
                 });

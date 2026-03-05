@@ -172,6 +172,221 @@ export interface CaptureFilters {
   pageSize?: number
 }
 
+// ── Scanner enums ────────────────────────────────────────────────────────────
+
+export type ScanStatus = 'Pending' | 'Running' | 'Completed' | 'Failed' | 'Cancelled'
+
+export type ScanFindingSeverity = 'Info' | 'Low' | 'Medium' | 'High' | 'Critical'
+
+export type ScanFindingType =
+  | 'OpenPort'
+  | 'ServiceBanner'
+  | 'DefaultCredential'
+  | 'KnownCve'
+  | 'ConfigIssue'
+
+// ── Scanner models ───────────────────────────────────────────────────────────
+
+export interface ScanJob {
+  id: string
+  deviceId: string
+  device?: Device
+  status: ScanStatus
+  portRange: string
+  maxConcurrency: number
+  timeoutMs: number
+  enableFingerprinting: boolean
+  enableCredentialTest: boolean
+  enableCveLookup: boolean
+  enableConfigAudit: boolean
+  portsScanned: number
+  openPortsFound: number
+  findingsCount: number
+  startedAt?: string
+  completedAt?: string
+  errorMessage?: string
+  createdAt: string
+  findings?: ScanFinding[]
+}
+
+export interface ScanFinding {
+  id: string
+  scanJobId: string
+  type: ScanFindingType
+  severity: ScanFindingSeverity
+  port: number
+  protocol: string
+  service: string
+  title: string
+  description: string
+  evidence: string
+  remediation: string
+  cveId?: string
+  cpeString?: string
+  createdAt: string
+}
+
+// ── Scanner request DTOs ─────────────────────────────────────────────────────
+
+export interface StartScanRequest {
+  deviceId: string
+  portRange?: string
+  maxConcurrency?: number
+  timeoutMs?: number
+  enableFingerprinting?: boolean
+  enableCredentialTest?: boolean
+  enableCveLookup?: boolean
+  enableConfigAudit?: boolean
+}
+
+// ── Manipulation enums ───────────────────────────────────────────────────────
+
+export type ManipulationRuleAction =
+  | 'ModifyHeader'
+  | 'ModifyBody'
+  | 'ModifyStatus'
+  | 'Delay'
+  | 'Drop'
+
+export type ManipulationPhase = 'Request' | 'Response'
+
+export type ScriptLanguage = 'CSharp' | 'JavaScript'
+
+export type FuzzerStrategy = 'Random' | 'Boundary' | 'BitFlip'
+
+export type FuzzerJobStatus = 'Pending' | 'Running' | 'Completed' | 'Failed' | 'Cancelled'
+
+// ── Manipulation models ──────────────────────────────────────────────────────
+
+export interface ManipulationRule {
+  id: string
+  name: string
+  enabled: boolean
+  priority: number
+  phase: ManipulationPhase
+  action: ManipulationRuleAction
+  hostPattern?: string
+  pathPattern?: string
+  methodPattern?: string
+  headerName?: string
+  headerValue?: string
+  bodyReplace?: string
+  bodyReplaceWith?: string
+  overrideStatusCode?: number
+  delayMs?: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Breakpoint {
+  id: string
+  name: string
+  enabled: boolean
+  language: ScriptLanguage
+  phase: ManipulationPhase
+  hostPattern?: string
+  pathPattern?: string
+  scriptCode: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ReplaySession {
+  id: string
+  captureId: string
+  method: string
+  host: string
+  path: string
+  requestHeaders: string
+  requestBody: string
+  responseStatusCode: number
+  responseHeaders: string
+  responseBody: string
+  durationMs: number
+  createdAt: string
+}
+
+export interface FuzzerJob {
+  id: string
+  captureId: string
+  strategy: FuzzerStrategy
+  status: FuzzerJobStatus
+  mutationCount: number
+  concurrentRequests: number
+  completedRequests: number
+  anomaliesFound: number
+  startedAt?: string
+  completedAt?: string
+  errorMessage?: string
+  createdAt: string
+}
+
+export interface FuzzerResult {
+  id: string
+  fuzzerJobId: string
+  mutationIndex: number
+  mutatedBody: string
+  responseStatusCode: number
+  responseBody: string
+  durationMs: number
+  isAnomaly: boolean
+  anomalyReason?: string
+  createdAt: string
+}
+
+// ── Manipulation request DTOs ────────────────────────────────────────────────
+
+export interface CreateManipulationRuleRequest {
+  name: string
+  enabled?: boolean
+  priority?: number
+  phase?: ManipulationPhase
+  action: ManipulationRuleAction
+  hostPattern?: string
+  pathPattern?: string
+  methodPattern?: string
+  headerName?: string
+  headerValue?: string
+  bodyReplace?: string
+  bodyReplaceWith?: string
+  overrideStatusCode?: number
+  delayMs?: number
+}
+
+export interface UpdateManipulationRuleRequest extends CreateManipulationRuleRequest {
+  id: string
+}
+
+export interface CreateBreakpointRequest {
+  name: string
+  enabled?: boolean
+  language: ScriptLanguage
+  phase?: ManipulationPhase
+  hostPattern?: string
+  pathPattern?: string
+  scriptCode: string
+}
+
+export interface UpdateBreakpointRequest extends CreateBreakpointRequest {
+  id: string
+}
+
+export interface CreateReplayRequest {
+  captureId: string
+  method?: string
+  host?: string
+  path?: string
+  requestHeaders?: string
+  requestBody?: string
+}
+
+export interface StartFuzzerRequest {
+  captureId: string
+  strategy?: FuzzerStrategy
+  mutationCount?: number
+  concurrentRequests?: number
+}
+
 // ── SignalR DTOs ──────────────────────────────────────────────────────────────
 
 /** Trimmed capture event pushed via SignalR — no body content */
