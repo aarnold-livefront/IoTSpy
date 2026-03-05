@@ -91,8 +91,8 @@ README / quick start: [`README.md`](../README.md)
 | 5.1 | `IoTSpy.Manipulation` — AI mock engine (schema learning + LLM response) | ✅ Done |
 | 5.2 | AI provider abstraction: Claude / OpenAI / Ollama | ✅ Done |
 | 5.3 | `IoTSpy.Protocols` — CoAP UDP decoder | ✅ Done |
-| 5.4 | `IoTSpy.Protocols` — Telemetry decoders (Datadog, Firehose, Splunk HEC, Azure Monitor) | Planned |
-| 5.5 | `IoTSpy.Protocols` — Anomaly detection (statistical baseline + alert) | Planned |
+| 5.4 | `IoTSpy.Protocols` — Telemetry decoders (Datadog, Firehose, Splunk HEC, Azure Monitor) | ✅ Done |
+| 5.5 | `IoTSpy.Protocols` — Anomaly detection (statistical baseline + alert) | ✅ Done |
 
 ---
 
