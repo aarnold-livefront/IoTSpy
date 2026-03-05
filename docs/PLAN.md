@@ -66,7 +66,7 @@ README / quick start: [`README.md`](../README.md)
 | 3.4 | `IoTSpy.Scanner` — CVE lookup (NVD / OSV APIs) | ✅ Done |
 | 3.5 | `IoTSpy.Scanner` — Config audit (Telnet, UPnP, anon MQTT, etc.) | ✅ Done |
 | 3.6 | `IoTSpy.Api` — ScannerController | ✅ Done |
-| 3.7 | Frontend — scan results panel | Planned |
+| 3.7 | Frontend — scan results panel | ✅ Done |
 
 ---
 
@@ -80,7 +80,7 @@ README / quick start: [`README.md`](../README.md)
 | 4.4 | `IoTSpy.Manipulation` — Request replay with diff view | ✅ Done |
 | 4.5 | `IoTSpy.Manipulation` — Mutation-based fuzzer | ✅ Done |
 | 4.6 | `IoTSpy.Api` — ManipulationController | ✅ Done |
-| 4.7 | Frontend — rules editor, breakpoint UI, replay panel | Planned |
+| 4.7 | Frontend — rules editor, breakpoint UI, replay panel, fuzzer panel | ✅ Done |
 
 ---
 
@@ -88,9 +88,9 @@ README / quick start: [`README.md`](../README.md)
 
 | # | Task | Status |
 |---|---|---|
-| 5.1 | `IoTSpy.Manipulation` — AI mock engine (schema learning + LLM response) | Planned |
-| 5.2 | AI provider abstraction: Claude / OpenAI / Ollama | Planned |
-| 5.3 | `IoTSpy.Protocols` — CoAP UDP decoder | Planned |
+| 5.1 | `IoTSpy.Manipulation` — AI mock engine (schema learning + LLM response) | ✅ Done |
+| 5.2 | AI provider abstraction: Claude / OpenAI / Ollama | ✅ Done |
+| 5.3 | `IoTSpy.Protocols` — CoAP UDP decoder | ✅ Done |
 | 5.4 | `IoTSpy.Protocols` — Telemetry decoders (Datadog, Firehose, Splunk HEC, Azure Monitor) | Planned |
 | 5.5 | `IoTSpy.Protocols` — Anomaly detection (statistical baseline + alert) | Planned |
 
@@ -124,11 +124,11 @@ The entire Phase 1 backend and frontend are scaffolded and functional:
 
 ### What to do next
 
-Phases 1, 2, and 3 (backend) are complete. Remaining work:
+Phases 1–4 (backend + frontend) and Phase 5 (partial) are complete. Remaining work:
 
-1. **Frontend scan results panel** (Phase 3.7) — UI for triggering scans and viewing results.
-2. **Phase 4** — Active manipulation (rules engine, scripted breakpoints, replay, fuzzer).
-3. **Phase 5** — AI mock engine + advanced protocol decoders.
+1. **Phase 5.4** — Telemetry protocol decoders (Datadog, Firehose, Splunk HEC, Azure Monitor).
+2. **Phase 5.5** — Anomaly detection (statistical baseline + alert).
+3. **Tests** — Unit tests for core services, integration tests for proxy pipeline.
 
 ---
 
@@ -192,7 +192,7 @@ dotnet run --project src/IoTSpy.Api
 
 - The `.claude/` directory in the repo root stores tool permissions and session memory for this project.
 - Project memory is maintained at `~/.claude/projects/C--Users-annag-source-repos-IoTSpy/memory/MEMORY.md`.
-- The `IoTSpy.Protocols`, `IoTSpy.Scanner`, and `IoTSpy.Manipulation` projects are empty stubs — no source files yet, just `.csproj` files with placeholder dependencies.
-- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` (`InitialCreate` applied). Run `dotnet ef migrations add <Name>` from repo root when adding new entities/properties.
+- `IoTSpy.Protocols` has MQTT, DNS/mDNS, and CoAP decoders. `IoTSpy.Scanner` has port scan, fingerprinting, credential testing, CVE lookup, config audit. `IoTSpy.Manipulation` has rules engine, scripted breakpoints (C#/JS), replay, fuzzer, and AI mock engine.
+- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` (`InitialCreate`, `AddPhase2ProxySettings`, `AddPhase3Scanner`, `AddPhase4Manipulation` applied). Run `dotnet ef migrations add <Name>` from repo root when adding new entities/properties.
 - `DateTimeOffset` properties are stored as Unix milliseconds (`long`) via a `ValueConverter` in `IoTSpyDbContext` — required for SQLite `ORDER BY` compatibility.
 - No tests exist yet. Recommended: unit tests for `CertificateAuthority` + integration tests for proxy intercept logic.
