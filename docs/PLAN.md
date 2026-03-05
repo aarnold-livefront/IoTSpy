@@ -122,13 +122,16 @@ The entire Phase 1 backend and frontend are scaffolded and functional:
 - CA download link (no auth required on that endpoint).
 - React Context + `useReducer` for auth state; no Redux.
 
-### What to do next
+### Current status — all phases complete
 
-Phases 1–4 (backend + frontend) and Phase 5 (partial) are complete. Remaining work:
+**All five phases are complete.** The codebase is fully implemented per the plan above.
 
-1. **Phase 5.4** — Telemetry protocol decoders (Datadog, Firehose, Splunk HEC, Azure Monitor).
-2. **Phase 5.5** — Anomaly detection (statistical baseline + alert).
-3. **Tests** — Unit tests for core services, integration tests for proxy pipeline.
+Phase 5 final additions (completed last):
+- Telemetry decoders in `IoTSpy.Protocols/Telemetry/`: `DatadogDecoder`, `FirehoseDecoder`, `SplunkHecDecoder`, `AzureMonitorDecoder` — all implement `IProtocolDecoder<TelemetryMessage>`.
+- Anomaly detection in `IoTSpy.Protocols/Anomaly/`: `AnomalyDetector` using Welford's online algorithm; `IAnomalyDetector` interface and `HostBaseline` model in `IoTSpy.Core`.
+- Tests: `TelemetryDecoderTests` and `AnomalyDetectorTests` in `IoTSpy.Protocols.Tests`.
+
+See `docs/architecture.md` for the full architecture reference.
 
 ---
 
@@ -190,9 +193,8 @@ dotnet run --project src/IoTSpy.Api
 
 ## Notes for Claude Code sessions
 
-- The `.claude/` directory in the repo root stores tool permissions and session memory for this project.
-- Project memory is maintained at `~/.claude/projects/C--Users-annag-source-repos-IoTSpy/memory/MEMORY.md`.
-- `IoTSpy.Protocols` has MQTT, DNS/mDNS, and CoAP decoders. `IoTSpy.Scanner` has port scan, fingerprinting, credential testing, CVE lookup, config audit. `IoTSpy.Manipulation` has rules engine, scripted breakpoints (C#/JS), replay, fuzzer, and AI mock engine.
-- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` (`InitialCreate`, `AddPhase2ProxySettings`, `AddPhase3Scanner`, `AddPhase4Manipulation` applied). Run `dotnet ef migrations add <Name>` from repo root when adding new entities/properties.
+- `IoTSpy.Protocols` has MQTT, DNS/mDNS, CoAP, and four telemetry decoders (Datadog, Firehose, Splunk HEC, Azure Monitor). `IoTSpy.Scanner` has port scan, fingerprinting, credential testing, CVE lookup, config audit. `IoTSpy.Manipulation` has rules engine, scripted breakpoints (C#/JS), replay, fuzzer, and AI mock engine.
+- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` — five migrations applied through `AddPhase4Manipulation`. Run `dotnet ef migrations add <Name> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api` from the repo root when adding new entities or properties.
 - `DateTimeOffset` properties are stored as Unix milliseconds (`long`) via a `ValueConverter` in `IoTSpyDbContext` — required for SQLite `ORDER BY` compatibility.
-- No tests exist yet. Recommended: unit tests for `CertificateAuthority` + integration tests for proxy intercept logic.
+- Three test projects exist: `IoTSpy.Protocols.Tests` (MQTT, DNS, telemetry decoders, anomaly detection), `IoTSpy.Manipulation.Tests` (rules engine, fuzzer), `IoTSpy.Scanner.Tests` (port scanner).
+- The `IAnomalyDetector` / `AnomalyDetector` pair is in Core + Protocols respectively and is not yet wired into the proxy pipeline — it is available for callers to integrate.
