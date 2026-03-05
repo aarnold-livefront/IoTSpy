@@ -1,0 +1,25 @@
+import { apiFetch } from './client'
+import type { ScanJob, StartScanRequest } from '../types/api'
+
+export function startScan(request: StartScanRequest): Promise<ScanJob> {
+  return apiFetch<ScanJob>('/api/scanner/scan', {
+    method: 'POST',
+    body: JSON.stringify(request),
+  })
+}
+
+export function listScanJobs(): Promise<ScanJob[]> {
+  return apiFetch<ScanJob[]>('/api/scanner/jobs')
+}
+
+export function getScanJob(id: string): Promise<ScanJob> {
+  return apiFetch<ScanJob>(`/api/scanner/jobs/${id}`)
+}
+
+export function cancelScanJob(id: string): Promise<void> {
+  return apiFetch<void>(`/api/scanner/jobs/${id}/cancel`, { method: 'POST' })
+}
+
+export function deleteScanJob(id: string): Promise<void> {
+  return apiFetch<void>(`/api/scanner/jobs/${id}`, { method: 'DELETE' })
+}

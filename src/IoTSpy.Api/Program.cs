@@ -78,7 +78,10 @@ builder.Services.AddHostedService(sp => (ProxyService)sp.GetRequiredService<IPro
 builder.Services.AddIoTSpyScanner();
 
 // ── Manipulation ────────────────────────────────────────────────────────────
-builder.Services.AddIoTSpyManipulation();
+var aiConfig = builder.Configuration
+    .GetSection(AiProviderConfig.SectionName)
+    .Get<AiProviderConfig>();
+builder.Services.AddIoTSpyManipulation(aiConfig);
 
 // ── API ──────────────────────────────────────────────────────────────────────
 builder.Services.AddControllers();

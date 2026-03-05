@@ -15,7 +15,8 @@ public class ManipulationController(
     IBreakpointRepository breakpoints,
     IReplaySessionRepository replaySessions,
     IFuzzerJobRepository fuzzerJobs,
-    ICaptureRepository captures) : ControllerBase
+    ICaptureRepository captures,
+    IAiMockService? aiMockService = null) : ControllerBase
 {
     // ── Rules ────────────────────────────────────────────────────────────────
 
@@ -263,6 +264,28 @@ public class ManipulationController(
         await fuzzerJobs.DeleteAsync(id);
         return NoContent();
     }
+
+    // ── AI Mock ──────────────────────────────────────────────────────────────
+
+    [HttpPost("ai-mock/generate")]
+    public async Task<IActionResult> GenerateAiMock([FromBody] AiMockGenerateDto dto)
+    {
+        if (aiMockService is null)
+            return BadRequest("AI mock engine is not configured. Add an AiMock section to configuration.");
+
+        var result = await aiMockService.GenerateResponseAsync(dto.Host, dto.Method, dto.Path, dto.RequestBody ?? string.Empty);
+        return Ok(result);
+    }
+
+    [HttpPost("ai-mock/invalidate/{host}")]
+    public async Task<IActionResult> InvalidateAiMockCache(string host)
+    {
+        if (aiMockService is null)
+            return BadRequest("AI mock engine is not configured. Add an AiMock section to configuration.");
+
+        await aiMockService.InvalidateSchemaCacheAsync(host);
+        return Ok();
+    }
 }
 
 // ── DTOs ─────────────────────────────────────────────────────────────────────
@@ -337,4 +360,11 @@ public record StartFuzzerDto(
     FuzzerStrategy? Strategy = null,
     int? MutationCount = null,
     int? ConcurrentRequests = null
+);
+
+public record AiMockGenerateDto(
+    string Host,
+    string Method,
+    string Path,
+    string? RequestBody = null
 );
