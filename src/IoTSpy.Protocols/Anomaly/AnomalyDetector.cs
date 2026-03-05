@@ -121,15 +121,15 @@ public sealed class AnomalyDetector : IAnomalyDetector
 
             // ── Status code anomaly ──────────────────────────────────────────
             // Alert when an unexpected status class appears (e.g. a 5xx when
-            // the dominant response is 2xx).
+            // the baseline is overwhelmingly 2xx).  We require the dominant code
+            // to hold ≥ 90 % of historical observations before flagging, so that
+            // a genuinely mixed-status baseline doesn't produce false positives.
             var dominant = baseline.DominantStatusCode;
             if (dominant > 0 && statusCode / 100 != dominant / 100)
             {
-                // Only alert if the unexpected code is genuinely rare:
-                // its share is less than 5 % of total observations.
-                baseline.StatusCodeCounts.TryGetValue(statusCode, out var codeCount);
-                var share = (double)codeCount / baseline.SampleCount;
-                if (share < 0.05)
+                baseline.StatusCodeCounts.TryGetValue(dominant, out var dominantCount);
+                var dominantShare = (double)dominantCount / baseline.SampleCount;
+                if (dominantShare >= 0.90)
                 {
                     alerts.Add(new AnomalyAlert
                     {
