@@ -1,3 +1,4 @@
+using Xunit;
 using IoTSpy.Protocols.Mqtt;
 
 namespace IoTSpy.Protocols.Tests;

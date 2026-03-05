@@ -1,3 +1,4 @@
+using Xunit;
 using IoTSpy.Protocols.Dns;
 
 namespace IoTSpy.Protocols.Tests;

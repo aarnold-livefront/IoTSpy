@@ -1,3 +1,4 @@
+using Xunit;
 using IoTSpy.Scanner;
 
 namespace IoTSpy.Scanner.Tests;
