@@ -1,6 +1,7 @@
 using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using IoTSpy.Manipulation.AiMock;
+using IoTSpy.Protocols.OpenRtb;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -17,6 +18,10 @@ public static class ManipulationExtensions
         services.AddSingleton<ReplayService>();
         services.AddSingleton<FuzzerService>();
         services.AddSingleton<IManipulationService, ManipulationService>();
+
+        // ── OpenRTB PII Stripping ────────────────────────────────────────────
+        services.AddSingleton<OpenRtbDecoder>();
+        services.AddSingleton<IOpenRtbService, OpenRtbPiiService>();
 
         services.AddHttpClient("IoTSpyReplay", client =>
         {

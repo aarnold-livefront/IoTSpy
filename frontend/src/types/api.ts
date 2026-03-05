@@ -387,6 +387,87 @@ export interface StartFuzzerRequest {
   concurrentRequests?: number
 }
 
+// ── OpenRTB ──────────────────────────────────────────────────────────────────
+
+export type OpenRtbMessageType = 'BidRequest' | 'BidResponse'
+
+export type PiiRedactionStrategy =
+  | 'Redact'
+  | 'TruncateIp'
+  | 'HashSha256'
+  | 'GeneralizeGeo'
+  | 'GeneralizeUserAgent'
+  | 'Remove'
+
+export interface OpenRtbEvent {
+  id: string
+  capturedRequestId: string
+  version: string
+  messageType: OpenRtbMessageType
+  impressionCount: number
+  bidCount: number
+  hasDeviceInfo: boolean
+  hasUserData: boolean
+  hasGeoData: boolean
+  exchange: string
+  seatBids?: string
+  rawJson: string
+  detectedAt: string
+}
+
+export interface OpenRtbPiiPolicy {
+  id: string
+  enabled: boolean
+  fieldPath: string
+  strategy: PiiRedactionStrategy
+  hostPattern?: string
+  priority: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreatePiiPolicyRequest {
+  fieldPath: string
+  strategy: PiiRedactionStrategy
+  enabled?: boolean
+  hostPattern?: string
+  priority?: number
+}
+
+export interface UpdatePiiPolicyRequest {
+  fieldPath?: string
+  strategy?: PiiRedactionStrategy
+  enabled?: boolean
+  hostPattern?: string
+  priority?: number
+}
+
+export interface PiiStrippingLog {
+  id: string
+  capturedRequestId: string
+  host: string
+  path: string
+  fieldPath: string
+  strategy: PiiRedactionStrategy
+  originalValueHash: string
+  redactedPreview: string
+  phase: string
+  strippedAt: string
+}
+
+export interface PiiAuditStats {
+  totalStripped: number
+  byFieldPath: Record<string, number>
+  byHost: Record<string, number>
+}
+
+export interface PagedResult<T> {
+  items: T[]
+  total: number
+  page: number
+  pageSize: number
+}
+
 // ── SignalR DTOs ──────────────────────────────────────────────────────────────
 
 /** Trimmed capture event pushed via SignalR — no body content */

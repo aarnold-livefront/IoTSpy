@@ -30,6 +30,7 @@ public class TransparentProxyServer(
     ICertificateAuthority ca,
     ICapturePublisher publisher,
     IManipulationService manipulationService,
+    IOpenRtbService openRtbService,
     IServiceScopeFactory scopeFactory,
     ResiliencePipelineProvider<string> connectPipelineProvider,
     ILogger<TransparentProxyServer> logger)
@@ -246,14 +247,27 @@ public class TransparentProxyServer(
             var started = DateTimeOffset.UtcNow;
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
-            // Phase 4: Apply request-phase manipulation rules
+            // Parse request and apply manipulation pipeline
             ParseRequestLine(reqLine, out var method, out var path, out var query);
             var httpMsg = new HttpMessage
             {
                 Method = method, Host = host, Port = port, Path = path, Query = query, Scheme = scheme,
                 RequestLine = reqLine, RequestHeaders = reqHeaders, RequestBody = reqBody
             };
-            var modified = await manipulationService.ApplyAsync(httpMsg, ManipulationPhase.Request, ct);
+
+            // OpenRTB PII stripping (runs before general manipulation rules)
+            var contentType = ExtractHeaderValue(reqHeaders, "Content-Type") ?? "";
+            var modified = false;
+            if (openRtbService.IsOpenRtbRequest(contentType, path, reqBody))
+            {
+                var rtbModified = await openRtbService.ProcessAndStripAsync(httpMsg, ManipulationPhase.Request, ct);
+                if (rtbModified) modified = true;
+            }
+
+            // Phase 4: Apply request-phase manipulation rules
+            var manipModified = await manipulationService.ApplyAsync(httpMsg, ManipulationPhase.Request, ct);
+            if (manipModified) modified = true;
+
             if (modified)
             {
                 reqLine = httpMsg.RequestLine;
@@ -266,7 +280,7 @@ public class TransparentProxyServer(
 
             var (statusLine, respHeaders, respBody) = await ReadHttpMessageAsync(upstreamStream, settings.MaxBodySizeKb, ct);
 
-            // Phase 4: Apply response-phase manipulation rules
+            // Apply response-phase manipulation pipeline
             if (statusLine is not null)
             {
                 ParseStatusLine(statusLine, out var sc, out _);
@@ -274,6 +288,16 @@ public class TransparentProxyServer(
                 httpMsg.StatusCode = sc;
                 httpMsg.ResponseHeaders = respHeaders;
                 httpMsg.ResponseBody = respBody;
+
+                // OpenRTB PII stripping on response
+                var respContentType = ExtractHeaderValue(respHeaders, "Content-Type") ?? "";
+                if (openRtbService.IsOpenRtbRequest(respContentType, path, respBody))
+                {
+                    var rtbRespModified = await openRtbService.ProcessAndStripAsync(httpMsg, ManipulationPhase.Response, ct);
+                    if (rtbRespModified) modified = true;
+                }
+
+                // Phase 4: Apply response-phase manipulation rules
                 var respModified = await manipulationService.ApplyAsync(httpMsg, ManipulationPhase.Response, ct);
                 if (respModified)
                 {
@@ -488,5 +512,15 @@ public class TransparentProxyServer(
         var parts = line.Split(' ', 3);
         code = parts.Length > 1 && int.TryParse(parts[1], out var c) ? c : 0;
         message = parts.Length > 2 ? parts[2] : string.Empty;
+    }
+
+    private static string? ExtractHeaderValue(string headers, string headerName)
+    {
+        foreach (var line in headers.Split("\r\n"))
+        {
+            if (line.StartsWith(headerName + ":", StringComparison.OrdinalIgnoreCase))
+                return line[(headerName.Length + 1)..].Trim();
+        }
+        return null;
     }
 }
