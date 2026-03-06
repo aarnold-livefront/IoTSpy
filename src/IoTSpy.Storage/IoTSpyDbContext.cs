@@ -17,6 +17,9 @@ public class IoTSpyDbContext(DbContextOptions<IoTSpyDbContext> options) : DbCont
     public DbSet<ReplaySession> ReplaySessions => Set<ReplaySession>();
     public DbSet<FuzzerJob> FuzzerJobs => Set<FuzzerJob>();
     public DbSet<FuzzerResult> FuzzerResults => Set<FuzzerResult>();
+    public DbSet<OpenRtbEvent> OpenRtbEvents => Set<OpenRtbEvent>();
+    public DbSet<PiiStrippingLog> PiiStrippingLogs => Set<PiiStrippingLog>();
+    public DbSet<OpenRtbPiiPolicy> OpenRtbPiiPolicies => Set<OpenRtbPiiPolicy>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -119,6 +122,31 @@ public class IoTSpyDbContext(DbContextOptions<IoTSpyDbContext> options) : DbCont
              .WithMany(j => j.Results)
              .HasForeignKey(r => r.FuzzerJobId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<OpenRtbEvent>(e =>
+        {
+            e.HasKey(o => o.Id);
+            e.HasIndex(o => o.CapturedRequestId);
+            e.HasIndex(o => o.DetectedAt);
+            e.HasIndex(o => o.Exchange);
+            e.HasIndex(o => o.MessageType);
+        });
+
+        modelBuilder.Entity<PiiStrippingLog>(e =>
+        {
+            e.HasKey(l => l.Id);
+            e.HasIndex(l => l.CapturedRequestId);
+            e.HasIndex(l => l.StrippedAt);
+            e.HasIndex(l => l.Host);
+            e.HasIndex(l => l.FieldPath);
+        });
+
+        modelBuilder.Entity<OpenRtbPiiPolicy>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.HasIndex(p => p.Enabled);
+            e.HasIndex(p => p.Priority);
         });
 
         // SQLite cannot ORDER BY DateTimeOffset columns; store all as Unix ms (long) so
