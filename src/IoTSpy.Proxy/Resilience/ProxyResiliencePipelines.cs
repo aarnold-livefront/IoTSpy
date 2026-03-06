@@ -36,10 +36,8 @@ public static class ProxyResiliencePipelines
     {
         // Per-host connect pipeline: keyed on the upstream hostname so that a
         // dead IoT cloud endpoint does not trip the circuit breaker for other hosts.
-        services.AddResiliencePipeline<string, TcpClient>(ConnectPipelineKey, (builder, ctx) =>
+        services.AddResiliencePipeline<string>(ConnectPipelineKey, (builder, ctx) =>
         {
-            var host = ctx.PipelineKey;
-
             builder
                 // Inner: hard timeout on the connect attempt itself
                 .AddTimeout(new TimeoutStrategyOptions
@@ -47,23 +45,23 @@ public static class ProxyResiliencePipelines
                     Timeout = TimeSpan.FromSeconds(opts.ConnectTimeoutSeconds)
                 })
                 // Middle: retry with exponential back-off
-                .AddRetry(new RetryStrategyOptions<TcpClient>
+                .AddRetry(new RetryStrategyOptions
                 {
                     MaxRetryAttempts = opts.RetryCount,
                     BackoffType = DelayBackoffType.Exponential,
                     Delay = TimeSpan.FromSeconds(opts.RetryBaseDelaySeconds),
-                    ShouldHandle = new PredicateBuilder<TcpClient>()
+                    ShouldHandle = new PredicateBuilder()
                         .Handle<SocketException>()
                         .Handle<TimeoutRejectedException>()
                 })
-                // Outer: per-host circuit breaker
-                .AddCircuitBreaker(new CircuitBreakerStrategyOptions<TcpClient>
+                // Outer: circuit breaker
+                .AddCircuitBreaker(new CircuitBreakerStrategyOptions
                 {
                     FailureRatio = opts.CircuitBreakerFailureRatio,
                     SamplingDuration = TimeSpan.FromSeconds(opts.CircuitBreakerSamplingSeconds),
                     BreakDuration = TimeSpan.FromSeconds(opts.CircuitBreakerBreakSeconds),
                     MinimumThroughput = 3,
-                    ShouldHandle = new PredicateBuilder<TcpClient>()
+                    ShouldHandle = new PredicateBuilder()
                         .Handle<SocketException>()
                         .Handle<TimeoutRejectedException>()
                 });

@@ -24,6 +24,7 @@ public class CertificateAuthority(
     private CertificateEntry? _cachedRootCa;
     private AsymmetricCipherKeyPair? _cachedRootKeyPair;
     private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, CertificateEntry> _hostCertCache = new();
 
     public async Task<CertificateEntry> GetOrCreateRootCaAsync(CancellationToken ct = default)
     {
@@ -58,16 +59,25 @@ public class CertificateAuthority(
 
     public async Task<CertificateEntry> GetOrCreateHostCertificateAsync(string hostname, CancellationToken ct = default)
     {
+        var expiry = DateTimeOffset.UtcNow.AddDays(1);
+        if (_hostCertCache.TryGetValue(hostname, out var cached) && cached.NotAfter > expiry)
+            return cached;
+
         using var scope = scopeFactory.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<ICertificateRepository>();
 
         var existing = await repository.GetByHostnameAsync(hostname, ct);
-        if (existing is not null && existing.NotAfter > DateTimeOffset.UtcNow.AddDays(1))
+        if (existing is not null && existing.NotAfter > expiry)
+        {
+            _hostCertCache[hostname] = existing;
             return existing;
+        }
 
         var rootCa = await GetOrCreateRootCaAsync(ct);
         var entry = GenerateHostCertificate(hostname, rootCa);
-        return await repository.SaveAsync(entry, ct);
+        var saved = await repository.SaveAsync(entry, ct);
+        _hostCertCache[hostname] = saved;
+        return saved;
     }
 
     public async Task<byte[]> ExportRootCaDerAsync(CancellationToken ct = default)
@@ -140,6 +150,13 @@ public class CertificateAuthority(
         // Subject Alternative Names
         var sanList = new GeneralNames(new GeneralName(GeneralName.DnsName, hostname));
         gen.AddExtension(X509Extensions.SubjectAlternativeName, false, sanList);
+
+        // Authority Key Identifier — required by iOS to build the trust chain to the root CA
+        gen.AddExtension(X509Extensions.AuthorityKeyIdentifier, false,
+            X509ExtensionUtilities.CreateAuthorityKeyIdentifier(caCert));
+
+        gen.AddExtension(X509Extensions.SubjectKeyIdentifier, false,
+            X509ExtensionUtilities.CreateSubjectKeyIdentifier(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keyPair.Public)));
 
         var signer = new Asn1SignatureFactory("SHA256WithRSA", caKeyPair.Private, SecureRandom);
         var cert = gen.Generate(signer);

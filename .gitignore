@@ -491,3 +491,4 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+.claude/

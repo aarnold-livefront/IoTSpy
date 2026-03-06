@@ -8,7 +8,7 @@ public class ProxySettingsRepository(IoTSpyDbContext db) : IProxySettingsReposit
 {
     public async Task<ProxySettings> GetAsync(CancellationToken ct = default)
     {
-        var settings = await db.ProxySettings.FirstOrDefaultAsync(ct);
+        var settings = await db.ProxySettings.OrderBy(p => p.Id).FirstOrDefaultAsync(ct);
         if (settings is not null) return settings;
 
         // First-run defaults
@@ -20,7 +20,7 @@ public class ProxySettingsRepository(IoTSpyDbContext db) : IProxySettingsReposit
 
     public async Task<ProxySettings> SaveAsync(ProxySettings settings, CancellationToken ct = default)
     {
-        var existing = await db.ProxySettings.FirstOrDefaultAsync(ct);
+        var existing = await db.ProxySettings.OrderBy(p => p.Id).FirstOrDefaultAsync(ct);
         if (existing is null)
         {
             db.ProxySettings.Add(settings);

@@ -12,7 +12,7 @@ public class ProxySettings
     public bool CaptureRequestBodies { get; set; } = true;
     public bool CaptureResponseBodies { get; set; } = true;
     public int MaxBodySizeKb { get; set; } = 1024;
-    public string ListenAddress { get; set; } = "127.0.0.1";
+    public string ListenAddress { get; set; } = "0.0.0.0";
     public string PasswordHash { get; set; } = string.Empty;
 
     // ── GatewayRedirect mode ─────────────────────────────────────────────

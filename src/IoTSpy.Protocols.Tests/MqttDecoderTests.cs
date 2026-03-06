@@ -44,7 +44,7 @@ public class MqttDecoderTests
         // PINGREQ: fixed header 0xC0 (type=12, flags=0), remaining=0
         byte[] data = [0xC0, 0x00];
 
-        var messages = await _decoder.DecodeAsync(data);
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
 
         Assert.Single(messages);
         Assert.Equal(MqttPacketType.PingReq, messages[0].PacketType);
@@ -57,7 +57,7 @@ public class MqttDecoderTests
         // PINGRESP: 0xD0 (type=13)
         byte[] data = [0xD0, 0x00];
 
-        var messages = await _decoder.DecodeAsync(data);
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
 
         Assert.Single(messages);
         Assert.Equal(MqttPacketType.PingResp, messages[0].PacketType);
@@ -83,7 +83,7 @@ public class MqttDecoderTests
             0x74, 0x65, 0x73, 0x74, 0x63, 0x6C, 0x69, 0x64 // "testclid"
         ];
 
-        var messages = await _decoder.DecodeAsync(data);
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
 
         Assert.Single(messages);
         var msg = messages[0];
@@ -114,7 +114,7 @@ public class MqttDecoderTests
             0x00, 0x05, (byte)'a', (byte)'d', (byte)'m', (byte)'i', (byte)'n' // username="admin"
         ];
 
-        var messages = await _decoder.DecodeAsync(data);
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
 
         Assert.Single(messages);
         Assert.Equal("admin", messages[0].Username);
@@ -136,7 +136,7 @@ public class MqttDecoderTests
             (byte)'h', (byte)'e', (byte)'l', (byte)'l', (byte)'o'
         ];
 
-        var messages = await _decoder.DecodeAsync(data);
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
 
         Assert.Single(messages);
         var msg = messages[0];
@@ -161,7 +161,7 @@ public class MqttDecoderTests
             (byte)'h', (byte)'e', (byte)'l', (byte)'l', (byte)'o'
         ];
 
-        var messages = await _decoder.DecodeAsync(data);
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
 
         Assert.Single(messages);
         var msg = messages[0];
@@ -182,7 +182,7 @@ public class MqttDecoderTests
             (byte)'!'
         ];
 
-        var messages = await _decoder.DecodeAsync(data);
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
 
         Assert.Single(messages);
         Assert.True(messages[0].Retain);
@@ -196,7 +196,7 @@ public class MqttDecoderTests
         // CONNACK: 0x20, remaining=2, ackFlags=0x00, returnCode=0x00 (accepted)
         byte[] data = [0x20, 0x02, 0x00, 0x00];
 
-        var messages = await _decoder.DecodeAsync(data);
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
 
         Assert.Single(messages);
         var msg = messages[0];
@@ -211,7 +211,7 @@ public class MqttDecoderTests
         // CONNACK with sessionPresent=1: ackFlags=0x01
         byte[] data = [0x20, 0x02, 0x01, 0x00];
 
-        var messages = await _decoder.DecodeAsync(data);
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
 
         Assert.Single(messages);
         Assert.True(messages[0].SessionPresent);
@@ -231,7 +231,7 @@ public class MqttDecoderTests
             0x01  // QoS=1
         ];
 
-        var messages = await _decoder.DecodeAsync(data);
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
 
         Assert.Single(messages);
         var msg = messages[0];
@@ -250,7 +250,7 @@ public class MqttDecoderTests
         // DISCONNECT: 0xE0, remaining=0
         byte[] data = [0xE0, 0x00];
 
-        var messages = await _decoder.DecodeAsync(data);
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
 
         Assert.Single(messages);
         Assert.Equal(MqttPacketType.Disconnect, messages[0].PacketType);
@@ -264,7 +264,7 @@ public class MqttDecoderTests
         // PINGREQ followed by PINGRESP
         byte[] data = [0xC0, 0x00, 0xD0, 0x00];
 
-        var messages = await _decoder.DecodeAsync(data);
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
 
         Assert.Equal(2, messages.Count);
         Assert.Equal(MqttPacketType.PingReq, messages[0].PacketType);
@@ -279,7 +279,7 @@ public class MqttDecoderTests
         // CONNECT says remaining=20 but only 2 bytes of payload
         byte[] data = [0x10, 0x14, 0x00, 0x04];
 
-        var messages = await _decoder.DecodeAsync(data);
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
 
         Assert.Empty(messages);
     }
@@ -287,7 +287,7 @@ public class MqttDecoderTests
     [Fact]
     public async Task DecodeAsync_EmptyBuffer_ReturnsEmpty()
     {
-        var messages = await _decoder.DecodeAsync(Array.Empty<byte>());
+        var messages = await _decoder.DecodeAsync(Array.Empty<byte>(), TestContext.Current.CancellationToken);
 
         Assert.Empty(messages);
     }

@@ -179,7 +179,7 @@ public class DnsDecoderTests
     {
         var data = BuildDnsQuery("test.com");
 
-        var messages = await _decoder.DecodeAsync(data);
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
 
         Assert.Single(messages);
         Assert.Equal("test.com", messages[0].Questions[0].Name);
@@ -189,7 +189,7 @@ public class DnsDecoderTests
     public async Task DecodeAsync_InvalidData_ReturnsEmpty()
     {
         // Only 5 bytes — too short to be a DNS message
-        var messages = await _decoder.DecodeAsync(new byte[] { 0x00, 0x01, 0x00, 0x00, 0x00 });
+        var messages = await _decoder.DecodeAsync(new byte[] { 0x00, 0x01, 0x00, 0x00, 0x00 }, TestContext.Current.CancellationToken);
 
         Assert.Empty(messages);
     }

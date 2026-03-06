@@ -95,7 +95,7 @@ public class OpenRtbDecoderTests
     [Fact]
     public async Task DecodeAsync_BidRequest_ExtractsImpressions()
     {
-        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(SampleBidRequest));
+        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(SampleBidRequest), TestContext.Current.CancellationToken);
         Assert.Single(messages);
         var msg = messages[0];
         Assert.Equal(OpenRtbMessageType.BidRequest, msg.MessageType);
@@ -111,7 +111,7 @@ public class OpenRtbDecoderTests
     [Fact]
     public async Task DecodeAsync_BidRequest_ExtractsDeviceInfo()
     {
-        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(SampleBidRequest));
+        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(SampleBidRequest), TestContext.Current.CancellationToken);
         var device = messages[0].Device;
         Assert.NotNull(device);
         Assert.Equal("192.168.1.42", device.Ip);
@@ -128,7 +128,7 @@ public class OpenRtbDecoderTests
     [Fact]
     public async Task DecodeAsync_BidRequest_ExtractsUserInfo()
     {
-        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(SampleBidRequest));
+        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(SampleBidRequest), TestContext.Current.CancellationToken);
         var user = messages[0].User;
         Assert.NotNull(user);
         Assert.Equal("user-abc", user.Id);
@@ -140,7 +140,7 @@ public class OpenRtbDecoderTests
     [Fact]
     public async Task DecodeAsync_BidRequest_DetectsPiiFields()
     {
-        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(SampleBidRequest));
+        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(SampleBidRequest), TestContext.Current.CancellationToken);
         var pii = messages[0].PiiFieldsDetected;
         Assert.Contains("device.ip", pii);
         Assert.Contains("device.ipv6", pii);
@@ -159,7 +159,7 @@ public class OpenRtbDecoderTests
     [Fact]
     public async Task DecodeAsync_BidRequest_ExtractsPublisher()
     {
-        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(SampleBidRequest));
+        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(SampleBidRequest), TestContext.Current.CancellationToken);
         var pub = messages[0].Publisher;
         Assert.NotNull(pub);
         Assert.Equal("example.com", pub.Domain);
@@ -170,7 +170,7 @@ public class OpenRtbDecoderTests
     [Fact]
     public async Task DecodeAsync_BidResponse_ExtractsBids()
     {
-        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(SampleBidResponse));
+        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(SampleBidResponse), TestContext.Current.CancellationToken);
         Assert.Single(messages);
         var msg = messages[0];
         Assert.Equal(OpenRtbMessageType.BidResponse, msg.MessageType);
@@ -184,7 +184,7 @@ public class OpenRtbDecoderTests
     [Fact]
     public async Task DecodeAsync_MalformedJson_ReturnsEmpty()
     {
-        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes("{invalid json"));
+        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes("{invalid json"), TestContext.Current.CancellationToken);
         Assert.Empty(messages);
     }
 
@@ -193,7 +193,7 @@ public class OpenRtbDecoderTests
     {
         // Create a large JSON payload > 8192 bytes
         var bigJson = """{"id":"test","imp":[{"id":"1"}],"extra":""" + "\"" + new string('x', 10000) + "\"}";
-        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(bigJson));
+        var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(bigJson), TestContext.Current.CancellationToken);
         Assert.Single(messages);
         Assert.True(messages[0].RawJson.Length <= 8192);
     }

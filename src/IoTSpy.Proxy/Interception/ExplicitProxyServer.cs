@@ -108,6 +108,11 @@ public class ExplicitProxyServer(
                 logger.LogWarning("Upstream connection timed out: {Message}", ex.Message);
                 await TrySend503Async(client);
             }
+            catch (IOException) when (!ct.IsCancellationRequested)
+            {
+                // Expected: client closed connection mid-handshake (connectivity probe, untrusted CA, etc.)
+                logger.LogTrace("Client disconnected before TLS handshake completed");
+            }
             catch (Exception ex) when (!ct.IsCancellationRequested)
             {
                 logger.LogDebug(ex, "Client handler error");
@@ -143,7 +148,7 @@ public class ExplicitProxyServer(
         {
             // Passthrough without interception — resilient connect
             var upstream = new TcpClient();
-            var connectPipeline = connectPipelineProvider.GetPipeline(host);
+            var connectPipeline = connectPipelineProvider.GetPipeline(ProxyResiliencePipelines.ConnectPipelineKey);
             await connectPipeline.ExecuteAsync(async token =>
             {
                 await upstream.ConnectAsync(host, port, token);
@@ -173,7 +178,7 @@ public class ExplicitProxyServer(
 
         // Resilient connect to upstream
         var upstreamTcp = new TcpClient();
-        var mitmConnectPipeline = connectPipelineProvider.GetPipeline(host);
+        var mitmConnectPipeline = connectPipelineProvider.GetPipeline(ProxyResiliencePipelines.ConnectPipelineKey);
         await mitmConnectPipeline.ExecuteAsync(async token =>
         {
             await upstreamTcp.ConnectAsync(host, port, token);
@@ -226,7 +231,7 @@ public class ExplicitProxyServer(
 
         // Resilient connect to upstream
         var upstreamTcp = new TcpClient();
-        var connectPipeline = connectPipelineProvider.GetPipeline(host);
+        var connectPipeline = connectPipelineProvider.GetPipeline(ProxyResiliencePipelines.ConnectPipelineKey);
         await connectPipeline.ExecuteAsync(async token =>
         {
             await upstreamTcp.ConnectAsync(host, port, token);
@@ -260,7 +265,7 @@ public class ExplicitProxyServer(
         while (!ct.IsCancellationRequested)
         {
             // Read request from client
-            var (reqLine, reqHeaders, reqBody) = await ReadHttpMessageAsync(clientStream, settings.MaxBodySizeKb, ct);
+            var (reqLine, reqHeaders, reqBody, reqBodyBytes) = await ReadHttpMessageAsync(clientStream, settings.MaxBodySizeKb, ct);
             if (reqLine is null) break;
 
             var started = DateTimeOffset.UtcNow;
@@ -291,14 +296,16 @@ public class ExplicitProxyServer(
                 reqLine = httpMsg.RequestLine;
                 reqHeaders = httpMsg.RequestHeaders;
                 reqBody = httpMsg.RequestBody;
+                reqBodyBytes = Encoding.UTF8.GetBytes(reqBody);
+                reqHeaders = UpdateContentLength(reqHeaders, reqBodyBytes.Length);
             }
 
             // Forward to upstream (skip if Drop action cleared the request line)
             if (!string.IsNullOrEmpty(reqLine))
-                await WriteHttpMessageAsync(upstreamStream, reqLine, reqHeaders, reqBody, ct);
+                await WriteHttpMessageAsync(upstreamStream, reqLine, reqHeaders, reqBodyBytes, ct);
 
             // Read response from upstream
-            var (statusLine, respHeaders, respBody) = await ReadHttpMessageAsync(upstreamStream, settings.MaxBodySizeKb, ct);
+            var (statusLine, respHeaders, respBody, respBodyBytes) = await ReadHttpMessageAsync(upstreamStream, settings.MaxBodySizeKb, ct);
 
             // Apply response-phase manipulation pipeline
             if (statusLine is not null)
@@ -325,6 +332,8 @@ public class ExplicitProxyServer(
                     statusLine = httpMsg.StatusLine;
                     respHeaders = httpMsg.ResponseHeaders;
                     respBody = httpMsg.ResponseBody;
+                    respBodyBytes = Encoding.UTF8.GetBytes(respBody);
+                    respHeaders = UpdateContentLength(respHeaders, respBodyBytes.Length);
                 }
             }
 
@@ -332,7 +341,7 @@ public class ExplicitProxyServer(
 
             // Forward response to client
             if (statusLine is not null)
-                await WriteHttpMessageAsync(clientStream, statusLine, respHeaders, respBody, ct);
+                await WriteHttpMessageAsync(clientStream, statusLine, respHeaders, respBodyBytes, ct);
 
             // Parse and record
             ParseRequestLine(reqLine ?? "", out method, out path, out query);
@@ -350,12 +359,12 @@ public class ExplicitProxyServer(
                 Query = query,
                 RequestHeaders = reqHeaders,
                 RequestBody = settings.CaptureRequestBodies ? reqBody : string.Empty,
-                RequestBodySize = Encoding.UTF8.GetByteCount(reqBody),
+                RequestBodySize = reqBodyBytes.Length,
                 StatusCode = statusCode,
                 StatusMessage = statusMsg,
                 ResponseHeaders = respHeaders,
                 ResponseBody = settings.CaptureResponseBodies ? respBody : string.Empty,
-                ResponseBodySize = Encoding.UTF8.GetByteCount(respBody),
+                ResponseBodySize = respBodyBytes.Length,
                 IsTls = scheme == "https",
                 TlsVersion = tlsVersion,
                 TlsCipherSuite = tlsCipher,
@@ -399,7 +408,7 @@ public class ExplicitProxyServer(
         return await devices.UpsertByIpAsync(device, ct);
     }
 
-    private static async Task<(string? firstLine, string headers, string body)> ReadHttpMessageAsync(
+    private static async Task<(string? firstLine, string headers, string body, byte[] bodyBytes)> ReadHttpMessageAsync(
         Stream stream, int maxBodyKb, CancellationToken ct)
     {
         string? firstLine = null;
@@ -411,7 +420,7 @@ public class ExplicitProxyServer(
         while (true)
         {
             var line = await ReadLineAsync(stream, ct);
-            if (line is null) return (null, "", "");
+            if (line is null) return (null, "", "", []);
             if (firstLine is null) { firstLine = line; continue; }
             if (string.IsNullOrEmpty(line)) break;
             headerLines.Add(line);
@@ -422,15 +431,16 @@ public class ExplicitProxyServer(
         }
 
         var headers = string.Join("\r\n", headerLines);
+        byte[] bodyBytes = [];
         var body = string.Empty;
 
         if (contentLength > 0)
         {
             var maxBytes = maxBodyKb * 1024;
             var readLen = Math.Min(contentLength, maxBytes);
-            var buf = new byte[readLen];
-            await stream.ReadExactlyAsync(buf, ct);
-            body = Encoding.UTF8.GetString(buf);
+            bodyBytes = new byte[readLen];
+            await stream.ReadExactlyAsync(bodyBytes, ct);
+            body = Encoding.UTF8.GetString(bodyBytes);
             // Drain remainder if we truncated
             if (contentLength > maxBytes)
             {
@@ -440,14 +450,27 @@ public class ExplicitProxyServer(
         }
         else if (chunked)
         {
-            body = await ReadChunkedBodyAsync(stream, maxBodyKb * 1024, ct);
+            (bodyBytes, body) = await ReadChunkedBodyAsync(stream, maxBodyKb * 1024, ct);
         }
 
-        return (firstLine, headers, body);
+        // Normalize headers: replace Transfer-Encoding and Content-Length to match actual body bytes
+        if (chunked || (contentLength > 0 && bodyBytes.Length != contentLength))
+        {
+            var fixedLines = headerLines
+                .Where(l => !l.StartsWith("Transfer-Encoding:", StringComparison.OrdinalIgnoreCase)
+                         && !l.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+            if (bodyBytes.Length > 0)
+                fixedLines.Add($"Content-Length: {bodyBytes.Length}");
+            headers = string.Join("\r\n", fixedLines);
+        }
+
+        return (firstLine, headers, body, bodyBytes);
     }
 
-    private static async Task<string> ReadChunkedBodyAsync(Stream stream, int maxBytes, CancellationToken ct)
+    private static async Task<(byte[] bytes, string text)> ReadChunkedBodyAsync(Stream stream, int maxBytes, CancellationToken ct)
     {
+        var rawList = new List<byte>();
         var sb = new StringBuilder();
         while (true)
         {
@@ -462,21 +485,36 @@ public class ExplicitProxyServer(
             var buf = new byte[chunkSize];
             await stream.ReadExactlyAsync(buf, ct);
             await ReadLineAsync(stream, ct); // CRLF after chunk
-            if (sb.Length < maxBytes)
-                sb.Append(Encoding.UTF8.GetString(buf));
+            if (rawList.Count < maxBytes)
+            {
+                var take = Math.Min(chunkSize, maxBytes - rawList.Count);
+                rawList.AddRange(buf.AsSpan(0, take));
+                sb.Append(Encoding.UTF8.GetString(buf, 0, take));
+            }
         }
-        return sb.ToString();
+        return (rawList.ToArray(), sb.ToString());
     }
 
     private static async Task WriteHttpMessageAsync(
-        Stream stream, string firstLine, string headers, string body, CancellationToken ct)
+        Stream stream, string firstLine, string headers, byte[] bodyBytes, CancellationToken ct)
     {
-        var sb = new StringBuilder();
-        sb.AppendLine(firstLine);
-        if (!string.IsNullOrEmpty(headers)) sb.AppendLine(headers);
-        sb.AppendLine();
-        if (!string.IsNullOrEmpty(body)) sb.Append(body);
-        await stream.WriteAsync(Encoding.UTF8.GetBytes(sb.ToString()), ct);
+        var head = new StringBuilder();
+        head.Append(firstLine).Append("\r\n");
+        if (!string.IsNullOrEmpty(headers)) head.Append(headers).Append("\r\n");
+        head.Append("\r\n");
+        await stream.WriteAsync(Encoding.UTF8.GetBytes(head.ToString()), ct);
+        if (bodyBytes.Length > 0)
+            await stream.WriteAsync(bodyBytes, ct);
+    }
+
+    private static string UpdateContentLength(string headers, int byteCount)
+    {
+        var lines = headers.Split("\r\n")
+            .Where(l => !string.IsNullOrEmpty(l) && !l.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (byteCount > 0)
+            lines.Add($"Content-Length: {byteCount}");
+        return string.Join("\r\n", lines);
     }
 
     private static async Task<string?> ReadLineAsync(Stream stream, CancellationToken ct)
@@ -522,6 +560,9 @@ public class ExplicitProxyServer(
 
     private static X509Certificate2 BuildX509(CertificateEntry entry)
     {
-        return X509Certificate2.CreateFromPem(entry.CertificatePem, entry.PrivateKeyPem);
+        // CreateFromPem produces an ephemeral key that Windows SChannel cannot use.
+        // Round-tripping through PFX gives a persistent key handle on all platforms.
+        using var ephemeral = X509Certificate2.CreateFromPem(entry.CertificatePem, entry.PrivateKeyPem);
+        return X509CertificateLoader.LoadPkcs12(ephemeral.Export(X509ContentType.Pfx), null);
     }
 }

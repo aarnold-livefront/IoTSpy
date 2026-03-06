@@ -57,4 +57,15 @@ public class CertificatesController(
         await certs.DeleteAsync(id);
         return NoContent();
     }
+
+    /// <summary>Deletes all leaf (non-CA) certificates so they are regenerated on next use.</summary>
+    [HttpDelete("purge-leaf-certs")]
+    public async Task<IActionResult> PurgeLeafCerts()
+    {
+        var all = await certs.GetAllAsync();
+        var leafCerts = all.Where(c => !c.IsRootCa).ToList();
+        foreach (var cert in leafCerts)
+            await certs.DeleteAsync(cert.Id);
+        return Ok(new { deleted = leafCerts.Count });
+    }
 }

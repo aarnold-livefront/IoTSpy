@@ -40,7 +40,7 @@ public class RulesEngineTests
         var engine = CreateEngine();
         var msg = MakeRequest();
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, []);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [], TestContext.Current.CancellationToken);
 
         Assert.False(modified);
     }
@@ -56,7 +56,7 @@ public class RulesEngineTests
             Action = ManipulationRuleAction.Drop
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule], TestContext.Current.CancellationToken);
 
         Assert.False(modified);
     }
@@ -73,7 +73,7 @@ public class RulesEngineTests
             Action = ManipulationRuleAction.Drop
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule], TestContext.Current.CancellationToken);
 
         Assert.False(modified);
     }
@@ -90,7 +90,7 @@ public class RulesEngineTests
             Action = ManipulationRuleAction.Drop
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule], TestContext.Current.CancellationToken);
 
         Assert.True(modified);
     }
@@ -107,7 +107,7 @@ public class RulesEngineTests
             Action = ManipulationRuleAction.Drop
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule], TestContext.Current.CancellationToken);
 
         Assert.False(modified);
     }
@@ -124,7 +124,7 @@ public class RulesEngineTests
             Action = ManipulationRuleAction.Drop
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule], TestContext.Current.CancellationToken);
 
         Assert.False(modified);
     }
@@ -143,7 +143,7 @@ public class RulesEngineTests
             Action = ManipulationRuleAction.Drop
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule], TestContext.Current.CancellationToken);
 
         Assert.True(modified);
     }
@@ -164,7 +164,7 @@ public class RulesEngineTests
             HeaderValue = "test-value"
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule], TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Contains("X-Injected: test-value", msg.RequestHeaders);
@@ -184,7 +184,7 @@ public class RulesEngineTests
             HeaderValue = "new-value"
         };
 
-        await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule]);
+        await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule], TestContext.Current.CancellationToken);
 
         Assert.Contains("X-Custom: new-value", msg.RequestHeaders);
         Assert.DoesNotContain("old-value", msg.RequestHeaders);
@@ -204,7 +204,7 @@ public class RulesEngineTests
             HeaderValue = null // null = remove
         };
 
-        await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule]);
+        await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule], TestContext.Current.CancellationToken);
 
         Assert.DoesNotContain("X-Remove-Me", msg.RequestHeaders);
     }
@@ -223,7 +223,7 @@ public class RulesEngineTests
             HeaderValue = "no-sniff"
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Response, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Response, [rule], TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Contains("X-Security: no-sniff", msg.ResponseHeaders);
@@ -245,7 +245,7 @@ public class RulesEngineTests
             BodyReplaceWith = "REDACTED"
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule], TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Equal("secret-REDACTED", msg.RequestBody);
@@ -265,7 +265,7 @@ public class RulesEngineTests
             BodyReplaceWith = "replacement"
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule], TestContext.Current.CancellationToken);
 
         Assert.False(modified);
         Assert.Equal("hello world", msg.RequestBody);
@@ -284,7 +284,7 @@ public class RulesEngineTests
             BodyReplaceWith = "false"
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Response, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Response, [rule], TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Equal("{\"debug\":false}", msg.ResponseBody);
@@ -304,7 +304,7 @@ public class RulesEngineTests
             OverrideStatusCode = 403
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Response, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Response, [rule], TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Equal(403, msg.StatusCode);
@@ -324,7 +324,7 @@ public class RulesEngineTests
             OverrideStatusCode = 500
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule], TestContext.Current.CancellationToken);
 
         Assert.False(modified);
     }
@@ -344,7 +344,7 @@ public class RulesEngineTests
             Action = ManipulationRuleAction.Drop
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule], TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Equal(string.Empty, msg.RequestBody);
@@ -362,7 +362,7 @@ public class RulesEngineTests
             Action = ManipulationRuleAction.Drop
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Response, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Response, [rule], TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Equal(string.Empty, msg.ResponseBody);
@@ -385,7 +385,7 @@ public class RulesEngineTests
             DelayMs = 1 // 1ms delay to keep test fast
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule]);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, [rule], TestContext.Current.CancellationToken);
 
         Assert.False(modified);
         Assert.Equal("unchanged", msg.RequestBody);
@@ -419,7 +419,7 @@ public class RulesEngineTests
             }
         };
 
-        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, rules);
+        var modified = await engine.ApplyRulesAsync(msg, ManipulationPhase.Request, rules, TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Contains("X-Trace: 1", msg.RequestHeaders);

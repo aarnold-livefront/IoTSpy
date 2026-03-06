@@ -56,7 +56,7 @@ public class TelemetryDecoderTests
                 }
                 """;
 
-            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json));
+            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json), TestContext.Current.CancellationToken);
 
             Assert.Single(messages);
             var msg = messages[0];
@@ -82,7 +82,7 @@ public class TelemetryDecoderTests
                 }
                 """;
 
-            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json));
+            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json), TestContext.Current.CancellationToken);
 
             Assert.Single(messages);
             Assert.Equal(3, messages[0].EventCount);
@@ -104,7 +104,7 @@ public class TelemetryDecoderTests
                 }
                 """;
 
-            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json));
+            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json), TestContext.Current.CancellationToken);
 
             Assert.Single(messages);
             var msg = messages[0];
@@ -117,14 +117,14 @@ public class TelemetryDecoderTests
         [Fact]
         public async Task DecodeAsync_MalformedJson_ReturnsEmpty()
         {
-            var messages = await _decoder.DecodeAsync("not json at all"u8.ToArray());
+            var messages = await _decoder.DecodeAsync("not json at all"u8.ToArray(), TestContext.Current.CancellationToken);
             Assert.Empty(messages);
         }
 
         [Fact]
         public async Task DecodeAsync_EmptyBody_ReturnsEmpty()
         {
-            var messages = await _decoder.DecodeAsync(""u8.ToArray());
+            var messages = await _decoder.DecodeAsync(""u8.ToArray(), TestContext.Current.CancellationToken);
             Assert.Empty(messages);
         }
     }
@@ -164,7 +164,7 @@ public class TelemetryDecoderTests
                 }
                 """;
 
-            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json));
+            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json), TestContext.Current.CancellationToken);
 
             Assert.Single(messages);
             var msg = messages[0];
@@ -186,7 +186,7 @@ public class TelemetryDecoderTests
                 }
                 """;
 
-            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json));
+            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json), TestContext.Current.CancellationToken);
 
             Assert.Single(messages);
             Assert.Equal(TelemetryProtocol.AwsFirehose, messages[0].Protocol);
@@ -207,7 +207,7 @@ public class TelemetryDecoderTests
                 }
                 """;
 
-            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json));
+            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json), TestContext.Current.CancellationToken);
 
             Assert.Single(messages);
             Assert.Equal(2, messages[0].EventCount);
@@ -216,7 +216,7 @@ public class TelemetryDecoderTests
         [Fact]
         public async Task DecodeAsync_MalformedJson_ReturnsEmpty()
         {
-            var messages = await _decoder.DecodeAsync("{bad json"u8.ToArray());
+            var messages = await _decoder.DecodeAsync("{bad json"u8.ToArray(), TestContext.Current.CancellationToken);
             Assert.Empty(messages);
         }
     }
@@ -255,7 +255,7 @@ public class TelemetryDecoderTests
                 {"time":1700000000.123,"host":"splunk-host","source":"/var/log/app","sourcetype":"json","event":{"level":"ERROR","message":"disk full","code":500}}
                 """;
 
-            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json));
+            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json), TestContext.Current.CancellationToken);
 
             Assert.Single(messages);
             var msg = messages[0];
@@ -275,7 +275,7 @@ public class TelemetryDecoderTests
                 """{"time":1700000003.0,"host":"h1","event":"event three"}"""
             );
 
-            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(batch));
+            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(batch), TestContext.Current.CancellationToken);
 
             Assert.Single(messages);
             Assert.Equal(3, messages[0].EventCount);
@@ -287,7 +287,7 @@ public class TelemetryDecoderTests
         {
             var json = """{"host":"h1","sourcetype":"plain","event":"a plain text log line"}""";
 
-            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json));
+            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json), TestContext.Current.CancellationToken);
 
             Assert.Single(messages);
             Assert.Equal("a plain text log line", messages[0].Events[0]["event"]);
@@ -298,7 +298,7 @@ public class TelemetryDecoderTests
         {
             var batch = "not json\n{\"host\":\"h1\",\"event\":\"ok\",\"sourcetype\":\"t\"}";
 
-            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(batch));
+            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(batch), TestContext.Current.CancellationToken);
 
             // Second line is valid
             Assert.Single(messages);
@@ -308,7 +308,7 @@ public class TelemetryDecoderTests
         [Fact]
         public async Task DecodeAsync_EmptyBody_ReturnsEmpty()
         {
-            var messages = await _decoder.DecodeAsync(""u8.ToArray());
+            var messages = await _decoder.DecodeAsync(""u8.ToArray(), TestContext.Current.CancellationToken);
             Assert.Empty(messages);
         }
     }
@@ -360,7 +360,7 @@ public class TelemetryDecoderTests
                 ]
                 """;
 
-            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json));
+            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json), TestContext.Current.CancellationToken);
 
             Assert.Single(messages);
             var msg = messages[0];
@@ -387,7 +387,7 @@ public class TelemetryDecoderTests
                 }
                 """;
 
-            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json));
+            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json), TestContext.Current.CancellationToken);
 
             Assert.Single(messages);
             var msg = messages[0];
@@ -404,7 +404,7 @@ public class TelemetryDecoderTests
         {
             var json = """{"TimeGenerated":"2023-11-14T12:00:00Z","Level":"Warning","Message":"disk usage high"}""";
 
-            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json));
+            var messages = await _decoder.DecodeAsync(Encoding.UTF8.GetBytes(json), TestContext.Current.CancellationToken);
 
             Assert.Single(messages);
             Assert.Equal(1, messages[0].EventCount);
@@ -414,7 +414,7 @@ public class TelemetryDecoderTests
         [Fact]
         public async Task DecodeAsync_MalformedJson_ReturnsEmpty()
         {
-            var messages = await _decoder.DecodeAsync("{broken"u8.ToArray());
+            var messages = await _decoder.DecodeAsync("{broken"u8.ToArray(), TestContext.Current.CancellationToken);
             Assert.Empty(messages);
         }
     }
