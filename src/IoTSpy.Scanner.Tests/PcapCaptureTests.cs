@@ -167,7 +167,7 @@ namespace IoTSpy.Scanner.Tests
 
             // Act
             var packetRepo = _deviceRepo as CaptureDeviceRepository;
-            await packetRepo?.DeletePacketAsync(packet.Id);
+            await packetRepo!.DeletePacketAsync(packet.Id);
             var result = await ((IPacketRepository)_deviceRepo).GetByDeviceIdAsync(device.Id);
 
             // Assert

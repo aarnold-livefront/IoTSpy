@@ -4,7 +4,7 @@
 
 IoTSpy is a .NET 10 / C# solution that acts as a transparent MITM proxy, multi-protocol decoder, statistical anomaly detector, and lightweight pen-test suite for IoT network research. A REST + SignalR API exposes all functionality; the frontend is a Vite 6 + React 19 + TypeScript single-page application.
 
-All five implementation phases are complete.
+All six implementation phases are complete.
 
 ---
 
@@ -49,7 +49,7 @@ Test projects reference only the library under test (plus xunit 2.9.3).
 
 Pure domain layer — no NuGet dependencies beyond the BCL.
 
-### Models (19)
+### Models (25)
 
 | Model | Purpose |
 |---|---|
@@ -71,8 +71,17 @@ Pure domain layer — no NuGet dependencies beyond the BCL.
 | `AnomalyAlert` | Statistical anomaly: host, type, expected/actual values, deviation factor |
 | `HostBaseline` | Per-host Welford running state: duration/size mean+M2, status distribution, request timestamps |
 | `HttpMessage` | Mutable request/response for the manipulation pipeline |
+| `CaptureDevice` | Network interface available for packet capture (name, IPs, MAC) |
+| `CapturedPacket` | Captured network packet with L2-L4 fields, protocol flags, `[NotMapped] RawData` |
+| `PacketFilter` | Filter criteria for captured packet queries |
+| `PacketFilterDto` | API-facing filter DTO: protocol, IP, port, time range, payload search |
+| `FreezeFrameResult` | Frozen packet with hex dump and per-layer breakdown |
+| `ProtocolDistribution` / `ProtocolStats` | Protocol distribution statistics |
+| `CommunicationPattern` | Source→dest pair with packet count, bytes, protocols, time range |
+| `SuspiciousActivity` | Detection result: category, severity, evidence list |
+| `NetworkDeviceStatistics` | Live capture stats: PPS, BPS, drop rate |
 
-### Interfaces (17)
+### Interfaces (20)
 
 `ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`
 

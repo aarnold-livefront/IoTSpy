@@ -519,3 +519,57 @@ export interface CapturedPacket {
   isRetransmission?: boolean
 }
 
+export interface CaptureDeviceDto {
+  id: string
+  name: string
+  displayName: string
+  ipAddress: string
+  macAddress: string
+}
+
+export interface FreezeFrameDto {
+  packetId: string
+  timestamp: string
+  fullPayloadHex: string
+  hexDump: string
+  protocolDetails: string
+  layer2Info: string
+  layer3Info: string
+  layer4Info: string
+}
+
+export interface ProtocolStatsDto {
+  name: string
+  count: number
+  percentage: number
+}
+
+export interface ProtocolDistributionDto {
+  totalPackets: number
+  byProtocol: ProtocolStatsDto[]
+  byLayer3: ProtocolStatsDto[]
+  byLayer4: ProtocolStatsDto[]
+}
+
+export interface CommunicationPatternDto {
+  sourceIp: string
+  destinationIp: string
+  packetCount: number
+  totalBytes: number
+  protocolsUsed: string[]
+  firstSeen?: string
+  lastSeen?: string
+}
+
+export interface SuspiciousActivityDto {
+  id: string
+  category: string
+  severity: string
+  description: string
+  sourceIp: string
+  destinationIp?: string
+  packetCount: number
+  firstDetected: string
+  evidence: string[]
+}
+

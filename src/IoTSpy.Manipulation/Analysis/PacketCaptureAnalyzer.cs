@@ -116,8 +116,6 @@ public class PacketCaptureAnalyzer : IPacketCaptureAnalyzer
                 (packet.TcpFlags != null || packet.DnsQueryName != null || packet.HttpMethodName != null))
             {
                 // Check protocol-specific fields
-                bool hasMatch = false;
-                
                 if (lowerFilter == "tcp" && !string.IsNullOrEmpty(packet.TcpFlags)) matchesLayer3Or4 = true;
                 else if (lowerFilter == "udp") matchesLayer3Or4 = true;
                 else if (lowerFilter == "arp" && packet.ArpOperation != null) matchesLayer3Or4 = true;

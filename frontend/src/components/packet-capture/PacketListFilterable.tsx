@@ -111,7 +111,7 @@ export default function PacketListFilterable({ packets, isCapturing, selectedPac
                 <span>{packet.destinationIp}:{packet.destinationPort}</span>
               </div>
               <div style={{ fontSize: 'var(--font-size-sm)', opacity: 0.7, marginTop: '2px' }}>
-                {packet.size} bytes
+                {packet.length} bytes
               </div>
             </div>
           ))
