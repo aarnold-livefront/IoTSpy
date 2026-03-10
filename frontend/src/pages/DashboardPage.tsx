@@ -105,7 +105,7 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {viewMode === 'list' ? (
+      {viewMode === 'list' && (
         <SplitPane
           left={
             <CaptureList
@@ -128,7 +128,9 @@ export default function DashboardPage() {
           minLeftPx={260}
           minRightPx={260}
         />
-) : (
+      )}
+
+      {viewMode === 'timeline' && (
         <SplitPane
           left={
             <TimelineSwimlaneView
@@ -141,7 +143,7 @@ export default function DashboardPage() {
           right={<CaptureDetail captureId={selectedId} />}
           initialLeftPercent={65}
           minLeftPx={400}
-minRightPx={260}
+          minRightPx={260}
         />
       )}
 

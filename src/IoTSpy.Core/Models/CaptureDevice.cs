@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations.Schema;
 using IoTSpy.Core.Interfaces;
 
 namespace IoTSpy.Core.Models
@@ -75,7 +76,14 @@ namespace IoTSpy.Core.Models
         public string PayloadPreview { get; set; } = string.Empty;
         public bool IsSuspicious { get; set; }
         public string? SuspicionReason { get; set; }
-        
+
+        /// <summary>
+        /// Raw frame bytes — only populated in memory during live capture.
+        /// Not persisted to DB.
+        /// </summary>
+        [NotMapped]
+        public byte[]? RawData { get; set; }
+
         // Navigation property for EF Core
         public CaptureDevice Device { get; set; } = null!;
     }

@@ -57,6 +57,7 @@ builder.Services.AddAuthorization();
 // ── SignalR ──────────────────────────────────────────────────────────────────
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ICapturePublisher, SignalRCapturePublisher>();
+builder.Services.AddSingleton<IPacketCapturePublisher, SignalRPacketPublisher>();
 
 // ── Resilience ───────────────────────────────────────────────────────────────
 var resilienceOptions = builder.Configuration
@@ -117,6 +118,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<TrafficHub>("/hubs/traffic");
+app.MapHub<PacketCaptureHub>("/hubs/packets");
 
 // SPA fallback — any unmatched route serves index.html for client-side routing
 app.MapFallbackToFile("index.html");

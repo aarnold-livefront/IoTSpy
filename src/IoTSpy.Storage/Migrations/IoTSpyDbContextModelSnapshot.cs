@@ -887,6 +887,111 @@ namespace IoTSpy.Storage.Migrations
                     b.Navigation("Device");
                 });
 
+            modelBuilder.Entity("IoTSpy.Core.Models.CaptureDevice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("CanCapture")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("IpAddress")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MacAddress")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("SupportsPromiscuousMode")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IpAddress");
+
+                    b.HasIndex("MacAddress");
+
+                    b.ToTable("CaptureDevices");
+                });
+
+            modelBuilder.Entity("IoTSpy.Core.Models.CapturedPacket", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ArpOperation").HasColumnType("TEXT");
+                    b.Property<string>("ArpSenderMac").HasColumnType("TEXT");
+                    b.Property<string>("ArpTargetIp").HasColumnType("TEXT");
+                    b.Property<long>("CaptureIndex").HasColumnType("INTEGER");
+                    b.Property<string>("DestinationIp").IsRequired().HasMaxLength(45).HasColumnType("TEXT");
+                    b.Property<string>("DestinationMac").IsRequired().HasMaxLength(17).HasColumnType("TEXT");
+                    b.Property<int?>("DestinationPort").HasColumnType("INTEGER");
+                    b.Property<Guid>("DeviceId").HasColumnType("TEXT");
+                    b.Property<string>("DnsQueryName").HasColumnType("TEXT");
+                    b.Property<string>("DnsResponseType").HasColumnType("TEXT");
+                    b.Property<int>("FrameNumber").HasColumnType("INTEGER");
+                    b.Property<string>("HttpMethodName").HasColumnType("TEXT");
+                    b.Property<int?>("HttpResponseCode").HasColumnType("INTEGER");
+                    b.Property<string>("HttpRequestUri").HasColumnType("TEXT");
+                    b.Property<bool>("IsError").HasColumnType("INTEGER");
+                    b.Property<bool>("IsFragment").HasColumnType("INTEGER");
+                    b.Property<bool>("IsRetransmission").HasColumnType("INTEGER");
+                    b.Property<bool>("IsSuspicious").HasColumnType("INTEGER");
+                    b.Property<string>("Layer2Protocol").IsRequired().HasMaxLength(50).HasColumnType("TEXT");
+                    b.Property<string>("Layer3Protocol").IsRequired().HasMaxLength(50).HasColumnType("TEXT");
+                    b.Property<string>("Layer4Protocol").IsRequired().HasMaxLength(50).HasColumnType("TEXT");
+                    b.Property<int>("Length").HasColumnType("INTEGER");
+                    b.Property<string>("PayloadPreview").HasMaxLength(2048).HasColumnType("TEXT");
+                    b.Property<string>("Protocol").IsRequired().HasMaxLength(50).HasColumnType("TEXT");
+                    b.Property<string>("SourceIp").IsRequired().HasMaxLength(45).HasColumnType("TEXT");
+                    b.Property<string>("SourceMac").IsRequired().HasMaxLength(17).HasColumnType("TEXT");
+                    b.Property<int?>("SourcePort").HasColumnType("INTEGER");
+                    b.Property<string>("SuspicionReason").HasColumnType("TEXT");
+                    b.Property<string>("TcpFlags").HasColumnType("TEXT");
+                    b.Property<double>("TimeDeltaFromPrevious").HasColumnType("REAL");
+                    b.Property<long>("Timestamp").HasColumnType("INTEGER");
+                    b.Property<string>("UdpLength").HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DestinationIp");
+                    b.HasIndex("DeviceId");
+                    b.HasIndex("Protocol");
+                    b.HasIndex("SourceIp");
+                    b.HasIndex("Timestamp");
+
+                    b.ToTable("Packets");
+                });
+
+            modelBuilder.Entity("IoTSpy.Core.Models.CapturedPacket", b =>
+                {
+                    b.HasOne("IoTSpy.Core.Models.CaptureDevice", "Device")
+                        .WithMany("Packets")
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Device");
+                });
+
+            modelBuilder.Entity("IoTSpy.Core.Models.CaptureDevice", b =>
+                {
+                    b.Navigation("Packets");
+                });
+
             modelBuilder.Entity("IoTSpy.Core.Models.Device", b =>
                 {
                     b.Navigation("Captures");

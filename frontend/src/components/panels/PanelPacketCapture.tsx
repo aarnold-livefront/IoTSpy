@@ -32,8 +32,8 @@ export default function PanelPacketCapture() {
           >
             <option value="">Select a device...</option>
             {devices.map((device) => (
-              <option key={device.name} value={device.name}>
-                {device.displayName} ({device.name}) {device.isUp ? '✓' : '✗'}
+              <option key={device.id} value={device.id}>
+                {device.displayName} ({device.name})
               </option>
             ))}
           </select>
@@ -42,7 +42,7 @@ export default function PanelPacketCapture() {
         <div style={{ display: 'flex', gap: '8px' }}>
           {!isCapturing && selectedDevice && (
             <button
-              onClick={() => startCapture(selectedDevice, '')}
+              onClick={() => startCapture(selectedDevice)}
               disabled={!selectedDevice}
               style={{
                 flex: 1,

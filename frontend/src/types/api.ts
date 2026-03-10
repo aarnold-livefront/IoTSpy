@@ -512,7 +512,10 @@ export interface CapturedPacket {
   sourcePort: number
   destinationPort: number
   protocol: string
-  size: number
-  payload?: Uint8Array
+  length: number
+  payloadPreview?: string
+  tcpFlags?: string
+  isError?: boolean
+  isRetransmission?: boolean
 }
 

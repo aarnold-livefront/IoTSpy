@@ -1,90 +1,103 @@
-import { useState, useEffect, useCallback } from 'react'
-import type { NetworkDevice, CapturedPacket } from '../types/api'
-import { toast } from 'react-toastify'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import * as signalR from '@microsoft/signalr'
+import { getToken } from '../api/client'
+import type { CapturedPacket } from '../types/api'
+
+export interface CaptureDevice {
+  id: string
+  name: string
+  displayName: string
+  ipAddress: string
+  macAddress: string
+}
 
 export function usePacketCapture() {
-  const [devices, setDevices] = useState<NetworkDevice[]>([])
+  const [devices, setDevices] = useState<CaptureDevice[]>([])
   const [packets, setPackets] = useState<CapturedPacket[]>([])
   const [isCapturing, setIsCapturing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const hubRef = useRef<signalR.HubConnection | null>(null)
 
+  // Load devices from API
   useEffect(() => {
     loadDevices()
   }, [])
 
   const loadDevices = async () => {
     try {
-      const response = await fetch('/api/packet-capture/devices')
-      if (!response.ok) throw new Error('Failed to load devices')
-      const data = await response.json()
-      setDevices(data.map((d: any) => ({
-        name: d.interfaceName,
-        displayName: d.displayName,
-        ipAddresses: d.ipAddresses,
-        macAddress: d.macAddress,
-        isLoopback: d.isLoopback,
-        isUp: d.isUp,
-        isRunning: d.isRunning
-      })))
+      const token = getToken()
+      const response = await fetch('/api/packet-capture/devices', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      if (!response.ok) throw new Error('Failed to load capture devices')
+      const data: CaptureDevice[] = await response.json()
+      setDevices(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
     }
   }
 
+  // Connect to SignalR hub for live packets
   useEffect(() => {
-    const wsUrl = `ws://${window.location.host}/packet-capture`
-    const ws = new WebSocket(wsUrl)
+    const token = getToken()
+    if (!token) return
 
-    ws.onmessage = (event: MessageEvent) => {
-      try {
-        const message = JSON.parse(event.data)
-        if (message.type === 'PACKET_CAPTURED') {
-          setPackets(prev => [message.packet as CapturedPacket, ...prev].slice(0, 10000))
-        } else if (message.type === 'CAPTURE_STATUS') {
-          setIsCapturing(message.isCapturing)
-        } else if (message.type === 'DEVICE_UPDATE') {
-          setDevices(prev => prev.map(d => 
-            d.name === message.deviceInterface
-              ? { ...d, isUp: message.isOnline }
-              : d
-          ))
-        }
-      } catch {
-        // Ignore invalid JSON
-      }
+    const connection = new signalR.HubConnectionBuilder()
+      .withUrl(`/hubs/packets?access_token=${encodeURIComponent(token)}`)
+      .withAutomaticReconnect()
+      .configureLogging(signalR.LogLevel.Warning)
+      .build()
+
+    hubRef.current = connection
+
+    connection.on('PacketCaptured', (packet: CapturedPacket) => {
+      setPackets(prev => [packet, ...prev].slice(0, 10000))
+    })
+
+    connection.on('CaptureStatus', (data: { isCapturing: boolean }) => {
+      setIsCapturing(data.isCapturing)
+    })
+
+    connection
+      .start()
+      .catch(err => console.warn('Packet capture hub connection failed:', err))
+
+    return () => {
+      void connection.stop()
     }
-
-    ws.onerror = () => {
-      console.error('WebSocket error on packet-capture endpoint')
-    }
-
-    return () => ws.close()
   }, [])
 
-  const startCapture = useCallback(async (interfaceName: string, captureFilter: string) => {
+  const startCapture = useCallback(async (deviceId: string) => {
     try {
       setError(null)
-      await fetch('/api/packet-capture/start', {
+      const token = getToken()
+      const response = await fetch('/api/packet-capture/start', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ interfaceName, captureFilter })
+        body: JSON.stringify({ deviceId })
       })
-      toast.success('Packet capture started')
+      if (!response.ok) throw new Error('Failed to start capture')
+      setIsCapturing(true)
+      setPackets([])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
-      toast.error('Failed to start packet capture')
     }
   }, [])
 
   const stopCapture = useCallback(async () => {
     try {
-      await fetch('/api/packet-capture/stop', { method: 'POST' })
-      toast.success('Packet capture stopped')
+      const token = getToken()
+      const response = await fetch('/api/packet-capture/stop', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      if (!response.ok) throw new Error('Failed to stop capture')
+      setIsCapturing(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
-      toast.error('Failed to stop packet capture')
     }
   }, [])
 
