@@ -83,7 +83,7 @@ Pure domain layer — no NuGet dependencies beyond the BCL.
 
 ### Interfaces (20)
 
-`ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`
+`ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`, `IPacketCaptureService`, `IPacketCaptureAnalyzer`, `IPacketCapturePublisher`
 
 ### Enums (10)
 
@@ -219,6 +219,19 @@ Configurable properties: `DeviationThreshold` (default 3.0), `WarmUpSamples` (de
 | `CveLookupService` | OSV.dev API lookup keyed by CPE |
 | `ConfigAuditor` | Detects: Telnet open, UPnP responding, anonymous MQTT, exposed DB ports, HTTP admin interfaces |
 
+### Packet capture (`PacketCaptureService`)
+
+SharpPcap / PacketDotNet-based live packet capture.
+
+| Feature | Details |
+|---|---|
+| Ring buffer | `LinkedList<CapturedPacket>` with 10,000 packet cap (O(1) enqueue/dequeue) |
+| Protocol parsing | Ethernet, IPv4/IPv6, TCP, UDP, ARP, ICMP; app-layer: HTTP, HTTPS, MQTT, DNS, CoAP, DHCP, SSH, Telnet |
+| Raw data | `CapturedPacket.RawData` (`[NotMapped]` byte array) stored in-memory for PCAP export |
+| Hex dump | Wireshark-style `FormatHexDump` (offset | hex | ASCII) |
+| Device sync | `EnsureDevicesEnumeratedAsync()` lazily syncs SharpPcap interfaces to DB on first call |
+| Publishing | Fire-and-forget via `PublishSafeAsync` (catches + logs exceptions) |
+
 Registered via `ScannerExtensions.AddIoTSpyScanner()` (all singletons).
 
 ---
@@ -268,6 +281,19 @@ Providers: `ClaudeProvider`, `OpenAiProvider`, `OllamaProvider` — all implemen
 `AiProviderFactory` selects the provider from config.
 `AiMockService` builds a schema from historical captures for the target host, prompts the LLM, parses the structured response, and caches the schema in memory (invalidatable per host).
 
+### Packet analysis (`Analysis/PacketCaptureAnalyzer`)
+
+Implements `IPacketCaptureAnalyzer` — freeze frame, protocol distribution, pattern detection, suspicious activity.
+
+| Detection | Trigger |
+|---|---|
+| Port scan | 50+ unique destination ports from a single source |
+| ARP spoofing | Multiple MAC addresses observed for the same IP |
+| DNS anomaly | Long domain queries (>50 chars) or DGA-like patterns |
+| Retransmission burst | TCP retransmission rate exceeds 10% |
+
+Thread-safe with lock-based synchronization. Freeze/unfreeze toggles snapshot mode.
+
 Registered via `ManipulationExtensions.AddIoTSpyManipulation(aiConfig)`.
 
 ---
@@ -291,6 +317,8 @@ EF Core 10 data access layer; supports SQLite (default) and PostgreSQL.
 | `ReplaySessions` | `ReplaySession` | — |
 | `FuzzerJobs` | `FuzzerJob` | Cascade-deletes FuzzerResults |
 | `FuzzerResults` | `FuzzerResult` | FK → FuzzerJob |
+| `CaptureDevices` | `CaptureDevice` | Indexed on IpAddress, MacAddress |
+| `Packets` | `CapturedPacket` | FK → CaptureDevice; indexed on Timestamp, DeviceId, Protocol, SourceIp, DestinationIp |
 
 `DateTimeOffset` columns are stored as Unix milliseconds (`long`) via a `ValueConverter` — required for SQLite `ORDER BY` compatibility.
 
@@ -300,7 +328,7 @@ EF Core 10 data access layer; supports SQLite (default) and PostgreSQL.
 
 All repositories are **scoped** (one per HTTP request / DI scope) because they depend on the scoped EF Core `DbContext`.
 
-### Migrations (5)
+### Migrations (6)
 
 | Migration | Contents |
 |---|---|
@@ -309,6 +337,7 @@ All repositories are **scoped** (one per HTTP request / DI scope) because they d
 | `AddPhase3Scanner` | ScanJobs, ScanFindings |
 | `AddPhase4ManipulationFix` | Pre-fix migration |
 | `AddPhase4Manipulation` | ManipulationRules, Breakpoints, ReplaySessions, FuzzerJobs, FuzzerResults |
+| `AddPacketCapture` | CaptureDevices, Packets (with FK and indexes) |
 
 ---
 
@@ -334,12 +363,15 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 | `CertificatesController` | `GET /api/certificates/root` (download CA PEM, no auth) |
 | `ScannerController` | `POST /api/scanner/scan`, `GET /api/scanner/jobs`, `GET /api/scanner/jobs/{id}`, `GET /api/scanner/jobs/{id}/findings`, `POST /api/scanner/jobs/{id}/cancel`, `DELETE /api/scanner/jobs/{id}` |
 | `ManipulationController` | CRUD for rules, breakpoints; `POST /replay`, `POST /fuzzer`, `GET+DELETE /fuzzer/{id}`, `POST /ai-mock/generate`, `DELETE /ai-mock/{host}/cache` |
+| `PacketCaptureController` | Device list, start/stop capture, packet filtering, freeze frame (create/get), protocol distribution, communication patterns, suspicious activity, freeze/unfreeze analysis |
 
 ### SignalR
 
 - Hub: `TrafficHub` at `/hubs/traffic`
 - Clients join device groups: `hubConnection.invoke("JoinDeviceGroup", deviceId)`
 - `SignalRCapturePublisher` broadcasts a `TrafficCapture` event to all clients and to the device's group on every captured request
+- Hub: `PacketCaptureHub` at `/hubs/packets` — clients auto-join `packet-capture-live` group
+- `SignalRPacketPublisher` broadcasts `PacketCaptured` and `CaptureStatus` events for live packet streaming
 - Token is accepted via `?access_token=` query parameter (standard SignalR pattern)
 
 ### Authentication
@@ -396,6 +428,7 @@ JWT stored in `localStorage['iotspy_token']`; passed as `?access_token=` for Sig
 | Devices | Device list with timeline swimlane view per device |
 | Scanner | `ScannerPanel` → `ScanJobList` + `ScanFindingsView` |
 | Manipulation | `ManipulationPanel` → `RulesEditor`, `BreakpointsEditor`, `ReplayPanel`, `FuzzerPanel` |
+| Packet Capture | `PanelPacketCapture` (tabbed: Packets / Protocols / Patterns / Suspicious) → `PacketListFilterable`, `PacketInspector` (Details / Hex Dump / Layers), `ProtocolDistributionView`, `PatternExplorer`, `SuspiciousActivityPanel` |
 | Live stream | `useTrafficStream` via SignalR; new captures prepended in real time |
 
 ### Source structure
@@ -410,6 +443,7 @@ frontend/src/
     proxy.ts
     scanner.ts
     manipulation.ts
+    packetCapture.ts          # Packet capture + analysis endpoints
   store/authStore.tsx        # React Context + useReducer
   hooks/
     useAuth.ts
@@ -419,6 +453,8 @@ frontend/src/
     useTrafficStream.ts      # SignalR live stream
     useScanner.ts
     useManipulation.ts
+    usePacketCapture.ts      # SignalR packet stream + capture lifecycle
+    usePacketAnalysis.ts     # Protocol distribution, patterns, suspicious activity
   pages/                     # SetupPage, LoginPage, DashboardPage
   components/                # layout, captures, capture-detail, proxy, devices,
                              # scanner, manipulation, common
