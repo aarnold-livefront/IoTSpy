@@ -17,9 +17,13 @@ public class IoTSpyDbContext(DbContextOptions<IoTSpyDbContext> options) : DbCont
     public DbSet<ReplaySession> ReplaySessions => Set<ReplaySession>();
     public DbSet<FuzzerJob> FuzzerJobs => Set<FuzzerJob>();
     public DbSet<FuzzerResult> FuzzerResults => Set<FuzzerResult>();
-    public DbSet<OpenRtbEvent> OpenRtbEvents => Set<OpenRtbEvent>();
+public DbSet<OpenRtbEvent> OpenRtbEvents => Set<OpenRtbEvent>();
     public DbSet<PiiStrippingLog> PiiStrippingLogs => Set<PiiStrippingLog>();
     public DbSet<OpenRtbPiiPolicy> OpenRtbPiiPolicies => Set<OpenRtbPiiPolicy>();
+
+    // Packet capture DbSet
+    public DbSet<CaptureDevice> CaptureDevices => Set<CaptureDevice>();
+    public DbSet<CapturedPacket> Packets => Set<CapturedPacket>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -142,11 +146,39 @@ public class IoTSpyDbContext(DbContextOptions<IoTSpyDbContext> options) : DbCont
             e.HasIndex(l => l.FieldPath);
         });
 
-        modelBuilder.Entity<OpenRtbPiiPolicy>(e =>
+modelBuilder.Entity<OpenRtbPiiPolicy>(e =>
         {
             e.HasKey(p => p.Id);
             e.HasIndex(p => p.Enabled);
             e.HasIndex(p => p.Priority);
+        });
+
+        modelBuilder.Entity<CaptureDevice>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Property(c => c.Name).IsRequired().HasMaxLength(100);
+            e.Property(c => c.DisplayName).IsRequired().HasMaxLength(200);
+            e.HasIndex(c => c.MacAddress);
+            e.HasIndex(c => c.IpAddress);
+        });
+
+        modelBuilder.Entity<CapturedPacket>(e =>
+        {
+            e.HasKey(p => p.Id);
+            e.Property(p => p.Protocol).IsRequired().HasMaxLength(50);
+            e.Property(p => p.Layer2Protocol).IsRequired().HasMaxLength(50);
+            e.Property(p => p.Layer3Protocol).IsRequired().HasMaxLength(50);
+            e.Property(p => p.Layer4Protocol).IsRequired().HasMaxLength(50);
+            e.Property(p => p.SourceIp).IsRequired().HasMaxLength(45);
+            e.Property(p => p.DestinationIp).IsRequired().HasMaxLength(45);
+            e.Property(p => p.SourceMac).IsRequired().HasMaxLength(17);
+            e.Property(p => p.DestinationMac).IsRequired().HasMaxLength(17);
+            e.Property(p => p.PayloadPreview).HasMaxLength(2048);
+            e.HasIndex(p => p.Timestamp);
+            e.HasIndex(p => p.DeviceId);
+            e.HasIndex(p => p.Protocol);
+            e.HasIndex(p => p.SourceIp);
+            e.HasIndex(p => p.DestinationIp);
         });
 
         // SQLite cannot ORDER BY DateTimeOffset columns; store all as Unix ms (long) so

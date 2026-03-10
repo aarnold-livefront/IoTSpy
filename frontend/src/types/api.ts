@@ -491,3 +491,28 @@ export interface TrafficCaptureEvent {
   requestBodySize: number
   responseBodySize: number
 }
+
+// ── Packet Capture types ──────────────────────────────────────────────────────
+
+export interface NetworkDevice {
+  name: string
+  displayName: string
+  ipAddresses: string[]
+  macAddress?: string
+  isLoopback: boolean
+  isUp: boolean
+  isRunning: boolean
+}
+
+export interface CapturedPacket {
+  id: string
+  timestamp: string
+  sourceIp: string
+  destinationIp: string
+  sourcePort: number
+  destinationPort: number
+  protocol: string
+  size: number
+  payload?: Uint8Array
+}
+

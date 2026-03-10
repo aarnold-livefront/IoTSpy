@@ -1,0 +1,144 @@
+.packet-capture-list {
+  overflow-x: auto;
+}
+
+.packet-capture-list table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.packet-capture-list th,
+.packet-capture-list td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+.packet-capture-list th {
+  background-color: #2a2a2a;
+  color: #f0f0f0;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.packet-capture-list tbody tr {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.packet-capture-list tbody tr:hover {
+  background-color: #353535;
+}
+
+.packet-capture-list tbody tr.frozen-row {
+  background-color: rgba(33, 150, 243, 0.1);
+}
+
+.protocol-badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  background-color: #4caf50;
+  color: white;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* Packet Details View */
+.packet-details {
+  padding: 1rem;
+  background-color: #2a2a2a;
+  border-radius: 6px;
+}
+
+.details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.details-header h3 {
+  margin: 0;
+  color: #f0f0f0;
+  font-size: 1.1rem;
+}
+
+.btn-close {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.btn-close:hover {
+  color: #f0f0f0;
+}
+
+.detail-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .detail-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.detail-section {
+  padding: 1rem;
+  background-color: #353535;
+  border-radius: 4px;
+}
+
+.detail-section.full-width {
+  grid-column: 1 / -1;
+}
+
+.detail-section h4 {
+  margin: 0 0 0.75rem;
+  color: #f0f0f0;
+  font-size: 0.95rem;
+  border-bottom: 1px solid #4a4a4a;
+  padding-bottom: 0.5rem;
+}
+
+.info-table {
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.info-table td {
+  padding: 0.4rem 0.5rem;
+  border: none;
+}
+
+.info-table td:first-child {
+  color: #aaa;
+  font-weight: 500;
+  width: 35%;
+}
+
+.hex-view, .text-view {
+  background-color: #1a1a1a;
+  padding: 1rem;
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  overflow-x: auto;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.text-view {
+  color: #a8d5a8;
+}

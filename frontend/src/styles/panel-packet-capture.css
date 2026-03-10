@@ -1,0 +1,19 @@
+.panel-packet-capture {
+  padding: 1rem;
+}
+
+.btn--back {
+  background-color: transparent;
+  border: none;
+  color: #4caf50;
+  cursor: pointer;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btn--back:hover {
+  text-decoration: underline;
+}

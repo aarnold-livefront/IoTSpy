@@ -1,0 +1,90 @@
+.packet-capture-panel {
+  padding: 1rem;
+}
+
+.capture-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.capture-header h2 {
+  margin: 0;
+  color: #f0f0f0;
+  font-size: 1.3rem;
+}
+
+.current-interface {
+  color: #aaa;
+  font-size: 0.95rem;
+}
+
+.capture-controls {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.filter-input {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.6rem 0.8rem;
+  background-color: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #f0f0f0;
+  font-size: 0.95rem;
+}
+
+.filter-input:focus {
+  outline: none;
+  border-color: #4caf50;
+}
+
+.btn--frozen {
+  background-color: #2196f3 !important;
+  color: white !important;
+}
+
+.btn--frozen:hover {
+  background-color: #1976d2 !important;
+}
+
+.packet-count {
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background-color: #2a2a2a;
+  border-radius: 4px;
+  color: #aaa;
+  font-size: 0.9rem;
+}
+
+.no-packets {
+  text-align: center;
+  padding: 2rem;
+  color: #888;
+  font-style: italic;
+}
+
+.no-packets.frozen {
+  border-left: 3px solid #ff9800;
+  background-color: rgba(255, 152, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  .capture-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .capture-controls {
+    flex-direction: column;
+  }
+
+  .filter-input {
+    width: 100%;
+  }
+}
