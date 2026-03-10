@@ -5,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using PacketDotNet;
 using SharpPcap;
 using SharpPcap.LibPcap;
-using System.Net.NetworkInformation;
 using System.Text;
 
 namespace IoTSpy.Scanner;
@@ -13,6 +12,8 @@ namespace IoTSpy.Scanner;
 /// <summary>
 /// Implements live packet capture via SharpPcap/libpcap and serves as the
 /// primary implementation of <see cref="IPacketCaptureService"/>.
+/// Packets are held in an in-memory circular buffer and optionally streamed
+/// to connected clients via <see cref="IPacketCapturePublisher"/>.
 /// </summary>
 public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
 {
@@ -23,8 +24,11 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
     private ILiveDevice? _activeDevice;
     private Guid _activeDeviceId;
     private long _captureIndex;
+    private bool _devicesEnumerated;
+
+    // Ring buffer backed by a fixed-capacity queue — O(1) enqueue/dequeue
     private readonly object _lock = new();
-    private readonly List<CapturedPacket> _livePackets = new();
+    private readonly LinkedList<CapturedPacket> _livePackets = new();
     private readonly Dictionary<Guid, FreezeFrameResult> _freezeFrames = new();
 
     private const int MaxLivePackets = 10_000;
@@ -69,6 +73,7 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
                 result.Add(nd);
             }
             await SyncDevicesToDbAsync(result);
+            _devicesEnumerated = true;
         }
         catch (Exception ex)
         {
@@ -77,13 +82,31 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         return result;
     }
 
+    /// <summary>
+    /// Ensures device list has been synced to DB at least once.
+    /// Called lazily before operations that depend on persisted devices.
+    /// </summary>
+    private async Task EnsureDevicesEnumeratedAsync()
+    {
+        if (!_devicesEnumerated)
+            await ListInterfacesAsync();
+    }
+
     public async Task<NetworkDevice?> GetByIdAsync(Guid id)
     {
+        await EnsureDevicesEnumeratedAsync();
         using var scope = _scopeFactory.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<ICaptureDeviceRepository>();
         var dev = await repo.GetByIdAsync(id);
         if (dev == null) return null;
-        return new NetworkDevice { Id = dev.Id, Name = dev.Name, Description = dev.DisplayName };
+        return new NetworkDevice
+        {
+            Id = dev.Id,
+            Name = dev.Name,
+            Description = dev.DisplayName,
+            IpAddress = dev.IpAddress,
+            MacAddress = dev.MacAddress
+        };
     }
 
     private async Task SyncDevicesToDbAsync(List<NetworkDevice> discovered)
@@ -94,7 +117,8 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
 
         foreach (var nd in discovered)
         {
-            if (!existingDevices.Any(d => d.Name == nd.Name))
+            var existing = existingDevices.FirstOrDefault(d => d.Name == nd.Name);
+            if (existing == null)
             {
                 await repo.AddAsync(new CaptureDevice
                 {
@@ -107,6 +131,13 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
                     SupportsPromiscuousMode = nd.SupportsPromiscuousMode
                 });
             }
+            else if (existing.IpAddress != nd.IpAddress || existing.MacAddress != nd.MacAddress)
+            {
+                // Update stale address info
+                existing.IpAddress = nd.IpAddress;
+                existing.MacAddress = nd.MacAddress;
+                await repo.UpdateAsync(existing);
+            }
         }
     }
 
@@ -114,6 +145,7 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
 
     public async Task<bool> SelectInterfaceForCaptureAsync(Guid deviceId, CancellationToken ct = default)
     {
+        await EnsureDevicesEnumeratedAsync();
         using var scope = _scopeFactory.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<ICaptureDeviceRepository>();
         var dev = await repo.GetByIdAsync(deviceId);
@@ -133,6 +165,8 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
     public async Task<bool> StartCaptureAsync(Guid deviceId, CancellationToken ct = default)
     {
         if (IsCaptureActive) await StopCaptureAsync();
+
+        await EnsureDevicesEnumeratedAsync();
 
         using var scope = _scopeFactory.CreateScope();
         var repo = scope.ServiceProvider.GetRequiredService<ICaptureDeviceRepository>();
@@ -158,6 +192,7 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
             lock (_lock)
             {
                 _livePackets.Clear();
+                _freezeFrames.Clear();
                 _captureIndex = 0;
                 _activeDeviceId = deviceId;
             }
@@ -174,6 +209,7 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         }
         catch (Exception ex)
         {
+            IsCaptureActive = false;
             _logger.LogError(ex, "Failed to start packet capture on {Device}", captureDevice.Name);
             return false;
         }
@@ -199,12 +235,13 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         }
         catch (Exception ex)
         {
+            IsCaptureActive = false;
             _logger.LogError(ex, "Error stopping packet capture");
             return false;
         }
     }
 
-    // ── Packet arrival ───────────────────────────────────────────────────────
+    // ── Packet arrival (called on SharpPcap capture thread) ──────────────────
 
     private void OnPacketArrival(object sender, PacketCapture e)
     {
@@ -215,17 +252,30 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
 
             lock (_lock)
             {
-                _livePackets.Add(packet);
+                _livePackets.AddLast(packet);
                 if (_livePackets.Count > MaxLivePackets)
-                    _livePackets.RemoveAt(0);
+                    _livePackets.RemoveFirst(); // O(1) for LinkedList
             }
 
-            // Non-blocking publish
-            _ = _publisher.PublishPacketAsync(packet).ConfigureAwait(false);
+            // Fire-and-forget publish — observe exceptions to prevent
+            // unobserved task exceptions from crashing the process.
+            _ = PublishSafeAsync(packet);
         }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Error processing captured packet");
+        }
+    }
+
+    private async Task PublishSafeAsync(CapturedPacket packet)
+    {
+        try
+        {
+            await _publisher.PublishPacketAsync(packet);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to publish captured packet via SignalR");
         }
     }
 
@@ -239,10 +289,11 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
             Timestamp = DateTimeOffset.UtcNow,
             DeviceId = _activeDeviceId,
             Length = rawCapture.Data.Length,
+            RawData = rawCapture.Data, // stored in-memory only ([NotMapped])
             Protocol = "Unknown",
             Layer2Protocol = "Ethernet",
-            Layer3Protocol = "IPv4",
-            Layer4Protocol = "TCP/UDP",
+            Layer3Protocol = "Unknown",
+            Layer4Protocol = "Unknown",
         };
 
         try
@@ -259,12 +310,13 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
                 packet.DestinationMac = eth.DestinationHardwareAddress?.ToString() ?? string.Empty;
             }
 
-            // ARP
+            // ARP — layer 3, no transport layer
             var arp = parsed.Extract<ArpPacket>();
             if (arp != null)
             {
                 packet.Protocol = "ARP";
                 packet.Layer3Protocol = "ARP";
+                packet.Layer4Protocol = "N/A";
                 packet.ArpOperation = arp.Operation.ToString();
                 packet.ArpSenderMac = arp.SenderHardwareAddress?.ToString();
                 packet.ArpTargetIp = arp.TargetProtocolAddress?.ToString();
@@ -280,6 +332,7 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
                 packet.Layer3Protocol = "IPv4";
                 packet.SourceIp = ip4.SourceAddress.ToString();
                 packet.DestinationIp = ip4.DestinationAddress.ToString();
+                packet.IsFragment = ip4.FragmentOffset != 0;
             }
 
             // IPv6
@@ -303,6 +356,8 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
 
                 if (tcp.PayloadData?.Length > 0)
                     packet.PayloadPreview = GetPayloadPreview(tcp.PayloadData);
+
+                return packet;
             }
 
             // UDP
@@ -317,6 +372,8 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
 
                 if (udp.PayloadData?.Length > 0)
                     packet.PayloadPreview = GetPayloadPreview(udp.PayloadData);
+
+                return packet;
             }
 
             // ICMP
@@ -349,45 +406,51 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
 
     private static string? ResolveAppProtocol(int srcPort, int dstPort)
     {
-        var port = Math.Min(srcPort, dstPort);
-        return port switch
+        // Check both directions — the well-known port is usually the lower one
+        return MatchPort(srcPort) ?? MatchPort(dstPort);
+
+        static string? MatchPort(int port) => port switch
         {
             80 => "HTTP",
             443 => "HTTPS",
             53 => "DNS",
-            8883 or 1883 => "MQTT",
+            1883 => "MQTT",
+            8883 => "MQTT/TLS",
             5353 => "mDNS",
+            5683 => "CoAP",
             67 or 68 => "DHCP",
+            22 => "SSH",
+            23 => "Telnet",
             _ => null
         };
     }
 
     private static string GetPayloadPreview(byte[] data)
     {
-        var preview = data.Take(128).Select(b => b >= 0x20 && b < 0x7F ? (char)b : '.').ToArray();
-        return new string(preview);
+        var preview = data.AsSpan(0, Math.Min(data.Length, 128));
+        var sb = new StringBuilder(preview.Length);
+        foreach (var b in preview)
+            sb.Append(b >= 0x20 && b < 0x7F ? (char)b : '.');
+        return sb.ToString();
     }
 
     // ── Queries ──────────────────────────────────────────────────────────────
 
-    public async Task<NetworkDeviceStatistics?> GetLiveStatsAsync(Guid deviceId)
+    public Task<NetworkDeviceStatistics?> GetLiveStatsAsync(Guid deviceId)
     {
-        if (_activeDeviceId != deviceId) return null;
+        if (_activeDeviceId != deviceId)
+            return Task.FromResult<NetworkDeviceStatistics?>(null);
 
-        long total, packets;
         lock (_lock)
         {
-            total = _captureIndex;
-            packets = _livePackets.Count;
+            return Task.FromResult<NetworkDeviceStatistics?>(new NetworkDeviceStatistics
+            {
+                DeviceId = deviceId,
+                TotalPacketsCaptured = Interlocked.Read(ref _captureIndex),
+                PacketsPerSecond = 0,
+                Timestamp = DateTimeOffset.UtcNow
+            });
         }
-
-        return await Task.FromResult(new NetworkDeviceStatistics
-        {
-            DeviceId = deviceId,
-            TotalPacketsCaptured = total,
-            PacketsPerSecond = 0,
-            Timestamp = DateTimeOffset.UtcNow
-        });
     }
 
     public Task<PagedResult<CapturedPacket>> GetCapturedPacketsAsync(
@@ -396,23 +459,23 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         int pageSize = 50,
         CancellationToken ct = default)
     {
+        List<CapturedPacket> filtered;
         lock (_lock)
-        {
-            var filtered = ApplyFilter(_livePackets, filter);
-            var total = filtered.Count;
-            var items = filtered
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToList();
+            filtered = ApplyFilter(_livePackets, filter);
 
-            return Task.FromResult(new PagedResult<CapturedPacket>
-            {
-                Items = items,
-                Total = total,
-                Page = page,
-                PageSize = pageSize
-            });
-        }
+        var total = filtered.Count;
+        var items = filtered
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return Task.FromResult(new PagedResult<CapturedPacket>
+        {
+            Items = items,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        });
     }
 
     public Task<IEnumerable<CapturedPacket>> FilterPacketsAsync(
@@ -438,11 +501,13 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
             PayloadSearch = filter.PayloadSearch
         };
 
+        List<CapturedPacket> result;
         lock (_lock)
-        {
-            var result = ApplyFilter(_livePackets, pf).Take(filter.Limit);
-            return Task.FromResult(result);
-        }
+            result = ApplyFilter(_livePackets, pf);
+
+        // Materialize inside lock, then limit outside
+        return Task.FromResult<IEnumerable<CapturedPacket>>(
+            result.Take(filter.Limit).ToList());
     }
 
     private static List<CapturedPacket> ApplyFilter(
@@ -521,15 +586,16 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
 
     private static FreezeFrameResult BuildFreezeFrame(CapturedPacket packet)
     {
-        var hex = BitConverter.ToString(
-            Encoding.UTF8.GetBytes(packet.PayloadPreview)).Replace("-", " ");
+        // Use raw frame data for the hex dump when available, otherwise fall back to preview
+        var rawBytes = packet.RawData ?? Encoding.UTF8.GetBytes(packet.PayloadPreview);
+        var hexDump = FormatHexDump(rawBytes);
 
         return new FreezeFrameResult
         {
             PacketId = packet.Id,
             Timestamp = packet.Timestamp,
-            FullPayloadHex = hex,
-            HexDump = hex,
+            FullPayloadHex = BitConverter.ToString(rawBytes).Replace("-", " "),
+            HexDump = hexDump,
             ProtocolDetails = $"{packet.Protocol} ({packet.Layer4Protocol})",
             Layer2Info = $"{packet.Layer2Protocol} src={packet.SourceMac} dst={packet.DestinationMac}",
             Layer3Info = $"{packet.Layer3Protocol} src={packet.SourceIp} dst={packet.DestinationIp}",
@@ -539,15 +605,48 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         };
     }
 
+    /// <summary>
+    /// Formats raw bytes as a Wireshark-style hex dump (offset | hex | ASCII).
+    /// </summary>
+    private static string FormatHexDump(byte[] data)
+    {
+        var sb = new StringBuilder();
+        for (int offset = 0; offset < data.Length; offset += 16)
+        {
+            sb.Append($"{offset:X8}  ");
+            int lineLen = Math.Min(16, data.Length - offset);
+            for (int i = 0; i < 16; i++)
+            {
+                sb.Append(i < lineLen ? $"{data[offset + i]:X2} " : "   ");
+                if (i == 7) sb.Append(' ');
+            }
+            sb.Append(" |");
+            for (int i = 0; i < lineLen; i++)
+            {
+                var b = data[offset + i];
+                sb.Append(b >= 0x20 && b < 0x7F ? (char)b : '.');
+            }
+            sb.AppendLine("|");
+        }
+        return sb.ToString();
+    }
+
     public Task<bool> DeletePacketAsync(Guid id, CancellationToken ct = default)
     {
         lock (_lock)
         {
-            var idx = _livePackets.FindIndex(p => p.Id == id);
-            if (idx < 0) return Task.FromResult(false);
-            _livePackets.RemoveAt(idx);
-            _freezeFrames.Remove(id);
-            return Task.FromResult(true);
+            var node = _livePackets.First;
+            while (node != null)
+            {
+                if (node.Value.Id == id)
+                {
+                    _livePackets.Remove(node);
+                    _freezeFrames.Remove(id);
+                    return Task.FromResult(true);
+                }
+                node = node.Next;
+            }
+            return Task.FromResult(false);
         }
     }
 
@@ -572,27 +671,32 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         if (snapshot.Count == 0)
             return Task.FromResult<byte[]?>(null);
 
-        using var ms = new System.IO.MemoryStream();
-        using var bw = new System.IO.BinaryWriter(ms);
+        using var ms = new MemoryStream();
+        using var bw = new BinaryWriter(ms);
 
-        // PCAP global header
-        bw.Write(0xa1b2c3d4u);  // magic
+        // PCAP global header (libpcap format)
+        bw.Write(0xa1b2c3d4u);  // magic number
         bw.Write((ushort)2);     // version major
         bw.Write((ushort)4);     // version minor
-        bw.Write(0);             // timezone
-        bw.Write(0u);            // sig figs
+        bw.Write(0);             // thiszone
+        bw.Write(0u);            // sigfigs
         bw.Write(65535u);        // snaplen
-        bw.Write(1u);            // link type = Ethernet
+        bw.Write(1u);            // network = LINKTYPE_ETHERNET
 
         foreach (var p in snapshot)
         {
-            var payload = Encoding.UTF8.GetBytes(p.PayloadPreview);
-            var ts = p.Timestamp.ToUnixTimeSeconds();
-            bw.Write((uint)ts);
-            bw.Write(0u);                    // microseconds
-            bw.Write((uint)payload.Length);  // incl_len
-            bw.Write((uint)payload.Length);  // orig_len
-            bw.Write(payload);
+            // Use raw frame data when available; skip packets without it
+            var frameData = p.RawData;
+            if (frameData == null || frameData.Length == 0)
+                continue;
+
+            var tsSec = (uint)p.Timestamp.ToUnixTimeSeconds();
+            var tsUsec = (uint)(p.Timestamp.Millisecond * 1000);
+            bw.Write(tsSec);
+            bw.Write(tsUsec);
+            bw.Write((uint)frameData.Length);  // incl_len
+            bw.Write((uint)frameData.Length);  // orig_len
+            bw.Write(frameData);
         }
 
         return Task.FromResult<byte[]?>(ms.ToArray());
@@ -607,9 +711,11 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
             try
             {
                 _activeDevice?.StopCapture();
+                _activeDevice?.OnPacketArrival -= OnPacketArrival!;
                 _activeDevice?.Close();
             }
-            catch { /* best-effort */ }
+            catch { /* best-effort cleanup */ }
+            IsCaptureActive = false;
         }
     }
 }

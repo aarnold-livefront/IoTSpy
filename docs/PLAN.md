@@ -96,6 +96,27 @@ README / quick start: [`README.md`](../README.md)
 
 ---
 
+### Phase 6 — Packet capture analysis & device selection
+
+**Goal:** Network device selector, packet filtering UI with robust filters, freeze frame inspection, protocol pattern analysis and suspicious activity detection.
+
+| # | Task | Status |
+|---|---|---|
+| 6.1 | `IoTSpy.Core` — `PacketFilterDto`, `FreezeFrameResult`, `ProtocolDistribution` models/interfaces | ✅ Done (this session) |
+| 6.2 | `IoTSpy.Api` — `PacketCaptureController` with analysis endpoints | ✅ Done (this session) |
+| 6.3 | `IPacketCaptureAnalyzer` interface in Core | ❌ Pending |
+| 6.4 | `PacketCaptureAnalyzer` service implementation | ❌ Pending |
+| 6.5 | Frontend — packet capture panel UI with device selector | ❌ Pending |
+| 6.6 | Frontend — robust filter controls (protocol, IP/port ranges, time window, payload search) | ❌ Pending |
+| 6.7 | Frontend — freeze frame viewer with hex dump and layer-by-layer analysis | ❌ Pending |
+| 6.8 | Frontend — protocol distribution visualization (pie/bar charts) | ❌ Pending |
+| 6.9 | Frontend — communication pattern explorer (top N source→dest pairs) | ❌ Pending |
+| 6.10 | Frontend — suspicious activity detection panel with severity indicators | ❌ Pending |
+| 6.11 | TypeScript API client for packet analysis endpoints (`api.ts`) | ❌ Pending |
+| 6.12 | React hooks for analysis data (`usePacketAnalysis`, `useFreezeFrame`) | ❌ Pending |
+
+---
+
 ## Resuming this project
 
 ### What is done (Phase 1 — complete)
@@ -122,7 +143,7 @@ The entire Phase 1 backend and frontend are scaffolded and functional:
 - CA download link (no auth required on that endpoint).
 - React Context + `useReducer` for auth state; no Redux.
 
-### Current status — all phases complete
+### Current status — all phases complete through 5
 
 **All five phases are complete.** The codebase is fully implemented per the plan above.
 
@@ -131,7 +152,26 @@ Phase 5 final additions (completed last):
 - Anomaly detection in `IoTSpy.Protocols/Anomaly/`: `AnomalyDetector` using Welford's online algorithm; `IAnomalyDetector` interface and `HostBaseline` model in `IoTSpy.Core`.
 - Tests: `TelemetryDecoderTests` and `AnomalyDetectorTests` in `IoTSpy.Protocols.Tests`.
 
-See `docs/architecture.md` for the full architecture reference.
+---
+
+## Resuming Phase 6 work (packet capture analysis)
+
+**Already done this session:**
+- Added `PacketFilterDto` to Core interfaces with protocol, IP/port/time/payload search filters.
+- Created `PacketCaptureController` with endpoints for: device list/status, packet filtering, freeze/unfreeze frame operations, protocol distribution analysis, communication pattern detection, suspicious activity identification.
+
+**Next agent should:**
+1. Create `IPacketCaptureAnalyzer` interface in Core (`src/IoTSpy.Core/Interfaces/IPacketCaptureService.cs`) defining methods for analyze protocols, find patterns, detect suspicious activity, freeze/unfreeze frame operations.
+2. Implement `PacketCaptureAnalyzer` service with pattern detection logic (top N source→dest communication pairs), anomaly analysis rules (retransmission bursts, unusual port usage, protocol anomalies).
+3. Build frontend components: `PacketAnalysisPanel`, `FreezeFrameViewer`, `PatternExplorer`, `SuspiciousActivityDashboard`.
+4. Add robust filter controls in capture UI with multi-field filtering and saved filter presets.
+5. Create TypeScript API client for packet analysis endpoints (`src/IoTSpy.Frontend/api.ts`).
+6. Implement React hooks: `usePacketAnalysis`, `useFreezeFrame`, `useSuspiciousActivity`.
+
+**Key UI requirements:**
+- Freeze frame viewer must show hex dump, layer-by-layer breakdown (L2 MAC, L3 IP/TCP/UDP, L4 payload), protocol-specific details.
+- Pattern explorer should display top N communication pairs with packet count, byte totals, protocols used, time range.
+- Suspicious activity panel needs severity indicators (color-coded: low=green, medium=yellow, high=red) with evidence list per detection.
 
 ---
 

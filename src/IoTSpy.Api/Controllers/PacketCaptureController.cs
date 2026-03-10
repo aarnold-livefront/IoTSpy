@@ -27,6 +27,9 @@ public class PacketCaptureController : ControllerBase
     [HttpGet("devices")]
     public async Task<IActionResult> ListDevices()
     {
+        // Trigger SharpPcap enumeration + DB sync on first call
+        await _captureService.ListInterfacesAsync();
+
         var devices = await _deviceRepo.GetAllAsync();
         return Ok(devices.Select(d => new CaptureDeviceDto
         {
