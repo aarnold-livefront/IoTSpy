@@ -96,6 +96,27 @@ README / quick start: [`README.md`](../README.md)
 
 ---
 
+### Phase 6 — Packet capture analysis & device selection
+
+**Goal:** Network device selector, packet filtering UI with robust filters, freeze frame inspection, protocol pattern analysis and suspicious activity detection.
+
+| # | Task | Status |
+|---|---|---|
+| 6.1 | `IoTSpy.Core` — `PacketFilterDto`, `FreezeFrameResult`, `ProtocolDistribution` models/interfaces | ✅ Done |
+| 6.2 | `IoTSpy.Api` — `PacketCaptureController` with analysis endpoints | ✅ Done |
+| 6.3 | `IPacketCaptureAnalyzer` interface in Core | ✅ Done |
+| 6.4 | `PacketCaptureAnalyzer` service implementation | ✅ Done |
+| 6.5 | Frontend — packet capture panel UI with device selector + tabbed analysis layout | ✅ Done |
+| 6.6 | Frontend — robust filter controls (protocol, IP/port ranges, time window, payload search) | ✅ Done |
+| 6.7 | Frontend — freeze frame viewer with hex dump and layer-by-layer analysis | ✅ Done |
+| 6.8 | Frontend — protocol distribution visualization (bar charts) | ✅ Done |
+| 6.9 | Frontend — communication pattern explorer (top N source→dest pairs) | ✅ Done |
+| 6.10 | Frontend — suspicious activity detection panel with severity indicators | ✅ Done |
+| 6.11 | TypeScript API client for packet analysis endpoints (`packetCapture.ts`) | ✅ Done |
+| 6.12 | React hooks for analysis data (`usePacketAnalysis`) | ✅ Done |
+
+---
+
 ## Resuming this project
 
 ### What is done (Phase 1 — complete)
@@ -122,16 +143,23 @@ The entire Phase 1 backend and frontend are scaffolded and functional:
 - CA download link (no auth required on that endpoint).
 - React Context + `useReducer` for auth state; no Redux.
 
-### Current status — all phases complete
+### Current status — all phases complete through 6
 
-**All five phases are complete.** The codebase is fully implemented per the plan above.
+**All six phases are complete.** The codebase is fully implemented per the plan above.
 
-Phase 5 final additions (completed last):
-- Telemetry decoders in `IoTSpy.Protocols/Telemetry/`: `DatadogDecoder`, `FirehoseDecoder`, `SplunkHecDecoder`, `AzureMonitorDecoder` — all implement `IProtocolDecoder<TelemetryMessage>`.
-- Anomaly detection in `IoTSpy.Protocols/Anomaly/`: `AnomalyDetector` using Welford's online algorithm; `IAnomalyDetector` interface and `HostBaseline` model in `IoTSpy.Core`.
-- Tests: `TelemetryDecoderTests` and `AnomalyDetectorTests` in `IoTSpy.Protocols.Tests`.
+Phase 6 additions (completed last):
+- `PacketCaptureService` (IoTSpy.Scanner) — SharpPcap live capture with LinkedList ring buffer (10k cap), protocol parsing (TCP/UDP/ARP/ICMP/DNS/HTTP/MQTT/CoAP/DHCP/SSH/Telnet), PCAP export via raw frame data, Wireshark-style hex dump formatting.
+- `PacketCaptureAnalyzer` (IoTSpy.Manipulation.Analysis) — protocol distribution, communication pattern detection (top N pairs), suspicious activity detection (port scan, ARP spoofing, DNS anomaly, retransmission bursts).
+- `PacketCaptureHub` SignalR hub at `/hubs/packets` + `SignalRPacketPublisher` for real-time packet streaming.
+- `PacketCaptureController` with 14 endpoints: devices, capture lifecycle, packet filtering, freeze frame (create/get with hex dump + layer analysis), protocol distribution, communication patterns, suspicious activity.
+- EF Core migration `20260309120000_AddPacketCapture` — `CaptureDevices` + `Packets` tables with indexes.
+- Frontend: tabbed `PanelPacketCapture` (Packets/Protocols/Patterns/Suspicious), `PacketInspector` (Details/Hex Dump/Layers via freeze frame API), `ProtocolDistributionView` (bar charts), `PatternExplorer` (table with visual bars), `SuspiciousActivityPanel` (severity-colored cards with evidence).
+- API client (`packetCapture.ts`), hooks (`usePacketCapture`, `usePacketAnalysis`), TypeScript types for all DTOs.
+- 154 tests passing across 3 test projects, 0 warnings.
 
-See `docs/architecture.md` for the full architecture reference.
+---
+
+**Phase 6 is complete.** All backend services, API endpoints, frontend components, API client, hooks, and TypeScript types are implemented and tested.
 
 ---
 

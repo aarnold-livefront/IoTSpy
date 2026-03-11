@@ -5,13 +5,14 @@ import SplitPane from '../components/layout/SplitPane'
 import CaptureList from '../components/captures/CaptureList'
 import CaptureDetail from '../components/captures/CaptureDetail'
 import TimelineSwimlaneView from '../components/timeline/TimelineSwimlaneView'
+import PanelPacketCapture from '../components/panels/PanelPacketCapture'
 import { useProxy } from '../hooks/useProxy'
 import { useCaptures } from '../hooks/useCaptures'
 import { useDevices } from '../hooks/useDevices'
 import { useTrafficStream } from '../hooks/useTrafficStream'
 import type { CaptureFilters } from '../types/api'
 
-type ViewMode = 'list' | 'timeline'
+type ViewMode = 'list' | 'timeline' | 'packet-capture'
 
 export default function DashboardPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -52,7 +53,7 @@ export default function DashboardPage() {
         />
       }
     >
-      {/* View mode toggle */}
+{/* View mode toggle */}
       <div style={{
         display: 'flex',
         gap: '4px',
@@ -88,9 +89,23 @@ export default function DashboardPage() {
         >
           Timeline
         </button>
+        <button
+          onClick={() => setViewMode('packet-capture')}
+          style={{
+            background: viewMode === 'packet-capture' ? 'var(--color-primary)' : 'var(--color-surface-2)',
+            color: viewMode === 'packet-capture' ? '#fff' : 'var(--color-text-muted)',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '2px 12px',
+            fontSize: 'var(--font-size-sm)',
+            cursor: 'pointer',
+          }}
+        >
+          📡 Packet Capture
+        </button>
       </div>
 
-      {viewMode === 'list' ? (
+      {viewMode === 'list' && (
         <SplitPane
           left={
             <CaptureList
@@ -113,7 +128,9 @@ export default function DashboardPage() {
           minLeftPx={260}
           minRightPx={260}
         />
-      ) : (
+      )}
+
+      {viewMode === 'timeline' && (
         <SplitPane
           left={
             <TimelineSwimlaneView
@@ -128,6 +145,10 @@ export default function DashboardPage() {
           minLeftPx={400}
           minRightPx={260}
         />
+      )}
+
+      {viewMode === 'packet-capture' && (
+        <PanelPacketCapture />
       )}
     </AppShell>
   )

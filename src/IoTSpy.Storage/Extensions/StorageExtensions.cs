@@ -29,9 +29,13 @@ public static class StorageExtensions
         services.AddScoped<IBreakpointRepository, BreakpointRepository>();
         services.AddScoped<IReplaySessionRepository, ReplaySessionRepository>();
         services.AddScoped<IFuzzerJobRepository, FuzzerJobRepository>();
-        services.AddScoped<IOpenRtbEventRepository, OpenRtbEventRepository>();
+services.AddScoped<IOpenRtbEventRepository, OpenRtbEventRepository>();
         services.AddScoped<IPiiStrippingLogRepository, PiiStrippingLogRepository>();
         services.AddScoped<IOpenRtbPiiPolicyRepository, OpenRtbPiiPolicyRepository>();
+
+        // Packet capture repositories
+        services.AddScoped<ICaptureDeviceRepository, CaptureDeviceRepository>();
+        services.AddScoped<IPacketRepository, CaptureDeviceRepository>();
 
         return services;
     }

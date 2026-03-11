@@ -16,7 +16,6 @@ import type {
   UpdatePiiPolicyRequest,
   PiiStrippingLog,
   PiiAuditStats,
-  PagedResult,
 } from '../types/api'
 
 export function useOpenRtb() {

@@ -201,6 +201,27 @@ All endpoints (except `/api/auth/*`) require `Authorization: Bearer <token>`.
 | GET | `/api/certificates/root-ca/download` | Download root CA as DER (.crt) |
 | DELETE | `/api/certificates/{id}` | Remove a leaf certificate |
 
+### Packet Capture
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/packet-capture/devices` | List network interfaces available for capture |
+| GET | `/api/packet-capture/devices/{id}` | Get a specific capture device |
+| POST | `/api/packet-capture/start` | Start capturing on a device (`{ "deviceId": "..." }`) |
+| POST | `/api/packet-capture/stop` | Stop capturing |
+| GET | `/api/packet-capture/status` | Current capture status |
+| GET | `/api/packet-capture/packets` | Filtered packet list (protocol, IP, port, time, payload search) |
+| GET | `/api/packet-capture/packets/{id}` | Single packet detail |
+| POST | `/api/packet-capture/packets/{id}/freeze` | Create freeze frame (hex dump + layer analysis) |
+| GET | `/api/packet-capture/packets/{id}/freeze` | Get existing freeze frame |
+| POST | `/api/packet-capture/packets/{id}/delete` | Delete a packet |
+| GET | `/api/packet-capture/analysis/protocols` | Protocol distribution stats |
+| GET | `/api/packet-capture/analysis/patterns` | Top N communication pairs |
+| GET | `/api/packet-capture/analysis/suspicious` | Suspicious activity detections |
+| POST | `/api/packet-capture/freeze` | Freeze analysis view |
+| POST | `/api/packet-capture/unfreeze` | Unfreeze analysis view |
+| GET | `/api/packet-capture/freeze/status` | Freeze status |
+
 ### Real-time (SignalR)
 
 Connect to `/hubs/traffic` (pass JWT as `?access_token=<token>` query parameter).
@@ -219,6 +240,17 @@ connection.invoke("UnsubscribeFromDevice", deviceId);
 ```
 
 Payload fields: `id`, `deviceId`, `method`, `scheme`, `host`, `port`, `path`, `query`, `statusCode`, `statusMessage`, `protocol`, `isTls`, `tlsVersion`, `timestamp`, `durationMs`, `clientIp`, `requestBodySize`, `responseBodySize`.
+
+#### Packet capture hub
+
+Connect to `/hubs/packets` (same `?access_token=` pattern). Clients are auto-joined to the `packet-capture-live` group.
+
+```javascript
+connection.on("PacketCaptured", packet => { ... });
+connection.on("CaptureStatus", status => { ... });
+```
+
+Packet fields: `id`, `timestamp`, `protocol`, `sourceIp`, `destinationIp`, `sourcePort`, `destinationPort`, `length`, `payloadPreview`, `tcpFlags`, `isError`, `isRetransmission`.
 
 ---
 
@@ -248,11 +280,12 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full phased implementation plan and c
 
 | Phase | Scope | Status |
 |---|---|---|
-| 1 | Scaffold, explicit proxy, HTTP/TLS capture, SQLite, React dashboard | **Complete** (Docker packaging remaining) |
-| 2 | ARP spoof, gateway redirect mode, MQTT, DNS, real-time SignalR stream | Planned |
-| 3 | Port scan, service fingerprinting, default-credential testing, CVE lookup | Planned |
-| 4 | Rules engine, request replay, scripted breakpoints (Roslyn + Jint) | Planned |
-| 5 | AI mock engine, CoAP, telemetry decoders, anomaly detection | Planned |
+| 1 | Scaffold, explicit proxy, HTTP/TLS capture, SQLite, React dashboard | **Complete** |
+| 2 | ARP spoof, gateway redirect mode, MQTT, DNS, real-time SignalR stream | **Complete** |
+| 3 | Port scan, service fingerprinting, default-credential testing, CVE lookup | **Complete** |
+| 4 | Rules engine, request replay, scripted breakpoints (Roslyn + Jint) | **Complete** |
+| 5 | AI mock engine, CoAP, telemetry decoders, anomaly detection | **Complete** |
+| 6 | Packet capture, protocol analysis, communication patterns, suspicious activity | **Complete** |
 
 ---
 

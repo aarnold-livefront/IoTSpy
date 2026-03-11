@@ -1,0 +1,46 @@
+.capture-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn--start-capture, .btn--stop-capture {
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn--start-capture {
+  background-color: #4caf50;
+  color: white;
+}
+
+.btn--start-capture:hover:not(:disabled) {
+  background-color: #388e3c;
+}
+
+.btn--start-capture:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn--stop-capture {
+  background-color: #f44336;
+  color: white;
+}
+
+.btn--stop-capture:hover {
+  background-color: #d32f2f;
+}
+
+.capture-status {
+  color: #aaa;
+  font-size: 0.95rem;
+}
+
+.capture-error {
+  color: #f44336;
+  font-size: 0.85rem;
+  margin-left: auto;
+}

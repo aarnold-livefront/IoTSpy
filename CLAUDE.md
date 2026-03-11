@@ -93,7 +93,7 @@ Single-user model. BCrypt password hash stored in the single `ProxySettings` row
 
 ## Current status
 
-Phases 1–4 (backend + frontend) are complete. Phase 5 is partially complete (AI mock engine + CoAP decoder done; telemetry decoders + anomaly detection remaining). No tests exist yet. EF Core migrations: `InitialCreate` + `AddPhase2ProxySettings` + `AddPhase3Scanner` + `AddPhase4Manipulation`.
+All phases (1–6) are complete. Three test projects: Protocols (89), Manipulation (45), Scanner (20) — 154 total, all passing. EF Core migrations: `InitialCreate` + `AddPhase2ProxySettings` + `AddPhase3Scanner` + `AddPhase4Manipulation` + `AddPacketCapture`.
 
 **Phase 3 additions:**
 - `IoTSpy.Scanner` — `PortScanner` (TCP connect scan, configurable concurrency/port ranges), `ServiceFingerprinter` (banner grab, CPE extraction via regex), `CredentialTester` (FTP/Telnet/MQTT default credential checks), `CveLookupService` (OSV.dev API), `ConfigAuditor` (Telnet, UPnP, anon MQTT, exposed DB, HTTP admin detection)
@@ -130,6 +130,15 @@ Phases 1–4 (backend + frontend) are complete. Phase 5 is partially complete (A
 - React hooks: `useManipulation`, `useScanner`
 - TypeScript types in `api.ts` aligned with backend C# models
 
-All phases (1–5) are now complete. The codebase is fully implemented per `docs/PLAN.md`.
+**Phase 6 additions (complete):**
+- `IoTSpy.Scanner` — `PacketCaptureService` (SharpPcap live capture, LinkedList ring buffer 10k cap, protocol parsing, PCAP export, hex dump)
+- `IoTSpy.Manipulation` — `PacketCaptureAnalyzer` (protocol distribution, communication patterns, suspicious activity: port scan, ARP spoof, DNS anomaly, retransmission bursts)
+- `IoTSpy.Core` — `CaptureDevice`, `CapturedPacket`, `PacketFilter`, `PacketFilterDto`, `FreezeFrameResult`, `ProtocolDistribution`, `CommunicationPattern`, `SuspiciousActivity`, `NetworkDeviceStatistics` models; `IPacketCaptureService`, `IPacketCaptureAnalyzer`, `IPacketCapturePublisher` interfaces
+- `IoTSpy.Storage` — `CaptureDevices` + `Packets` DbSets, `AddPacketCapture` migration
+- `IoTSpy.Api` — `PacketCaptureController` (14 endpoints), `PacketCaptureHub` (SignalR at `/hubs/packets`), `SignalRPacketPublisher`
+- Frontend: `PanelPacketCapture` (tabbed: Packets/Protocols/Patterns/Suspicious), `PacketInspector` (Details/Hex/Layers), `ProtocolDistributionView`, `PatternExplorer`, `SuspiciousActivityPanel`
+- Frontend: `packetCapture.ts` API client, `usePacketCapture` + `usePacketAnalysis` hooks, TypeScript DTOs
+
+All phases (1–6) are now complete. The codebase is fully implemented per `docs/PLAN.md`.
 
 See `docs/architecture.md` for full architecture spec and `docs/PLAN.md` for the phased task list.
