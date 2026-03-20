@@ -1,0 +1,12 @@
+<Project>
+  <!--
+    Shared MSBuild properties applied to every project under src/.
+    Test projects pick up Coverlet settings; production projects are excluded.
+  -->
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests'))">
+    <CollectCoverage>true</CollectCoverage>
+    <CoverletOutputFormat>opencover</CoverletOutputFormat>
+    <CoverletOutput>$(MSBuildProjectDirectory)/coverage/</CoverletOutput>
+    <ExcludeByAttribute>GeneratedCodeAttribute;CompilerGeneratedAttribute</ExcludeByAttribute>
+  </PropertyGroup>
+</Project>
