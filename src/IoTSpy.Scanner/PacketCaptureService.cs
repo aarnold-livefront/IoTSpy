@@ -702,6 +702,44 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         return Task.FromResult<byte[]?>(ms.ToArray());
     }
 
+    public async Task<byte[]?> ExportToPcapFilteredAsync(PacketFilterDto filter, CancellationToken ct = default)
+    {
+        var filtered = (await FilterPacketsAsync(filter, ct)).ToList();
+        if (filtered.Count == 0) return null;
+
+        using var ms = new MemoryStream();
+        using var bw = new BinaryWriter(ms);
+
+        bw.Write(0xa1b2c3d4u);
+        bw.Write((ushort)2);
+        bw.Write((ushort)4);
+        bw.Write(0);
+        bw.Write(0u);
+        bw.Write(65535u);
+        bw.Write(1u);
+
+        // Get raw data from live buffer for these packet IDs
+        Dictionary<Guid, byte[]?> rawDataById;
+        lock (_lock)
+            rawDataById = _livePackets.ToDictionary(p => p.Id, p => p.RawData);
+
+        foreach (var p in filtered)
+        {
+            if (!rawDataById.TryGetValue(p.Id, out var frameData) || frameData is null || frameData.Length == 0)
+                continue;
+
+            var tsSec = (uint)p.Timestamp.ToUnixTimeSeconds();
+            var tsUsec = (uint)(p.Timestamp.Millisecond * 1000);
+            bw.Write(tsSec);
+            bw.Write(tsUsec);
+            bw.Write((uint)frameData.Length);
+            bw.Write((uint)frameData.Length);
+            bw.Write(frameData);
+        }
+
+        return ms.ToArray();
+    }
+
     // ── Disposal ─────────────────────────────────────────────────────────────
 
     public void Dispose()

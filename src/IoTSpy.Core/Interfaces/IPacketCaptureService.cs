@@ -91,6 +91,11 @@ public interface IPacketCaptureService
     /// Export captured packets to PCAP file format.
     /// </summary>
     Task<byte[]?> ExportToPcapAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Export filtered captured packets to PCAP file format.
+    /// </summary>
+    Task<byte[]?> ExportToPcapFilteredAsync(PacketFilterDto filter, CancellationToken ct = default);
 }
 
 /// <summary>

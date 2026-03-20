@@ -3,6 +3,7 @@ using System.Threading.RateLimiting;
 using IoTSpy.Api.Hubs;
 using IoTSpy.Api.Services;
 using IoTSpy.Core.Interfaces;
+using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using IoTSpy.Protocols.Anomaly;
 using IoTSpy.Proxy;
@@ -142,6 +143,15 @@ if (rateLimitEnabled)
 builder.Services.Configure<DataRetentionOptions>(
     builder.Configuration.GetSection(DataRetentionOptions.SectionName));
 builder.Services.AddHostedService<DataRetentionService>();
+
+// ── Alerting (Phase 9.4) ──────────────────────────────────────────────────────
+builder.Services.Configure<AlertingOptions>(
+    builder.Configuration.GetSection(AlertingOptions.SectionName));
+builder.Services.AddHttpClient("alerting");
+builder.Services.AddSingleton<IAlertingService, AlertingService>();
+
+// ── Scheduled Scans (Phase 9.5) ───────────────────────────────────────────────
+builder.Services.AddHostedService<ScheduledScanService>();
 
 // ── CORS (for Vite dev server) ─────────────────────────────────────────────
 builder.Services.AddCors(opts => opts.AddDefaultPolicy(policy =>
