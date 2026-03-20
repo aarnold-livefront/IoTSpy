@@ -9,7 +9,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "e2e": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npx playwright test",
+    "e2e:ui": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npx playwright test --ui",
+    "e2e:debug": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npx playwright test --debug"
   },
   "dependencies": {
     "@microsoft/signalr": "^8.0.0",
@@ -18,6 +21,7 @@
     "react-router-dom": "^7.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.52.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.5.2",
