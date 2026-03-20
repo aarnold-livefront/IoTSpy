@@ -8,6 +8,14 @@ namespace IoTSpy.Api.Hubs;
 [Authorize]
 public class TrafficHub : Hub
 {
+    // ── Anomaly alert subscriptions ──────────────────────────────────────────
+    public async Task SubscribeToAnomalyAlerts() =>
+        await Groups.AddToGroupAsync(Context.ConnectionId, "anomaly-alerts");
+
+    public async Task UnsubscribeFromAnomalyAlerts() =>
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, "anomaly-alerts");
+
+
     // ── Device subscriptions ─────────────────────────────────────────────────
     public async Task SubscribeToDevice(string deviceId) =>
         await Groups.AddToGroupAsync(Context.ConnectionId, $"device:{deviceId}");
@@ -100,4 +108,26 @@ public class SignalRCapturePublisher(IHubContext<TrafficHub> hub) : ICapturePubl
         requestBodySize = c.RequestBodySize,
         responseBodySize = c.ResponseBodySize
     };
+}
+
+/// <summary>
+/// Publishes anomaly alerts detected by <see cref="IAnomalyDetector"/> to connected
+/// SignalR clients subscribed to the "anomaly-alerts" group.
+/// </summary>
+public class SignalRAnomalyPublisher(IHubContext<TrafficHub> hub) : IAnomalyAlertPublisher
+{
+    public async Task PublishAsync(AnomalyAlert alert, CancellationToken ct = default)
+    {
+        var dto = new
+        {
+            id = alert.Id,
+            host = alert.Host,
+            alertType = alert.AlertType,
+            expectedValue = alert.ExpectedValue,
+            actualValue = alert.ActualValue,
+            deviationFactor = alert.DeviationFactor,
+            detectedAt = alert.DetectedAt
+        };
+        await hub.Clients.Group("anomaly-alerts").SendAsync("AnomalyAlert", dto, ct);
+    }
 }

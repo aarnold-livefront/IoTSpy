@@ -1,8 +1,10 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using IoTSpy.Api.Hubs;
 using IoTSpy.Api.Services;
 using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
+using IoTSpy.Protocols.Anomaly;
 using IoTSpy.Proxy;
 using IoTSpy.Proxy.Interception;
 using IoTSpy.Proxy.Resilience;
@@ -11,16 +13,26 @@ using IoTSpy.Manipulation;
 using IoTSpy.Scanner;
 using IoTSpy.Storage.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
+using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Serilog (Phase 8.2) ───────────────────────────────────────────────────────
+builder.Host.UseSerilog((ctx, cfg) =>
+    cfg.ReadFrom.Configuration(ctx.Configuration)
+       .Enrich.FromLogContext());
 
 // ── Storage ─────────────────────────────────────────────────────────────────
 var dbProvider = builder.Configuration["Database:Provider"] ?? "sqlite";
 var connString = builder.Configuration["Database:ConnectionString"]
     ?? $"Data Source={Path.Combine(AppContext.BaseDirectory, "iotspy.db")}";
-builder.Services.AddIoTSpyStorage(connString, dbProvider);
+var dbMaxPool = int.TryParse(builder.Configuration["Database:MaxPoolSize"], out var mp) ? mp : 20;
+var dbMinPool = int.TryParse(builder.Configuration["Database:MinPoolSize"], out var minp) ? minp : 1;
+builder.Services.AddIoTSpyStorage(connString, dbProvider, dbMaxPool, dbMinPool);
 
 // ── Authentication ───────────────────────────────────────────────────────────
 var jwtSecret = builder.Configuration["Auth:JwtSecret"]
@@ -58,6 +70,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<ICapturePublisher, SignalRCapturePublisher>();
 builder.Services.AddSingleton<IPacketCapturePublisher, SignalRPacketPublisher>();
+builder.Services.AddSingleton<IAnomalyAlertPublisher, SignalRAnomalyPublisher>();
 
 // ── Resilience ───────────────────────────────────────────────────────────────
 var resilienceOptions = builder.Configuration
@@ -75,6 +88,9 @@ builder.Services.AddSingleton<ICertificateAuthority, CertificateAuthority>();
 builder.Services.AddSingleton<IProxyService, ProxyService>();
 builder.Services.AddHostedService(sp => (ProxyService)sp.GetRequiredService<IProxyService>());
 
+// ── Anomaly detection (Phase 8.5) ─────────────────────────────────────────
+builder.Services.AddSingleton<IAnomalyDetector, AnomalyDetector>();
+
 // ── Scanner ─────────────────────────────────────────────────────────────────
 builder.Services.AddIoTSpyScanner();
 
@@ -89,7 +105,45 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<AuthService>();
 
-// ── CORS (for Vinext dev server) ─────────────────────────────────────────────
+// ── Health checks (Phase 8.1) ────────────────────────────────────────────────
+builder.Services.AddHealthChecks()
+    .AddCheck("self", () => HealthCheckResult.Healthy("API is running"), tags: ["ready", "live"])
+    .AddDbContextCheck<IoTSpy.Storage.IoTSpyDbContext>("database", tags: ["ready"]);
+
+// ── Rate limiting (Phase 8.3) ─────────────────────────────────────────────────
+var rateLimitEnabled = bool.TryParse(builder.Configuration["RateLimit:Enabled"], out var rle) && rle;
+if (rateLimitEnabled)
+{
+    var permitLimit = int.TryParse(builder.Configuration["RateLimit:PermitLimit"], out var pl) ? pl : 100;
+    var windowSeconds = int.TryParse(builder.Configuration["RateLimit:WindowSeconds"], out var ws) ? ws : 60;
+    var queueLimit = int.TryParse(builder.Configuration["RateLimit:QueueLimit"], out var ql) ? ql : 10;
+
+    builder.Services.AddRateLimiter(opts =>
+    {
+        opts.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+        {
+            var key = ctx.User?.Identity?.Name
+                ?? ctx.Connection.RemoteIpAddress?.ToString()
+                ?? "anonymous";
+            return RateLimitPartition.GetSlidingWindowLimiter(key, _ => new SlidingWindowRateLimiterOptions
+            {
+                PermitLimit = permitLimit,
+                Window = TimeSpan.FromSeconds(windowSeconds),
+                SegmentsPerWindow = 4,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = queueLimit
+            });
+        });
+        opts.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    });
+}
+
+// ── Data retention (Phase 8.4) ────────────────────────────────────────────────
+builder.Services.Configure<DataRetentionOptions>(
+    builder.Configuration.GetSection(DataRetentionOptions.SectionName));
+builder.Services.AddHostedService<DataRetentionService>();
+
+// ── CORS (for Vite dev server) ─────────────────────────────────────────────
 builder.Services.AddCors(opts => opts.AddDefaultPolicy(policy =>
     policy.WithOrigins(
             builder.Configuration["Frontend:Origin"] ?? "http://localhost:3000")
@@ -113,12 +167,56 @@ if (app.Environment.IsDevelopment())
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+app.UseSerilogRequestLogging(opts =>
+{
+    opts.EnrichDiagnosticContext = (diag, ctx) =>
+    {
+        diag.Set("RequestHost", ctx.Request.Host.Value);
+        diag.Set("UserAgent", (object)(ctx.Request.Headers.UserAgent.FirstOrDefault() ?? string.Empty));
+    };
+});
+
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+
+if (rateLimitEnabled)
+    app.UseRateLimiter();
+
 app.MapControllers();
 app.MapHub<TrafficHub>("/hubs/traffic");
 app.MapHub<PacketCaptureHub>("/hubs/packets");
+
+// ── Health check endpoints (Phase 8.1) ───────────────────────────────────────
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("live"),
+    ResponseWriter = async (ctx, report) =>
+    {
+        ctx.Response.ContentType = "application/json";
+        var result = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new { name = e.Key, status = e.Value.Status.ToString() })
+        });
+        await ctx.Response.WriteAsync(result);
+    }
+});
+
+app.MapHealthChecks("/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = async (ctx, report) =>
+    {
+        ctx.Response.ContentType = "application/json";
+        var result = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            status = report.Status.ToString(),
+            checks = report.Entries.Select(e => new { name = e.Key, status = e.Value.Status.ToString(), description = e.Value.Description })
+        });
+        await ctx.Response.WriteAsync(result);
+    }
+});
 
 // SPA fallback — any unmatched route serves index.html for client-side routing
 app.MapFallbackToFile("index.html");

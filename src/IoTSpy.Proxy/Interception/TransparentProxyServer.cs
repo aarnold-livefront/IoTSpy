@@ -31,14 +31,19 @@ public class TransparentProxyServer(
     ICapturePublisher publisher,
     IManipulationService manipulationService,
     IOpenRtbService openRtbService,
+    IAnomalyDetector anomalyDetector,
+    IAnomalyAlertPublisher anomalyPublisher,
     IServiceScopeFactory scopeFactory,
     ResiliencePipelineProvider<string> connectPipelineProvider,
     ILogger<TransparentProxyServer> logger)
 {
     private TcpListener? _listener;
     private CancellationTokenSource? _cts;
+    private int _activeConnections;
+    private readonly TaskCompletionSource _drainTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public bool IsRunning => _listener is not null;
+    public int ActiveConnections => _activeConnections;
 
     // Linux netfilter constants for SO_ORIGINAL_DST
     private const int SOL_IP = 0;
@@ -59,13 +64,23 @@ public class TransparentProxyServer(
         _ = AcceptLoopAsync(_cts.Token);
     }
 
-    public Task StopAsync()
+    public async Task StopAsync(TimeSpan? drainTimeout = null)
     {
         _cts?.Cancel();
         _listener?.Stop();
         _listener = null;
+        logger.LogInformation("Transparent proxy stopping — waiting for {Count} active connection(s) to drain",
+            _activeConnections);
+
+        var timeout = drainTimeout ?? TimeSpan.FromSeconds(10);
+        if (_activeConnections > 0)
+        {
+            await Task.WhenAny(_drainTcs.Task, Task.Delay(timeout));
+            if (_activeConnections > 0)
+                logger.LogWarning("Drain timeout reached — {Count} connection(s) still active", _activeConnections);
+        }
+
         logger.LogInformation("Transparent proxy stopped");
-        return Task.CompletedTask;
     }
 
     private async Task AcceptLoopAsync(CancellationToken ct)
@@ -87,6 +102,7 @@ public class TransparentProxyServer(
 
     private async Task HandleClientAsync(TcpClient client, CancellationToken ct)
     {
+        Interlocked.Increment(ref _activeConnections);
         using (client)
         {
             client.ReceiveTimeout = 30_000;
@@ -139,6 +155,8 @@ public class TransparentProxyServer(
                 logger.LogDebug(ex, "Transparent proxy client handler error");
             }
         }
+        if (Interlocked.Decrement(ref _activeConnections) == 0 && _cts?.IsCancellationRequested == true)
+            _drainTcs.TrySetResult();
     }
 
     // ── TLS MITM for transparent traffic ─────────────────────────────────────
@@ -355,6 +373,18 @@ public class TransparentProxyServer(
 
             await captures.AddAsync(capture, ct);
             await publisher.PublishAsync(capture, ct);
+
+            // Phase 8.5: Feed the anomaly detector and publish any triggered alerts
+            if (statusCode > 0)
+            {
+                var alerts = anomalyDetector.Record(host, capture.DurationMs, capture.ResponseBodySize, statusCode);
+                foreach (var alert in alerts)
+                {
+                    logger.LogDebug("Anomaly detected on {Host}: {Type} (deviation={Factor:F1}σ)",
+                        alert.Host, alert.AlertType, alert.DeviationFactor);
+                    _ = anomalyPublisher.PublishAsync(alert, ct);
+                }
+            }
 
             if (respHeaders.Contains("Connection: close", StringComparison.OrdinalIgnoreCase) ||
                 (reqLine ?? "").EndsWith("HTTP/1.0"))

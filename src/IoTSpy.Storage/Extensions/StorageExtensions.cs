@@ -10,14 +10,24 @@ public static class StorageExtensions
     public static IServiceCollection AddIoTSpyStorage(
         this IServiceCollection services,
         string connectionString,
-        string provider = "sqlite")
+        string provider = "sqlite",
+        int maxPoolSize = 20,
+        int minPoolSize = 1)
     {
         services.AddDbContext<IoTSpyDbContext>(opts =>
         {
             if (provider.Equals("postgres", StringComparison.OrdinalIgnoreCase))
-                opts.UseNpgsql(connectionString);
+            {
+                // Apply connection pool tuning for Postgres (Phase 8.7)
+                var npgsqlConnString = connectionString;
+                if (!npgsqlConnString.Contains("Maximum Pool Size", StringComparison.OrdinalIgnoreCase))
+                    npgsqlConnString += $";Maximum Pool Size={maxPoolSize};Minimum Pool Size={minPoolSize}";
+                opts.UseNpgsql(npgsqlConnString);
+            }
             else
+            {
                 opts.UseSqlite(connectionString);
+            }
         });
 
         services.AddScoped<IDeviceRepository, DeviceRepository>();
