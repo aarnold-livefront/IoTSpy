@@ -132,15 +132,19 @@ public class CaptureRepositoryTests : IDisposable
     public async Task ClearAsync_WithDeviceId_OnlyClearsMatchingDevice()
     {
         var repo = new CaptureRepository(_db);
-        var deviceId = Guid.NewGuid();
 
-        var c1 = MakeCapture(); c1.DeviceId = deviceId;
-        var c2 = MakeCapture(); c2.DeviceId = deviceId;
+        // Insert a real device so foreign key constraint is satisfied
+        var device = new IoTSpy.Core.Models.Device { IpAddress = "10.0.0.1" };
+        _db.Devices.Add(device);
+        await _db.SaveChangesAsync();
+
+        var c1 = MakeCapture(); c1.DeviceId = device.Id;
+        var c2 = MakeCapture(); c2.DeviceId = device.Id;
         await repo.AddAsync(c1);
         await repo.AddAsync(c2);
         await repo.AddAsync(MakeCapture());  // No device
 
-        await repo.ClearAsync(deviceId);
+        await repo.ClearAsync(device.Id);
 
         Assert.Equal(1, await repo.CountAsync(new CaptureFilter()));
     }

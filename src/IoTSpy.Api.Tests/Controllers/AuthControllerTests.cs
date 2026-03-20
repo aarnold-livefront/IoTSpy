@@ -61,7 +61,7 @@ public class AuthControllerTests
 
         var settingsRepo = Substitute.For<IProxySettingsRepository>();
         settingsRepo.GetAsync().Returns(settings);
-        settingsRepo.SaveAsync(Arg.Any<ProxySettings>()).Returns(Task.CompletedTask);
+        settingsRepo.SaveAsync(Arg.Any<ProxySettings>()).Returns(Task.FromResult(settings));
 
         var controller = new AuthController(auth, settingsRepo);
         var result = await controller.Setup(new AuthController.SetupRequest("newpassword"));

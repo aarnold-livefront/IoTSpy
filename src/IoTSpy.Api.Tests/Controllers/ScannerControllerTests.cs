@@ -109,7 +109,7 @@ public class ScannerControllerTests
         scanner.IsScanRunning(id).Returns(true);
 
         var controller = new ScannerController(scanner, scanJobs, Substitute.For<IDeviceRepository>());
-        var result = await controller.CancelScan(id) as OkObjectResult;
+        var result = await controller.CancelScan(id) as OkResult;
 
         Assert.NotNull(result);
         await scanner.Received(1).CancelScanAsync(id);

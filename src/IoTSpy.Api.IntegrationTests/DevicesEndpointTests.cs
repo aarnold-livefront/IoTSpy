@@ -12,7 +12,7 @@ public class DevicesEndpointTests : IAsyncLifetime
     private HttpClient _client = null!;
     private string _token = string.Empty;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await _factory.InitializeDbAsync();
         _client = _factory.CreateClient();
@@ -26,11 +26,11 @@ public class DevicesEndpointTests : IAsyncLifetime
         _client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _token);
     }
 
-    public Task DisposeAsync()
+    public ValueTask DisposeAsync()
     {
         _client.Dispose();
         _factory.Dispose();
-        return Task.CompletedTask;
+        return ValueTask.CompletedTask;
     }
 
     [Fact]

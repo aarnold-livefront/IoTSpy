@@ -3,6 +3,7 @@ using IoTSpy.Core.Models;
 using IoTSpy.Proxy;
 using IoTSpy.Proxy.Interception;
 using IoTSpy.Proxy.Tls;
+using IoTSpy.Storage;
 using IoTSpy.Storage.Extensions;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
