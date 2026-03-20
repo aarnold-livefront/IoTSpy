@@ -236,6 +236,35 @@ public class PacketCaptureController : ControllerBase
         }));
     }
 
+    [HttpGet("export/pcap")]
+    public async Task<IActionResult> ExportPcap(
+        [FromQuery] string? protocol,
+        [FromQuery] string? sourceIp,
+        [FromQuery] string? destIp,
+        [FromQuery] DateTime? from,
+        [FromQuery] DateTime? to,
+        CancellationToken ct = default)
+    {
+        var filter = new IoTSpy.Core.Interfaces.PacketFilterDto
+        {
+            Protocol = protocol,
+            SourceIp = sourceIp,
+            DestinationIp = destIp,
+            FromTime = from,
+            ToTime = to,
+            Limit = 100_000
+        };
+
+        byte[]? pcap;
+        if (protocol is not null || sourceIp is not null || destIp is not null || from is not null || to is not null)
+            pcap = await _captureService.ExportToPcapFilteredAsync(filter, ct);
+        else
+            pcap = await _captureService.ExportToPcapAsync(ct);
+
+        if (pcap is null) return NotFound("No packets available");
+        return File(pcap, "application/vnd.tcpdump.pcap", "capture.pcap");
+    }
+
     [HttpPost("freeze")]
     public IActionResult FreezeFrame()
     {

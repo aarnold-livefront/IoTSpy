@@ -25,6 +25,9 @@ public DbSet<OpenRtbEvent> OpenRtbEvents => Set<OpenRtbEvent>();
     public DbSet<CaptureDevice> CaptureDevices => Set<CaptureDevice>();
     public DbSet<CapturedPacket> Packets => Set<CapturedPacket>();
 
+    // Phase 9
+    public DbSet<ScheduledScan> ScheduledScans => Set<ScheduledScan>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Device>(e =>
@@ -151,6 +154,17 @@ modelBuilder.Entity<OpenRtbPiiPolicy>(e =>
             e.HasKey(p => p.Id);
             e.HasIndex(p => p.Enabled);
             e.HasIndex(p => p.Priority);
+        });
+
+        modelBuilder.Entity<ScheduledScan>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.HasIndex(s => s.DeviceId);
+            e.HasIndex(s => s.IsEnabled);
+            e.HasOne(s => s.Device)
+             .WithMany()
+             .HasForeignKey(s => s.DeviceId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<CaptureDevice>(e =>
