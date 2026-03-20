@@ -13,6 +13,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
+    // Exclude Playwright e2e tests — they live in tests/ and are run separately via `npm run e2e`
+    exclude: ['tests/**', 'node_modules/**'],
     // Transform CSS imports to empty modules so component tests don't fail
     css: false,
     coverage: {
