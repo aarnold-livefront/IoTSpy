@@ -1,6 +1,6 @@
 # IoTSpy — Implementation Plan & Session Handoff
 
-This document captures the phased implementation plan, current progress, and everything needed for a new contributor (or a new Claude Code session) to resume work without losing context.
+This document captures the phased implementation plan, current progress, identified gaps, and the forward-looking roadmap. It serves as the single source of truth for any new contributor or Claude Code session to resume work.
 
 ---
 
@@ -13,9 +13,11 @@ README / quick start: [`README.md`](../README.md)
 
 ---
 
-## Phased delivery plan
+## Completed phases (1–6 + OpenRTB)
 
-### Phase 1 — Foundation (current)
+All foundational phases are complete. Below is a summary of what was delivered.
+
+### Phase 1 — Foundation ✅
 
 **Goal:** Running proxy server + REST API + basic dashboard scaffold.
 
@@ -37,13 +39,11 @@ README / quick start: [`README.md`](../README.md)
 | 1.14 | Frontend — CA download button | ✅ Done |
 | 1.15 | Frontend — SignalR live stream connection | ✅ Done |
 | 1.16 | Docker / docker-compose for single-command local run | ✅ Done |
-| 1.17 | `.gitignore` updates, README, docs | ✅ Done (this session) |
-
-**Phase 1 is complete** (backend + frontend + Docker).
+| 1.17 | `.gitignore` updates, README, docs | ✅ Done |
 
 ---
 
-### Phase 2 — Additional interception modes + protocols
+### Phase 2 — Additional interception modes + protocols ✅
 
 | # | Task | Status |
 |---|---|---|
@@ -56,7 +56,7 @@ README / quick start: [`README.md`](../README.md)
 
 ---
 
-### Phase 3 — Pen-test suite
+### Phase 3 — Pen-test suite ✅
 
 | # | Task | Status |
 |---|---|---|
@@ -70,7 +70,7 @@ README / quick start: [`README.md`](../README.md)
 
 ---
 
-### Phase 4 — Active manipulation
+### Phase 4 — Active manipulation ✅
 
 | # | Task | Status |
 |---|---|---|
@@ -84,7 +84,7 @@ README / quick start: [`README.md`](../README.md)
 
 ---
 
-### Phase 5 — AI mock + advanced protocol decoding
+### Phase 5 — AI mock + advanced protocol decoding ✅
 
 | # | Task | Status |
 |---|---|---|
@@ -96,14 +96,12 @@ README / quick start: [`README.md`](../README.md)
 
 ---
 
-### Phase 6 — Packet capture analysis & device selection
-
-**Goal:** Network device selector, packet filtering UI with robust filters, freeze frame inspection, protocol pattern analysis and suspicious activity detection.
+### Phase 6 — Packet capture analysis & device selection ✅
 
 | # | Task | Status |
 |---|---|---|
 | 6.1 | `IoTSpy.Core` — `PacketFilterDto`, `FreezeFrameResult`, `ProtocolDistribution` models/interfaces | ✅ Done |
-| 6.2 | `IoTSpy.Api` — `PacketCaptureController` with analysis endpoints | ✅ Done |
+| 6.2 | `IoTSpy.Api` — `PacketCaptureController` with 14 analysis endpoints | ✅ Done |
 | 6.3 | `IPacketCaptureAnalyzer` interface in Core | ✅ Done |
 | 6.4 | `PacketCaptureAnalyzer` service implementation | ✅ Done |
 | 6.5 | Frontend — packet capture panel UI with device selector + tabbed analysis layout | ✅ Done |
@@ -117,49 +115,178 @@ README / quick start: [`README.md`](../README.md)
 
 ---
 
-## Resuming this project
+### OpenRTB Traffic Inspection (added post-Phase 6) ✅
 
-### What is done (Phase 1 — complete)
-
-The entire Phase 1 backend and frontend are scaffolded and functional:
-
-**Backend:**
-- `ExplicitProxyServer` listens on `:8888`, handles HTTP and HTTPS CONNECT.
-- TLS MITM works via BouncyCastle dynamic CA (root CA auto-generated, per-host leaf certs cached).
-- Polly 8 resilience: per-host circuit breaker + retry + timeout for TCP connect; timeout-only for TLS handshake.
-- EF Core 10 with SQLite default; Postgres switchable via config. `DateTimeOffset` stored as Unix ms (long) via `ValueConverter` for SQLite compatibility.
-- JWT single-user auth with PBKDF2 (`Rfc2898DeriveBytes.Pbkdf2`) password hash stored in DB.
-- SignalR hub `/hubs/traffic` streams every captured request in real time.
-- Five REST controllers fully implemented.
-- OpenAPI (Scalar) in Development mode at `/scalar`.
-
-**Frontend (`frontend/`):**
-- Vite 6 + React 19 + TypeScript; dev server on port 3000.
-- Auth flow: `/setup` (first-run password) → `/login` → dashboard. JWT in `localStorage`.
-- Split-pane capture dashboard with draggable divider: capture list on left, request/response/TLS detail on right.
-- `CaptureFilterBar`: filter by device, method, status code, host, date range, body search.
-- SignalR live stream via `useTrafficStream` — new captures prepended in real time.
-- Proxy start/stop + settings modal (port, listen address, TLS/body capture flags).
-- CA download link (no auth required on that endpoint).
-- React Context + `useReducer` for auth state; no Redux.
-
-### Current status — all phases complete through 6
-
-**All six phases are complete.** The codebase is fully implemented per the plan above.
-
-Phase 6 additions (completed last):
-- `PacketCaptureService` (IoTSpy.Scanner) — SharpPcap live capture with LinkedList ring buffer (10k cap), protocol parsing (TCP/UDP/ARP/ICMP/DNS/HTTP/MQTT/CoAP/DHCP/SSH/Telnet), PCAP export via raw frame data, Wireshark-style hex dump formatting.
-- `PacketCaptureAnalyzer` (IoTSpy.Manipulation.Analysis) — protocol distribution, communication pattern detection (top N pairs), suspicious activity detection (port scan, ARP spoofing, DNS anomaly, retransmission bursts).
-- `PacketCaptureHub` SignalR hub at `/hubs/packets` + `SignalRPacketPublisher` for real-time packet streaming.
-- `PacketCaptureController` with 14 endpoints: devices, capture lifecycle, packet filtering, freeze frame (create/get with hex dump + layer analysis), protocol distribution, communication patterns, suspicious activity.
-- EF Core migration `20260309120000_AddPacketCapture` — `CaptureDevices` + `Packets` tables with indexes.
-- Frontend: tabbed `PanelPacketCapture` (Packets/Protocols/Patterns/Suspicious), `PacketInspector` (Details/Hex Dump/Layers via freeze frame API), `ProtocolDistributionView` (bar charts), `PatternExplorer` (table with visual bars), `SuspiciousActivityPanel` (severity-colored cards with evidence).
-- API client (`packetCapture.ts`), hooks (`usePacketCapture`, `usePacketAnalysis`), TypeScript types for all DTOs.
-- 154 tests passing across 3 test projects, 0 warnings.
+| # | Task | Status |
+|---|---|---|
+| OR.1 | `IoTSpy.Protocols` — `OpenRtbDecoder` (OpenRTB 2.5 bid request/response parsing) | ✅ Done |
+| OR.2 | `IoTSpy.Core` — `OpenRtbEvent`, `OpenRtbPiiPolicy` models; `IOpenRtbEventRepository`, `IOpenRtbPiiPolicyRepository`, `IOpenRtbService` interfaces | ✅ Done |
+| OR.3 | `IoTSpy.Manipulation` — `OpenRtbPiiService` (PII detection + redaction strategies) | ✅ Done |
+| OR.4 | `IoTSpy.Storage` — `OpenRtbEvents`, `OpenRtbPiiPolicies` DbSets + repositories + `AddOpenRtbInspection` migration | ✅ Done |
+| OR.5 | `IoTSpy.Api` — `OpenRtbController` (events CRUD, PII policies CRUD, PII audit logs, stripping rules) | ✅ Done |
+| OR.6 | `IoTSpy.Proxy` — Inline OpenRTB detection in both proxy servers | ✅ Done |
+| OR.7 | Frontend — `OpenRtbPanel`, `OpenRtbTrafficList`, `OpenRtbInspector`, `PiiPolicyEditor`, `PiiAuditLog` | ✅ Done |
+| OR.8 | Frontend — `openrtb.ts` API client, `useOpenRtb` hook | ✅ Done |
+| OR.9 | Tests — `OpenRtbDecoderTests`, `OpenRtbPiiServiceTests` | ✅ Done |
 
 ---
 
-**Phase 6 is complete.** All backend services, API endpoints, frontend components, API client, hooks, and TypeScript types are implemented and tested.
+## Current statistics
+
+| Metric | Value |
+|---|---|
+| Backend projects | 7 (Core, Proxy, Protocols, Scanner, Manipulation, Storage, Api) |
+| Test projects | 3 (Protocols.Tests, Manipulation.Tests, Scanner.Tests) |
+| Total test classes | 14 |
+| REST controllers | 9 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb) |
+| HTTP endpoints | 40+ |
+| SignalR hubs | 2 (TrafficHub, PacketCaptureHub) |
+| EF Core migrations | 6 (InitialCreate → AddPacketCapture) |
+| Frontend components | 50+ TypeScript files across 13 component directories |
+| Protocols supported | HTTP/HTTPS, MQTT 3.1.1/5.0, DNS/mDNS, CoAP, OpenRTB 2.5, Datadog, Firehose, Splunk HEC, Azure Monitor |
+
+---
+
+## Identified gaps and technical debt
+
+The following items represent known gaps, incomplete integrations, or areas where the codebase would benefit from additional work. These inform the forward-looking roadmap below.
+
+### Integration gaps
+
+| Gap | Description | Severity |
+|---|---|---|
+| Anomaly detector not wired | `IAnomalyDetector` / `AnomalyDetector` exists in Core+Protocols but is not integrated into the proxy pipeline — it is standalone and must be called manually | Medium |
+| No WebSocket interception | The proxy intercepts HTTP/HTTPS only; WebSocket upgrade frames pass through without content capture or inspection | Medium |
+| No MQTT proxy mode | MQTT is decoded from packet captures but not actively proxied/intercepted at the application layer | Low |
+| CoAP decoder is passive | CoAP is decoded from captures but there is no CoAP proxy or interception capability | Low |
+
+### Test coverage gaps
+
+| Gap | Description | Severity |
+|---|---|---|
+| No Api controller tests | 9 controllers with 40+ endpoints have zero unit or integration tests | High |
+| No Proxy tests | `ExplicitProxyServer`, `TransparentProxyServer`, `CertificateAuthority`, resilience pipelines — all untested | High |
+| No Storage/repository tests | EF Core repositories have no unit tests (in-memory provider or SQLite) | Medium |
+| No Core model tests | Domain model validation/logic untested | Low |
+| No frontend tests | 50+ React components, hooks, and API clients have zero tests (no Vitest/Jest setup) | High |
+| No integration/E2E tests | No end-to-end test that boots the API and exercises the full request flow | Medium |
+
+### Infrastructure gaps
+
+| Gap | Description | Severity |
+|---|---|---|
+| No CI/CD pipeline | No GitHub Actions, Azure DevOps, or other CI configuration | High |
+| No health check endpoint | No `/health` or `/ready` endpoint for container orchestration | Medium |
+| No structured logging | Using `ILogger` but no structured sink (Serilog, Seq) for production use | Low |
+| No rate limiting | API endpoints have no throttling — a concern if exposed beyond localhost | Medium |
+| No HTTPS for the API itself | The API serves on plain HTTP; TLS termination is assumed external | Low |
+
+### Feature gaps
+
+| Gap | Description | Severity |
+|---|---|---|
+| No export/reporting | No PDF/HTML scan report generation, no CSV/JSON export of findings or captures | Medium |
+| No data retention policies | Captures and packets accumulate without automatic cleanup or TTL | Medium |
+| No alerting/notifications | Anomaly detection and suspicious activity findings have no notification mechanism (email, webhook, Slack) | Low |
+| No multi-user support | Single-user JWT model — no RBAC, no audit trail of who did what | Low |
+| No Bluetooth/Zigbee/Z-Wave | IoT protocols beyond IP-based networking are not supported | Low |
+| Dashboard not responsive | Frontend layout assumes desktop-width screens | Low |
+
+---
+
+## Forward-looking roadmap
+
+### Phase 7 — Test coverage & CI/CD
+
+**Goal:** Establish a testing baseline and automated build/test pipeline.
+
+| # | Task | Status |
+|---|---|---|
+| 7.1 | `IoTSpy.Api.Tests` — controller unit tests with mocked services (WebApplicationFactory or manual DI) | ⬚ Not started |
+| 7.2 | `IoTSpy.Proxy.Tests` — proxy server unit tests (mock TCP connections, TLS handshake) | ⬚ Not started |
+| 7.3 | `IoTSpy.Storage.Tests` — repository tests using EF Core in-memory or SQLite provider | ⬚ Not started |
+| 7.4 | Integration test project — boot API via `WebApplicationFactory`, exercise full HTTP capture pipeline | ⬚ Not started |
+| 7.5 | Frontend test setup — Vitest + React Testing Library + initial component tests | ⬚ Not started |
+| 7.6 | GitHub Actions CI workflow — build, test, lint on PR/push | ⬚ Not started |
+| 7.7 | Code coverage reporting (Coverlet + ReportGenerator or Codecov) | ⬚ Not started |
+
+---
+
+### Phase 8 — Observability & production hardening
+
+**Goal:** Make IoTSpy reliable for long-running deployments.
+
+| # | Task | Status |
+|---|---|---|
+| 8.1 | Health check endpoints (`/health`, `/ready`) for Docker/K8s probes | ⬚ Not started |
+| 8.2 | Structured logging (Serilog + configurable sinks: console, file, Seq) | ⬚ Not started |
+| 8.3 | API rate limiting (ASP.NET Core `RateLimiter` middleware) | ⬚ Not started |
+| 8.4 | Data retention policies — configurable TTL for captures, packets, scan jobs with background cleanup | ⬚ Not started |
+| 8.5 | Wire `AnomalyDetector` into the proxy pipeline — real-time anomaly alerts via SignalR | ⬚ Not started |
+| 8.6 | Graceful shutdown — drain active proxy connections, flush pending SignalR messages | ⬚ Not started |
+| 8.7 | Database connection pooling tuning + Postgres-specific optimizations | ⬚ Not started |
+
+---
+
+### Phase 9 — Export & reporting
+
+**Goal:** Allow users to extract actionable outputs from IoTSpy.
+
+| # | Task | Status |
+|---|---|---|
+| 9.1 | Scan report generation — HTML/PDF summary of scan findings per device, grouped by severity | ⬚ Not started |
+| 9.2 | Capture export — CSV/JSON/HAR export of captured HTTP traffic | ⬚ Not started |
+| 9.3 | PCAP export improvements — filtered export (by protocol, IP, time range) | ⬚ Not started |
+| 9.4 | Alerting — webhook/email notifications when anomaly detector or suspicious activity triggers fire | ⬚ Not started |
+| 9.5 | Scheduled scans — cron-like recurring scan jobs with result comparison (drift detection) | ⬚ Not started |
+
+---
+
+### Phase 10 — Protocol expansion & active protocol proxying
+
+**Goal:** Extend beyond passive protocol decoding to active interception.
+
+| # | Task | Status |
+|---|---|---|
+| 10.1 | WebSocket interception — capture and display WebSocket frames in the proxy pipeline | ⬚ Not started |
+| 10.2 | MQTT broker proxy — transparent MQTT MITM with topic-level inspection and manipulation | ⬚ Not started |
+| 10.3 | CoAP proxy — UDP-based interception for constrained IoT devices | ⬚ Not started |
+| 10.4 | gRPC/Protobuf decoding — recognize and decode gRPC traffic passing through the proxy | ⬚ Not started |
+| 10.5 | Modbus TCP decoder — industrial IoT protocol support | ⬚ Not started |
+
+---
+
+### Phase 11 — UX & multi-user
+
+**Goal:** Polish the user experience and support team usage.
+
+| # | Task | Status |
+|---|---|---|
+| 11.1 | Responsive/mobile-friendly dashboard layout | ⬚ Not started |
+| 11.2 | Dark mode theme toggle | ⬚ Not started |
+| 11.3 | Multi-user authentication with role-based access (admin, viewer, operator) | ⬚ Not started |
+| 11.4 | Audit log — track user actions (scan started, rule created, replay executed, etc.) | ⬚ Not started |
+| 11.5 | Dashboard customization — user-configurable panel layout, saved views/filters | ⬚ Not started |
+| 11.6 | Onboarding wizard — guided first-run flow for device setup + CA installation | ⬚ Not started |
+
+---
+
+## Resuming this project
+
+### Current status — all phases complete through 6 + OpenRTB
+
+**All six original phases and the OpenRTB feature are complete.** The codebase is fully functional with:
+
+- 9 REST controllers, 40+ endpoints, 2 SignalR hubs
+- 3 proxy modes (explicit, gateway/iptables, ARP spoof)
+- Protocol decoders: MQTT 3.1.1/5.0, DNS/mDNS, CoAP, OpenRTB 2.5, 4 telemetry formats
+- Pen-test suite: port scan, fingerprinting, credential testing, CVE lookup, config audit
+- Traffic manipulation: rules engine, C#/JS scripted breakpoints, replay, fuzzer, AI mock
+- Packet capture with protocol analysis, pattern detection, suspicious activity alerts
+- OpenRTB traffic inspection with PII detection and policy-based redaction
+- Full React frontend with real-time SignalR streaming
+
+**Next recommended focus: Phase 7 (test coverage & CI/CD)** — the highest-severity gaps are in test coverage and build automation.
 
 ---
 
@@ -169,7 +296,7 @@ Phase 6 additions (completed last):
 |---|---|---|
 | Proxy modes | Three (explicit, gateway, ARP) all feed one capture pipeline | Uniform storage/analysis regardless of interception method |
 | Storage | SQLite default, Postgres pluggable | Zero-config for local use; scales with Postgres |
-| Auth | Single-user JWT, BCrypt hash in DB | Simple; IoTSpy is a personal/team tool, not multi-tenant |
+| Auth | Single-user JWT, PBKDF2 hash in DB | Simple; IoTSpy is a personal/team tool, not multi-tenant |
 | TLS MITM | BouncyCastle (pure .NET) | No native dependency; works cross-platform |
 | Resilience | Per-host Polly circuit breaker | A dead IoT cloud endpoint must not stall the whole proxy |
 | Real-time | SignalR | Native .NET, easy JS client, supports group subscriptions per device |
@@ -183,7 +310,7 @@ Phase 6 additions (completed last):
 - Namespace / project prefix: `IoTSpy` (capital I, o, T, S — not `Iotspy` or `IOTSPY`)
 - Solution file: `IoTSpy.sln`
 - Docker image / container names: `iotspy` (lowercase)
-- Git repo directory: `iotspy/` (lowercase, existing)
+- Git repo directory: `IoTSpy/`
 
 ---
 
@@ -207,7 +334,7 @@ Environment variable override uses double-underscore: `Auth__JwtSecret=...`
 ## Running the backend locally
 
 ```bash
-cd /path/to/iotspy
+cd /path/to/IoTSpy
 
 # Required env var
 export Auth__JwtSecret="replace-with-32-char-minimum-secret"
@@ -221,8 +348,8 @@ dotnet run --project src/IoTSpy.Api
 
 ## Notes for Claude Code sessions
 
-- `IoTSpy.Protocols` has MQTT, DNS/mDNS, CoAP, and four telemetry decoders (Datadog, Firehose, Splunk HEC, Azure Monitor). `IoTSpy.Scanner` has port scan, fingerprinting, credential testing, CVE lookup, config audit. `IoTSpy.Manipulation` has rules engine, scripted breakpoints (C#/JS), replay, fuzzer, and AI mock engine.
-- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` — five migrations applied through `AddPhase4Manipulation`. Run `dotnet ef migrations add <Name> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api` from the repo root when adding new entities or properties.
+- `IoTSpy.Protocols` has MQTT, DNS/mDNS, CoAP, OpenRTB, and four telemetry decoders (Datadog, Firehose, Splunk HEC, Azure Monitor). `IoTSpy.Scanner` has port scan, fingerprinting, credential testing, CVE lookup, config audit, and packet capture. `IoTSpy.Manipulation` has rules engine, scripted breakpoints (C#/JS), replay, fuzzer, AI mock engine, packet capture analyzer, and OpenRTB PII service.
+- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` — 6 migrations applied (InitialCreate, AddPhase2ProxySettings, AddPhase3Scanner, AddPhase4ManipulationFix, AddOpenRtbInspection, AddPacketCapture). Run `dotnet ef migrations add <Name> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api` from the repo root when adding new entities or properties.
 - `DateTimeOffset` properties are stored as Unix milliseconds (`long`) via a `ValueConverter` in `IoTSpyDbContext` — required for SQLite `ORDER BY` compatibility.
-- Three test projects exist: `IoTSpy.Protocols.Tests` (MQTT, DNS, telemetry decoders, anomaly detection), `IoTSpy.Manipulation.Tests` (rules engine, fuzzer), `IoTSpy.Scanner.Tests` (port scanner).
-- The `IAnomalyDetector` / `AnomalyDetector` pair is in Core + Protocols respectively and is not yet wired into the proxy pipeline — it is available for callers to integrate.
+- Three test projects exist: `IoTSpy.Protocols.Tests` (MQTT, DNS, OpenRTB, telemetry decoders, anomaly detection), `IoTSpy.Manipulation.Tests` (rules engine, fuzzer, OpenRTB PII), `IoTSpy.Scanner.Tests` (port scanner, packet capture).
+- The `IAnomalyDetector` / `AnomalyDetector` pair is in Core + Protocols respectively and is **not yet wired into the proxy pipeline** — it is available for callers to integrate (see Phase 8.5).

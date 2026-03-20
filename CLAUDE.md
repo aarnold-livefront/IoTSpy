@@ -38,12 +38,12 @@ IoTSpy.Api (ASP.NET Core host)
   ├── IoTSpy.Core          (domain models, interfaces, enums — no infrastructure deps)
   ├── IoTSpy.Proxy         (TCP listener, TLS MITM, Polly resilience)
   ├── IoTSpy.Storage       (EF Core DbContext + repositories; SQLite/Postgres)
-  ├── IoTSpy.Protocols     (MQTT 3.1.1/5.0 + DNS/mDNS decoders)
-  ├── IoTSpy.Scanner       (TCP port scan, service fingerprinting, credential testing, CVE lookup, config audit)
-  └── IoTSpy.Manipulation  (rules engine, scripted breakpoints, replay, fuzzer)
+  ├── IoTSpy.Protocols     (MQTT 3.1.1/5.0, DNS/mDNS, CoAP, OpenRTB, telemetry decoders, anomaly detection)
+  ├── IoTSpy.Scanner       (TCP port scan, service fingerprinting, credential testing, CVE lookup, config audit, packet capture)
+  └── IoTSpy.Manipulation  (rules engine, scripted breakpoints, replay, fuzzer, AI mock, OpenRTB PII, packet analysis)
 ```
 
-`Protocols` has MQTT and DNS decoders. `Scanner` has the full pen-test suite. `Manipulation` has the rules engine, C#/JS scripted breakpoints, request replay, and mutation fuzzer.
+`Protocols` has MQTT, DNS, CoAP, OpenRTB, and telemetry decoders. `Scanner` has the pen-test suite and packet capture. `Manipulation` has the rules engine, C#/JS scripted breakpoints, request replay, mutation fuzzer, AI mock engine, OpenRTB PII service, and packet capture analyzer.
 
 ### Data flow
 
@@ -93,7 +93,7 @@ Single-user model. BCrypt password hash stored in the single `ProxySettings` row
 
 ## Current status
 
-All phases (1–6) are complete. Three test projects: Protocols (89), Manipulation (45), Scanner (20) — 154 total, all passing. EF Core migrations: `InitialCreate` + `AddPhase2ProxySettings` + `AddPhase3Scanner` + `AddPhase4Manipulation` + `AddPacketCapture`.
+All phases (1–6) plus OpenRTB inspection are complete. Three test projects with 14 test classes, all passing. Nine REST controllers (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb) with 40+ endpoints. EF Core migrations: `InitialCreate` + `AddPhase2ProxySettings` + `AddPhase3Scanner` + `AddPhase4ManipulationFix` + `AddOpenRtbInspection` + `AddPacketCapture`.
 
 **Phase 3 additions:**
 - `IoTSpy.Scanner` — `PortScanner` (TCP connect scan, configurable concurrency/port ranges), `ServiceFingerprinter` (banner grab, CPE extraction via regex), `CredentialTester` (FTP/Telnet/MQTT default credential checks), `CveLookupService` (OSV.dev API), `ConfigAuditor` (Telnet, UPnP, anon MQTT, exposed DB, HTTP admin detection)
@@ -139,6 +139,16 @@ All phases (1–6) are complete. Three test projects: Protocols (89), Manipulati
 - Frontend: `PanelPacketCapture` (tabbed: Packets/Protocols/Patterns/Suspicious), `PacketInspector` (Details/Hex/Layers), `ProtocolDistributionView`, `PatternExplorer`, `SuspiciousActivityPanel`
 - Frontend: `packetCapture.ts` API client, `usePacketCapture` + `usePacketAnalysis` hooks, TypeScript DTOs
 
-All phases (1–6) are now complete. The codebase is fully implemented per `docs/PLAN.md`.
+**OpenRTB additions (post-Phase 6):**
+- `IoTSpy.Protocols` — `OpenRtbDecoder` (OpenRTB 2.5 bid request/response parsing)
+- `IoTSpy.Manipulation` — `OpenRtbPiiService` (PII detection + redaction strategies)
+- `IoTSpy.Core` — `OpenRtbEvent`, `OpenRtbPiiPolicy` models; `IOpenRtbEventRepository`, `IOpenRtbPiiPolicyRepository`, `IOpenRtbService` interfaces
+- `IoTSpy.Storage` — `OpenRtbEvents`, `OpenRtbPiiPolicies` DbSets + repositories + `AddOpenRtbInspection` migration
+- `IoTSpy.Api` — `OpenRtbController` (events CRUD, PII policies CRUD, PII audit logs)
+- `IoTSpy.Proxy` — Inline OpenRTB detection in both proxy servers
+- Frontend: `OpenRtbPanel`, `OpenRtbTrafficList`, `OpenRtbInspector`, `PiiPolicyEditor`, `PiiAuditLog`
+- Tests: `OpenRtbDecoderTests`, `OpenRtbPiiServiceTests`
+
+All phases (1–6) plus OpenRTB are complete. See `docs/PLAN.md` for the full plan, identified gaps, and forward-looking roadmap (Phases 7–11).
 
 See `docs/architecture.md` for full architecture spec and `docs/PLAN.md` for the phased task list.
