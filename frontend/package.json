@@ -6,7 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "e2e": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npx playwright test",
+    "e2e:ui": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npx playwright test --ui",
+    "e2e:debug": "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npx playwright test --debug"
   },
   "dependencies": {
     "@microsoft/signalr": "^8.0.0",
@@ -15,10 +21,17 @@
     "react-router-dom": "^7.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.5.2",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.0.0",
+    "@vitest/coverage-v8": "^3.1.1",
+    "jsdom": "^26.1.0",
     "typescript": "^5.5.0",
-    "vite": "^6.0.0"
+    "vite": "^6.0.0",
+    "vitest": "^3.1.1"
   }
 }

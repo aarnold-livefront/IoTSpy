@@ -124,3 +124,6 @@ app.MapHub<PacketCaptureHub>("/hubs/packets");
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+// Expose Program to WebApplicationFactory used in integration test projects
+public partial class Program { }

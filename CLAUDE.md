@@ -93,7 +93,7 @@ Single-user model. BCrypt password hash stored in the single `ProxySettings` row
 
 ## Current status
 
-All phases (1–6) plus OpenRTB inspection are complete. Three test projects with 14 test classes, all passing. Nine REST controllers (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb) with 40+ endpoints. EF Core migrations: `InitialCreate` + `AddPhase2ProxySettings` + `AddPhase3Scanner` + `AddPhase4ManipulationFix` + `AddOpenRtbInspection` + `AddPacketCapture`.
+All phases (1–7) plus OpenRTB inspection are complete. Seven test projects (Protocols.Tests, Manipulation.Tests, Scanner.Tests + Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests) with 14+ test classes. Nine REST controllers (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb) with 40+ endpoints. EF Core migrations: `InitialCreate` + `AddPhase2ProxySettings` + `AddPhase3Scanner` + `AddPhase4ManipulationFix` + `AddOpenRtbInspection` + `AddPacketCapture`. GitHub Actions CI at `.github/workflows/ci.yml`.
 
 **Phase 3 additions:**
 - `IoTSpy.Scanner` — `PortScanner` (TCP connect scan, configurable concurrency/port ranges), `ServiceFingerprinter` (banner grab, CPE extraction via regex), `CredentialTester` (FTP/Telnet/MQTT default credential checks), `CveLookupService` (OSV.dev API), `ConfigAuditor` (Telnet, UPnP, anon MQTT, exposed DB, HTTP admin detection)
@@ -149,6 +149,16 @@ All phases (1–6) plus OpenRTB inspection are complete. Three test projects wit
 - Frontend: `OpenRtbPanel`, `OpenRtbTrafficList`, `OpenRtbInspector`, `PiiPolicyEditor`, `PiiAuditLog`
 - Tests: `OpenRtbDecoderTests`, `OpenRtbPiiServiceTests`
 
-All phases (1–6) plus OpenRTB are complete. See `docs/PLAN.md` for the full plan, identified gaps, and forward-looking roadmap (Phases 7–11).
+**Phase 7 additions (complete):**
+- `IoTSpy.Api.Tests` — controller unit tests for Auth, Proxy, Captures, Devices, Scanner using NSubstitute mocks; `AuthService` unit tests
+- `IoTSpy.Proxy.Tests` — `ProxyService` state tests; `ResilienceOptions` defaults tests
+- `IoTSpy.Storage.Tests` — repository integration tests using EF Core SQLite in-memory: `DeviceRepository`, `CaptureRepository`, `ProxySettingsRepository`
+- `IoTSpy.Api.IntegrationTests` — `WebApplicationFactory`-based integration tests for auth and devices endpoints; `IoTSpyWebApplicationFactory` replaces heavy infrastructure with NSubstitute fakes
+- Frontend: Vitest + React Testing Library setup; `vitest.config.ts`; 11 component tests across `ErrorBanner`, `LoadingSpinner`, `HeadersViewer`
+- `.github/workflows/ci.yml` — GitHub Actions CI: backend build + test + ReportGenerator coverage, frontend lint + Vitest + build on push/PR
+- `src/Directory.Build.props` — shared Coverlet coverage config for all test projects
+- `src/IoTSpy.Api/Program.cs` — `public partial class Program` for `WebApplicationFactory` compatibility
+
+All phases (1–7) plus OpenRTB are complete. See `docs/PLAN.md` for the full plan, identified gaps, and forward-looking roadmap (Phases 8–11).
 
 See `docs/architecture.md` for full architecture spec and `docs/PLAN.md` for the phased task list.

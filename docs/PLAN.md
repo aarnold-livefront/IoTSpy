@@ -196,19 +196,19 @@ The following items represent known gaps, incomplete integrations, or areas wher
 
 ## Forward-looking roadmap
 
-### Phase 7 — Test coverage & CI/CD
+### Phase 7 — Test coverage & CI/CD ✅
 
 **Goal:** Establish a testing baseline and automated build/test pipeline.
 
 | # | Task | Status |
 |---|---|---|
-| 7.1 | `IoTSpy.Api.Tests` — controller unit tests with mocked services (WebApplicationFactory or manual DI) | ⬚ Not started |
-| 7.2 | `IoTSpy.Proxy.Tests` — proxy server unit tests (mock TCP connections, TLS handshake) | ⬚ Not started |
-| 7.3 | `IoTSpy.Storage.Tests` — repository tests using EF Core in-memory or SQLite provider | ⬚ Not started |
-| 7.4 | Integration test project — boot API via `WebApplicationFactory`, exercise full HTTP capture pipeline | ⬚ Not started |
-| 7.5 | Frontend test setup — Vitest + React Testing Library + initial component tests | ⬚ Not started |
-| 7.6 | GitHub Actions CI workflow — build, test, lint on PR/push | ⬚ Not started |
-| 7.7 | Code coverage reporting (Coverlet + ReportGenerator or Codecov) | ⬚ Not started |
+| 7.1 | `IoTSpy.Api.Tests` — controller unit tests with mocked services (NSubstitute + manual DI) | ✅ Done |
+| 7.2 | `IoTSpy.Proxy.Tests` — proxy service unit tests (ResilienceOptions, ProxyService state) | ✅ Done |
+| 7.3 | `IoTSpy.Storage.Tests` — repository tests using EF Core SQLite in-memory provider | ✅ Done |
+| 7.4 | `IoTSpy.Api.IntegrationTests` — boot API via `WebApplicationFactory`, exercise full HTTP auth + devices pipeline | ✅ Done |
+| 7.5 | Frontend test setup — Vitest + React Testing Library + 11 component tests (ErrorBanner, LoadingSpinner, HeadersViewer) | ✅ Done |
+| 7.6 | GitHub Actions CI workflow — build, test, lint on PR/push (`.github/workflows/ci.yml`) | ✅ Done |
+| 7.7 | Code coverage reporting (Coverlet + ReportGenerator via `Directory.Build.props` + CI artifact upload) | ✅ Done |
 
 ---
 
@@ -273,9 +273,9 @@ The following items represent known gaps, incomplete integrations, or areas wher
 
 ## Resuming this project
 
-### Current status — all phases complete through 6 + OpenRTB
+### Current status — all phases complete through 7
 
-**All six original phases and the OpenRTB feature are complete.** The codebase is fully functional with:
+**Phases 1–7 and OpenRTB are complete.** The codebase is fully functional with:
 
 - 9 REST controllers, 40+ endpoints, 2 SignalR hubs
 - 3 proxy modes (explicit, gateway/iptables, ARP spoof)
@@ -285,8 +285,11 @@ The following items represent known gaps, incomplete integrations, or areas wher
 - Packet capture with protocol analysis, pattern detection, suspicious activity alerts
 - OpenRTB traffic inspection with PII detection and policy-based redaction
 - Full React frontend with real-time SignalR streaming
+- **7 test projects**: Protocols.Tests, Manipulation.Tests, Scanner.Tests (existing) + Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests (Phase 7)
+- **Frontend tests**: 11 component tests via Vitest + React Testing Library
+- **GitHub Actions CI**: `.github/workflows/ci.yml` — build, test, lint on PR/push with coverage artifact upload
 
-**Next recommended focus: Phase 7 (test coverage & CI/CD)** — the highest-severity gaps are in test coverage and build automation.
+**Next recommended focus: Phase 8 (observability & production hardening)**.
 
 ---
 
