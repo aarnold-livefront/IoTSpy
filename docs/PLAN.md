@@ -212,19 +212,19 @@ The following items represent known gaps, incomplete integrations, or areas wher
 
 ---
 
-### Phase 8 — Observability & production hardening
+### Phase 8 — Observability & production hardening ✅
 
 **Goal:** Make IoTSpy reliable for long-running deployments.
 
 | # | Task | Status |
 |---|---|---|
-| 8.1 | Health check endpoints (`/health`, `/ready`) for Docker/K8s probes | ⬚ Not started |
-| 8.2 | Structured logging (Serilog + configurable sinks: console, file, Seq) | ⬚ Not started |
-| 8.3 | API rate limiting (ASP.NET Core `RateLimiter` middleware) | ⬚ Not started |
-| 8.4 | Data retention policies — configurable TTL for captures, packets, scan jobs with background cleanup | ⬚ Not started |
-| 8.5 | Wire `AnomalyDetector` into the proxy pipeline — real-time anomaly alerts via SignalR | ⬚ Not started |
-| 8.6 | Graceful shutdown — drain active proxy connections, flush pending SignalR messages | ⬚ Not started |
-| 8.7 | Database connection pooling tuning + Postgres-specific optimizations | ⬚ Not started |
+| 8.1 | Health check endpoints (`/health`, `/ready`) for Docker/K8s probes | ✅ Done |
+| 8.2 | Structured logging (Serilog + configurable sinks: console, file, Seq) | ✅ Done |
+| 8.3 | API rate limiting (ASP.NET Core `RateLimiter` middleware) | ✅ Done |
+| 8.4 | Data retention policies — configurable TTL for captures, packets, scan jobs with background cleanup | ✅ Done |
+| 8.5 | Wire `AnomalyDetector` into the proxy pipeline — real-time anomaly alerts via SignalR | ✅ Done |
+| 8.6 | Graceful shutdown — drain active proxy connections, flush pending SignalR messages | ✅ Done |
+| 8.7 | Database connection pooling tuning + Postgres-specific optimizations | ✅ Done |
 
 ---
 
@@ -289,7 +289,7 @@ The following items represent known gaps, incomplete integrations, or areas wher
 - **Frontend tests**: 11 component tests via Vitest + React Testing Library
 - **GitHub Actions CI**: `.github/workflows/ci.yml` — build, test, lint on PR/push with coverage artifact upload
 
-**Next recommended focus: Phase 8 (observability & production hardening)**.
+**Next recommended focus: Phase 9 (export & reporting)**.
 
 ---
 

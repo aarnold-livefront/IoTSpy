@@ -27,14 +27,19 @@ public class ExplicitProxyServer(
     ICapturePublisher publisher,
     IManipulationService manipulationService,
     IOpenRtbService openRtbService,
+    IAnomalyDetector anomalyDetector,
+    IAnomalyAlertPublisher anomalyPublisher,
     IServiceScopeFactory scopeFactory,
     ResiliencePipelineProvider<string> connectPipelineProvider,
     ILogger<ExplicitProxyServer> logger)
 {
     private TcpListener? _listener;
     private CancellationTokenSource? _cts;
+    private int _activeConnections;
+    private readonly TaskCompletionSource _drainTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public bool IsRunning => _listener is not null;
+    public int ActiveConnections => _activeConnections;
 
     public async Task StartAsync(int port, string listenAddress, CancellationToken ct = default)
     {
@@ -49,13 +54,25 @@ public class ExplicitProxyServer(
         _ = AcceptLoopAsync(_cts.Token);
     }
 
-    public Task StopAsync()
+    public async Task StopAsync(TimeSpan? drainTimeout = null)
     {
         _cts?.Cancel();
         _listener?.Stop();
         _listener = null;
+        logger.LogInformation("Explicit proxy stopping — waiting for {Count} active connection(s) to drain",
+            _activeConnections);
+
+        // Wait for active connections to finish, up to the drain timeout
+        var timeout = drainTimeout ?? TimeSpan.FromSeconds(10);
+        var drainTask = _drainTcs.Task;
+        if (_activeConnections > 0)
+        {
+            await Task.WhenAny(drainTask, Task.Delay(timeout));
+            if (_activeConnections > 0)
+                logger.LogWarning("Drain timeout reached — {Count} connection(s) still active", _activeConnections);
+        }
+
         logger.LogInformation("Explicit proxy stopped");
-        return Task.CompletedTask;
     }
 
     private async Task AcceptLoopAsync(CancellationToken ct)
@@ -77,6 +94,7 @@ public class ExplicitProxyServer(
 
     private async Task HandleClientAsync(TcpClient client, CancellationToken ct)
     {
+        Interlocked.Increment(ref _activeConnections);
         using (client)
         {
             client.ReceiveTimeout = 30_000;
@@ -118,6 +136,8 @@ public class ExplicitProxyServer(
                 logger.LogDebug(ex, "Client handler error");
             }
         }
+        if (Interlocked.Decrement(ref _activeConnections) == 0 && _cts?.IsCancellationRequested == true)
+            _drainTcs.TrySetResult();
     }
 
     // ── HTTPS (CONNECT tunnel + TLS MITM) ──────────────────────────────────
@@ -377,6 +397,18 @@ public class ExplicitProxyServer(
 
             await captures.AddAsync(capture, ct);
             await publisher.PublishAsync(capture, ct);
+
+            // Phase 8.5: Feed the anomaly detector and publish any triggered alerts
+            if (statusCode > 0)
+            {
+                var alerts = anomalyDetector.Record(host, capture.DurationMs, capture.ResponseBodySize, statusCode);
+                foreach (var alert in alerts)
+                {
+                    logger.LogDebug("Anomaly detected on {Host}: {Type} (deviation={Factor:F1}σ)",
+                        alert.Host, alert.AlertType, alert.DeviationFactor);
+                    _ = anomalyPublisher.PublishAsync(alert, ct);
+                }
+            }
 
             // HTTP/1.0 or Connection: close — stop after one exchange
             if (respHeaders.Contains("Connection: close", StringComparison.OrdinalIgnoreCase) ||
