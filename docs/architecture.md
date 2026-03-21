@@ -4,7 +4,7 @@
 
 IoTSpy is a .NET 10 / C# solution that acts as a transparent MITM proxy, multi-protocol decoder, statistical anomaly detector, and lightweight pen-test suite for IoT network research. A REST + SignalR API exposes all functionality; the frontend is a Vite 6 + React 19 + TypeScript single-page application.
 
-All six implementation phases are complete.
+All eight implementation phases are complete (Phases 1–8 + OpenRTB). Phase 9 (export & reporting) is next.
 
 ---
 
@@ -23,6 +23,10 @@ src/
   IoTSpy.Protocols.Tests/
   IoTSpy.Manipulation.Tests/
   IoTSpy.Scanner.Tests/
+  IoTSpy.Api.Tests/
+  IoTSpy.Proxy.Tests/
+  IoTSpy.Storage.Tests/
+  IoTSpy.Api.IntegrationTests/
 frontend/                — Vite 6 + React 19 + TypeScript SPA
 docs/
 ```
@@ -81,9 +85,9 @@ Pure domain layer — no NuGet dependencies beyond the BCL.
 | `SuspiciousActivity` | Detection result: category, severity, evidence list |
 | `NetworkDeviceStatistics` | Live capture stats: PPS, BPS, drop rate |
 
-### Interfaces (20)
+### Interfaces (21)
 
-`ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`, `IPacketCaptureService`, `IPacketCaptureAnalyzer`, `IPacketCapturePublisher`
+`ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`, `IAnomalyAlertPublisher`, `IPacketCaptureService`, `IPacketCaptureAnalyzer`, `IPacketCapturePublisher`
 
 ### Enums (10)
 
@@ -347,8 +351,9 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 
 ### Service lifetimes
 
-- **Singleton**: `ExplicitProxyServer`, `TransparentProxyServer`, `CertificateAuthority`, `ProxyService`, `ArpSpoofEngine`, `IptablesHelper`, `SignalRCapturePublisher`, `PortScanner`, `ServiceFingerprinter`, `CredentialTester`, `ConfigAuditor`, `ScannerService`
+- **Singleton**: `ExplicitProxyServer`, `TransparentProxyServer`, `CertificateAuthority`, `ProxyService`, `ArpSpoofEngine`, `IptablesHelper`, `SignalRCapturePublisher`, `SignalRAnomalyPublisher`, `PortScanner`, `ServiceFingerprinter`, `CredentialTester`, `ConfigAuditor`, `ScannerService`
   *(TCP listeners and other long-lived services that must not be re-created per request)*
+- **Hosted services**: `ProxyService` (via `AddHostedService(sp => sp.GetRequiredService<ProxyService>())`), `DataRetentionService` (background cleanup; disabled by default)
 - **Scoped**: All EF Core repositories, `DbContext`
 - `ProxyService` is registered once as `IProxyService` and once as `IHostedService` via `AddHostedService(sp => sp.GetRequiredService<ProxyService>())` to prevent double instantiation.
 
@@ -370,9 +375,21 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 - Hub: `TrafficHub` at `/hubs/traffic`
 - Clients join device groups: `hubConnection.invoke("JoinDeviceGroup", deviceId)`
 - `SignalRCapturePublisher` broadcasts a `TrafficCapture` event to all clients and to the device's group on every captured request
+- Clients subscribe to anomaly alerts: `hubConnection.invoke("SubscribeToAnomalyAlerts")` → receives `AnomalyAlert` events on group `"anomaly-alerts"`; `SignalRAnomalyPublisher` sends alerts emitted by `AnomalyDetector` after each proxied request
 - Hub: `PacketCaptureHub` at `/hubs/packets` — clients auto-join `packet-capture-live` group
 - `SignalRPacketPublisher` broadcasts `PacketCaptured` and `CaptureStatus` events for live packet streaming
 - Token is accepted via `?access_token=` query parameter (standard SignalR pattern)
+
+### Observability & hardening (Phase 8)
+
+| Feature | Implementation |
+|---|---|
+| Health checks | `MapHealthChecks("/health")` — liveness + EF Core DB connectivity; `MapHealthChecks("/ready")` — readiness probe. JSON response via `WriteResponse` writer. |
+| Structured logging | Serilog with `Console` + rolling `File` sinks (7-day retention). `UseSerilogRequestLogging()` enriches each request log with host and user-agent. Configurable via `Serilog` section. |
+| Rate limiting | ASP.NET Core `RateLimiter` middleware. Sliding-window policy partitioned by JWT `sub` (falls back to IP). Default: 100 permits / 60 s. Toggle via `RateLimit:Enabled`. |
+| Data retention | `DataRetentionService` (`IHostedService`) runs on configurable interval (default 24 h). Deletes `CapturedRequests`, `CapturedPackets`, `ScanJobs`, and `OpenRtbEvents` older than their configured TTL. **Disabled by default.** |
+| Graceful shutdown | Both proxy servers track active connection counts with `Interlocked`. `StopAsync` waits up to a configurable timeout (default 10 s) for in-flight connections to drain. |
+| DB connection pooling | `StorageExtensions.AddIoTSpyStorage()` accepts `maxPoolSize` / `minPoolSize`; Postgres connection strings are auto-augmented with `Maximum Pool Size` / `Minimum Pool Size`. |
 
 ### Authentication
 
@@ -465,11 +482,17 @@ frontend/src/
 
 ## Test projects
 
-| Project | Tests | Coverage |
+248 backend tests + 11 frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI.
+
+| Project | Test classes | Coverage |
 |---|---|---|
-| `IoTSpy.Protocols.Tests` | `MqttDecoderTests`, `DnsDecoderTests`, `TelemetryDecoderTests`, `AnomalyDetectorTests` | MQTT 3.1.1/5.0 packet types; DNS/mDNS; all four telemetry decoders (CanDecode + DecodeAsync); anomaly detection (warm-up, per-type alerts, baseline convergence, Reset, independent hosts) |
-| `IoTSpy.Manipulation.Tests` | `RulesEngineTests`, `FuzzerServiceTests` | Rule matching + all actions; fuzzer mutation strategies |
-| `IoTSpy.Scanner.Tests` | `PortScannerTests` | Concurrency limiting, timeout handling |
+| `IoTSpy.Protocols.Tests` | `MqttDecoderTests`, `DnsDecoderTests`, `TelemetryDecoderTests`, `AnomalyDetectorTests` | MQTT 3.1.1/5.0 packet types; DNS/mDNS; all four telemetry decoders; anomaly detection (warm-up, per-type alerts, convergence, Reset, independent hosts) |
+| `IoTSpy.Manipulation.Tests` | `RulesEngineTests`, `FuzzerServiceTests`, `OpenRtbPiiServiceTests` | Rule matching + all actions; fuzzer mutation strategies; OpenRTB PII detection + redaction |
+| `IoTSpy.Scanner.Tests` | `PortScannerTests`, `PacketCaptureServiceTests` | Concurrency limiting, timeout handling; ring buffer, PCAP export |
+| `IoTSpy.Api.Tests` | `AuthControllerTests`, `ProxyControllerTests`, `CapturesControllerTests`, `DevicesControllerTests`, `ScannerControllerTests`, `AuthServiceTests` | Controller unit tests with NSubstitute mocks; `AuthService` BCrypt/JWT logic |
+| `IoTSpy.Proxy.Tests` | `ProxyServiceTests`, `ResilienceOptionsTests`, `GracefulShutdownTests` | ProxyService state machine; resilience defaults; graceful shutdown drain |
+| `IoTSpy.Storage.Tests` | `DeviceRepositoryTests`, `CaptureRepositoryTests`, `ProxySettingsRepositoryTests`, `DataRetentionServiceTests` | EF Core in-memory SQLite integration tests; data retention service cleanup |
+| `IoTSpy.Api.IntegrationTests` | `AuthIntegrationTests`, `DevicesIntegrationTests`, `HealthCheckEndpointTests` | `WebApplicationFactory` with NSubstitute fakes; full HTTP auth flow; health check endpoint contract |
 
 ---
 
@@ -504,6 +527,22 @@ frontend/src/
     "Model": "claude-sonnet-4-6",
     "ApiKey": "",
     "BaseUrl": ""                    // Ollama only
+  },
+  "Serilog": {
+    "MinimumLevel": "Information"    // overridable per namespace
+  },
+  "RateLimit": {
+    "Enabled": true,
+    "PermitLimit": 100,
+    "WindowSeconds": 60
+  },
+  "DataRetention": {
+    "Enabled": false,                // opt-in; set true to enable automatic cleanup
+    "IntervalHours": 24,
+    "CaptureRetentionDays": 30,
+    "PacketRetentionDays": 7,
+    "ScanJobRetentionDays": 90,
+    "OpenRtbEventRetentionDays": 14
   }
 }
 ```
