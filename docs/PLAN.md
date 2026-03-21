@@ -136,14 +136,16 @@ All foundational phases are complete. Below is a summary of what was delivered.
 | Metric | Value |
 |---|---|
 | Backend projects | 7 (Core, Proxy, Protocols, Scanner, Manipulation, Storage, Api) |
-| Test projects | 3 (Protocols.Tests, Manipulation.Tests, Scanner.Tests) |
-| Total test classes | 14 |
+| Test projects | 7 (Protocols.Tests, Manipulation.Tests, Scanner.Tests, Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests) |
+| Backend tests | 248 (all passing) |
+| Frontend tests | 11 component tests via Vitest + React Testing Library |
 | REST controllers | 9 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb) |
 | HTTP endpoints | 40+ |
 | SignalR hubs | 2 (TrafficHub, PacketCaptureHub) |
 | EF Core migrations | 6 (InitialCreate → AddPacketCapture) |
 | Frontend components | 50+ TypeScript files across 13 component directories |
 | Protocols supported | HTTP/HTTPS, MQTT 3.1.1/5.0, DNS/mDNS, CoAP, OpenRTB 2.5, Datadog, Firehose, Splunk HEC, Azure Monitor |
+| CI | GitHub Actions (`.github/workflows/ci.yml`) — build, test, lint, coverage on push/PR |
 
 ---
 
@@ -155,7 +157,7 @@ The following items represent known gaps, incomplete integrations, or areas wher
 
 | Gap | Description | Severity |
 |---|---|---|
-| Anomaly detector not wired | `IAnomalyDetector` / `AnomalyDetector` exists in Core+Protocols but is not integrated into the proxy pipeline — it is standalone and must be called manually | Medium |
+| ~~Anomaly detector not wired~~ | ~~`IAnomalyDetector` / `AnomalyDetector` exists but is not integrated into the proxy pipeline~~ | ✅ **Resolved in Phase 8.5** |
 | No WebSocket interception | The proxy intercepts HTTP/HTTPS only; WebSocket upgrade frames pass through without content capture or inspection | Medium |
 | No MQTT proxy mode | MQTT is decoded from packet captures but not actively proxied/intercepted at the application layer | Low |
 | CoAP decoder is passive | CoAP is decoded from captures but there is no CoAP proxy or interception capability | Low |
@@ -164,21 +166,21 @@ The following items represent known gaps, incomplete integrations, or areas wher
 
 | Gap | Description | Severity |
 |---|---|---|
-| No Api controller tests | 9 controllers with 40+ endpoints have zero unit or integration tests | High |
-| No Proxy tests | `ExplicitProxyServer`, `TransparentProxyServer`, `CertificateAuthority`, resilience pipelines — all untested | High |
-| No Storage/repository tests | EF Core repositories have no unit tests (in-memory provider or SQLite) | Medium |
+| ~~No Api controller tests~~ | ~~9 controllers with 40+ endpoints have zero unit or integration tests~~ | ✅ **Resolved in Phase 7.1** |
+| ~~No Proxy tests~~ | ~~`ExplicitProxyServer`, `TransparentProxyServer`, resilience pipelines — all untested~~ | ✅ **Resolved in Phase 7.2** |
+| ~~No Storage/repository tests~~ | ~~EF Core repositories have no unit tests~~ | ✅ **Resolved in Phase 7.3** |
 | No Core model tests | Domain model validation/logic untested | Low |
-| No frontend tests | 50+ React components, hooks, and API clients have zero tests (no Vitest/Jest setup) | High |
-| No integration/E2E tests | No end-to-end test that boots the API and exercises the full request flow | Medium |
+| ~~No frontend tests~~ | ~~50+ React components, hooks, and API clients have zero tests~~ | ✅ **Resolved in Phase 7.5** |
+| ~~No integration/E2E tests~~ | ~~No end-to-end test that boots the API~~ | ✅ **Resolved in Phase 7.4** |
 
 ### Infrastructure gaps
 
 | Gap | Description | Severity |
 |---|---|---|
-| No CI/CD pipeline | No GitHub Actions, Azure DevOps, or other CI configuration | High |
-| No health check endpoint | No `/health` or `/ready` endpoint for container orchestration | Medium |
-| No structured logging | Using `ILogger` but no structured sink (Serilog, Seq) for production use | Low |
-| No rate limiting | API endpoints have no throttling — a concern if exposed beyond localhost | Medium |
+| ~~No CI/CD pipeline~~ | ~~No GitHub Actions configuration~~ | ✅ **Resolved in Phase 7.6** |
+| ~~No health check endpoint~~ | ~~No `/health` or `/ready` endpoint for container orchestration~~ | ✅ **Resolved in Phase 8.1** |
+| ~~No structured logging~~ | ~~Using `ILogger` but no structured sink for production use~~ | ✅ **Resolved in Phase 8.2** |
+| ~~No rate limiting~~ | ~~API endpoints have no throttling~~ | ✅ **Resolved in Phase 8.3** |
 | No HTTPS for the API itself | The API serves on plain HTTP; TLS termination is assumed external | Low |
 
 ### Feature gaps
@@ -186,7 +188,7 @@ The following items represent known gaps, incomplete integrations, or areas wher
 | Gap | Description | Severity |
 |---|---|---|
 | No export/reporting | No PDF/HTML scan report generation, no CSV/JSON export of findings or captures | Medium |
-| No data retention policies | Captures and packets accumulate without automatic cleanup or TTL | Medium |
+| ~~No data retention policies~~ | ~~Captures and packets accumulate without automatic cleanup or TTL~~ | ✅ **Resolved in Phase 8.4** |
 | No alerting/notifications | Anomaly detection and suspicious activity findings have no notification mechanism (email, webhook, Slack) | Low |
 | No multi-user support | Single-user JWT model — no RBAC, no audit trail of who did what | Low |
 | No Bluetooth/Zigbee/Z-Wave | IoT protocols beyond IP-based networking are not supported | Low |
@@ -273,9 +275,9 @@ The following items represent known gaps, incomplete integrations, or areas wher
 
 ## Resuming this project
 
-### Current status — all phases complete through 7
+### Current status — all phases complete through 8
 
-**Phases 1–7 and OpenRTB are complete.** The codebase is fully functional with:
+**Phases 1–8 and OpenRTB are complete.** The codebase is production-ready with:
 
 - 9 REST controllers, 40+ endpoints, 2 SignalR hubs
 - 3 proxy modes (explicit, gateway/iptables, ARP spoof)
@@ -285,7 +287,11 @@ The following items represent known gaps, incomplete integrations, or areas wher
 - Packet capture with protocol analysis, pattern detection, suspicious activity alerts
 - OpenRTB traffic inspection with PII detection and policy-based redaction
 - Full React frontend with real-time SignalR streaming
-- **7 test projects**: Protocols.Tests, Manipulation.Tests, Scanner.Tests (existing) + Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests (Phase 7)
+- **Observability**: Serilog structured logging (console + rolling file), `/health` + `/ready` probes, rate limiting
+- **Data governance**: `DataRetentionService` background service with configurable TTLs per data type
+- **Resilience**: graceful proxy shutdown (drains active connections), DB connection pooling
+- **Anomaly alerts**: `AnomalyDetector` wired into the proxy pipeline; alerts streamed in real time via SignalR
+- **7 test projects**: 248 backend tests across Protocols.Tests, Manipulation.Tests, Scanner.Tests, Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests
 - **Frontend tests**: 11 component tests via Vitest + React Testing Library
 - **GitHub Actions CI**: `.github/workflows/ci.yml` — build, test, lint on PR/push with coverage artifact upload
 
@@ -326,7 +332,16 @@ The following items represent known gaps, incomplete integrations, or areas wher
   "Auth": { "JwtSecret": "<32+ chars>", "PasswordHash": "" },
   "Frontend": { "Origin": "http://localhost:3000" },
   "Urls": "http://localhost:5000",
-  "Resilience": { /* timeouts, retry, circuit-breaker */ }
+  "Resilience": { /* timeouts, retry, circuit-breaker */ },
+  "Serilog": { "MinimumLevel": "Information" },
+  "RateLimit": { "Enabled": true, "PermitLimit": 100, "WindowSeconds": 60 },
+  "DataRetention": {
+    "Enabled": false,             // opt-in; set true to enable automatic cleanup
+    "CaptureRetentionDays": 30,
+    "PacketRetentionDays": 7,
+    "ScanJobRetentionDays": 90,
+    "OpenRtbEventRetentionDays": 14
+  }
 }
 ```
 
@@ -354,5 +369,6 @@ dotnet run --project src/IoTSpy.Api
 - `IoTSpy.Protocols` has MQTT, DNS/mDNS, CoAP, OpenRTB, and four telemetry decoders (Datadog, Firehose, Splunk HEC, Azure Monitor). `IoTSpy.Scanner` has port scan, fingerprinting, credential testing, CVE lookup, config audit, and packet capture. `IoTSpy.Manipulation` has rules engine, scripted breakpoints (C#/JS), replay, fuzzer, AI mock engine, packet capture analyzer, and OpenRTB PII service.
 - EF Core migrations are in `src/IoTSpy.Storage/Migrations/` — 6 migrations applied (InitialCreate, AddPhase2ProxySettings, AddPhase3Scanner, AddPhase4ManipulationFix, AddOpenRtbInspection, AddPacketCapture). Run `dotnet ef migrations add <Name> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api` from the repo root when adding new entities or properties.
 - `DateTimeOffset` properties are stored as Unix milliseconds (`long`) via a `ValueConverter` in `IoTSpyDbContext` — required for SQLite `ORDER BY` compatibility.
-- Three test projects exist: `IoTSpy.Protocols.Tests` (MQTT, DNS, OpenRTB, telemetry decoders, anomaly detection), `IoTSpy.Manipulation.Tests` (rules engine, fuzzer, OpenRTB PII), `IoTSpy.Scanner.Tests` (port scanner, packet capture).
-- The `IAnomalyDetector` / `AnomalyDetector` pair is in Core + Protocols respectively and is **not yet wired into the proxy pipeline** — it is available for callers to integrate (see Phase 8.5).
+- Seven test projects: `IoTSpy.Protocols.Tests`, `IoTSpy.Manipulation.Tests`, `IoTSpy.Scanner.Tests` (original) + `IoTSpy.Api.Tests`, `IoTSpy.Proxy.Tests`, `IoTSpy.Storage.Tests`, `IoTSpy.Api.IntegrationTests` (Phase 7). 248 backend tests total.
+- `AnomalyDetector` is wired into both proxy servers (Phase 8.5). After each captured request, `IAnomalyDetector.Record()` is called; any returned `AnomalyAlert` objects are published via `IAnomalyAlertPublisher` → `SignalRAnomalyPublisher` → `TrafficHub` SignalR group `"anomaly-alerts"`.
+- `DataRetentionService` runs as a background `IHostedService`. It is disabled by default (`DataRetention:Enabled: false`). Enable it and set TTL days per data type in `appsettings.json`.

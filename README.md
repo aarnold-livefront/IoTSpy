@@ -63,6 +63,15 @@ IoT network security platform: transparent MITM proxy, protocol analyzer, pen-te
 ### Anomaly detection
 - **Statistical baseline** — Welford online algorithm for per-host metrics (response time, size, status codes, request rate)
 - **Alert types** — ResponseTime, ResponseSize, StatusCode, RequestRate anomalies
+- **Real-time alerts** — anomaly alerts streamed via SignalR to the dashboard as they occur
+
+### Observability & production hardening
+- **Health checks** — `/health` (liveness + DB check) and `/ready` probes for container orchestration
+- **Structured logging** — Serilog with console and rolling-file sinks (configurable)
+- **Rate limiting** — ASP.NET Core sliding-window `RateLimiter`, partitioned per user/IP (default 100 req/60 s)
+- **Data retention** — background `DataRetentionService` with configurable TTLs per data type (opt-in)
+- **Graceful shutdown** — proxy servers drain active connections before stopping
+- **Connection pooling** — configurable min/max pool sizes for SQLite and PostgreSQL
 
 ---
 
@@ -161,6 +170,21 @@ GET http://localhost:5000/api/certificates/root-ca/download
     "CircuitBreakerFailureRatio": 0.5,
     "CircuitBreakerSamplingSeconds": 30,
     "CircuitBreakerBreakSeconds": 60
+  },
+  "Serilog": {
+    "MinimumLevel": "Information"
+  },
+  "RateLimit": {
+    "Enabled": true,
+    "PermitLimit": 100,
+    "WindowSeconds": 60
+  },
+  "DataRetention": {
+    "Enabled": false,
+    "CaptureRetentionDays": 30,
+    "PacketRetentionDays": 7,
+    "ScanJobRetentionDays": 90,
+    "OpenRtbEventRetentionDays": 14
   }
 }
 ```
@@ -178,7 +202,14 @@ Switch to PostgreSQL:
 
 ## API reference
 
-All endpoints (except `/api/auth/*` and `/api/certificates/root-ca/download`) require `Authorization: Bearer <token>`.
+All endpoints (except `/api/auth/*`, `/api/certificates/root-ca/download`, `/health`, and `/ready`) require `Authorization: Bearer <token>`.
+
+### Health
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/health` | Liveness probe — returns JSON health report (DB connectivity check) |
+| GET | `/ready` | Readiness probe |
 
 ### Auth
 
@@ -394,8 +425,8 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full implementation plan, identified 
 | 5 | AI mock engine, CoAP, telemetry decoders, anomaly detection | **Complete** |
 | 6 | Packet capture, protocol analysis, communication patterns, suspicious activity | **Complete** |
 | — | OpenRTB traffic inspection, PII detection and redaction | **Complete** |
-| 7 | Test coverage & CI/CD | **Planned** |
-| 8 | Observability & production hardening | **Planned** |
+| 7 | Test coverage & CI/CD | **Complete** |
+| 8 | Observability & production hardening | **Complete** |
 | 9 | Export & reporting | **Planned** |
 | 10 | Protocol expansion (WebSocket, MQTT proxy, gRPC, Modbus) | **Planned** |
 | 11 | UX polish & multi-user support | **Planned** |

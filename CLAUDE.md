@@ -159,6 +159,18 @@ All phases (1–7) plus OpenRTB inspection are complete. Seven test projects (Pr
 - `src/Directory.Build.props` — shared Coverlet coverage config for all test projects
 - `src/IoTSpy.Api/Program.cs` — `public partial class Program` for `WebApplicationFactory` compatibility
 
-All phases (1–7) plus OpenRTB are complete. See `docs/PLAN.md` for the full plan, identified gaps, and forward-looking roadmap (Phases 8–11).
+**Phase 8 additions (complete):**
+- `IoTSpy.Api` — health check endpoints (`/health` liveness + DB probe, `/ready` readiness) with JSON response writer
+- `IoTSpy.Api` — Serilog structured logging: console + rolling file sinks (7-day retention), `UseSerilogRequestLogging()` request middleware, configurable via `Serilog` section
+- `IoTSpy.Api` — ASP.NET Core `RateLimiter` middleware: sliding-window policy partitioned per JWT sub / IP; default 100 permits / 60 s; toggle via `RateLimit:Enabled`
+- `IoTSpy.Api` — `DataRetentionService` (`IHostedService`) — background cleanup with configurable TTLs for captures (30d), packets (7d), scan jobs (90d), OpenRTB events (14d); **disabled by default** (`DataRetention:Enabled: false`)
+- `IoTSpy.Core` — `IAnomalyAlertPublisher` interface; `IoTSpy.Api` — `SignalRAnomalyPublisher` implementation
+- `IoTSpy.Proxy` — `AnomalyDetector` wired into both proxy servers: `IAnomalyDetector.Record()` called after each captured request; alerts published via `SignalRAnomalyPublisher` to SignalR group `"anomaly-alerts"`; `TrafficHub` gains `SubscribeToAnomalyAlerts()` / `UnsubscribeFromAnomalyAlerts()` methods
+- `IoTSpy.Proxy` — graceful shutdown: active connection count tracked with `Interlocked`; `StopAsync` drains connections up to a configurable timeout (default 10 s)
+- `IoTSpy.Storage` — DB connection pooling: `StorageExtensions.AddIoTSpyStorage()` accepts `maxPoolSize` / `minPoolSize`; Postgres strings auto-augmented
+- Tests: `HealthCheckEndpointTests` (5 integration tests), `DataRetentionServiceTests` (4 unit tests), `GracefulShutdownTests` (4 unit tests)
+- Total: **248 backend tests** across 7 test projects + **11 frontend component tests** (all green)
+
+All phases (1–8) plus OpenRTB are complete. See `docs/PLAN.md` for the full plan, identified gaps, and forward-looking roadmap (Phase 9–11).
 
 See `docs/architecture.md` for full architecture spec and `docs/PLAN.md` for the phased task list.
