@@ -230,17 +230,17 @@ The following items represent known gaps, incomplete integrations, or areas wher
 
 ---
 
-### Phase 9 — Export & reporting
+### Phase 9 — Export & reporting ✅
 
 **Goal:** Allow users to extract actionable outputs from IoTSpy.
 
 | # | Task | Status |
 |---|---|---|
-| 9.1 | Scan report generation — HTML/PDF summary of scan findings per device, grouped by severity | ⬚ Not started |
-| 9.2 | Capture export — CSV/JSON/HAR export of captured HTTP traffic | ⬚ Not started |
-| 9.3 | PCAP export improvements — filtered export (by protocol, IP, time range) | ⬚ Not started |
-| 9.4 | Alerting — webhook/email notifications when anomaly detector or suspicious activity triggers fire | ⬚ Not started |
-| 9.5 | Scheduled scans — cron-like recurring scan jobs with result comparison (drift detection) | ⬚ Not started |
+| 9.1 | Scan report generation — HTML/PDF summary of scan findings per device, grouped by severity | ✅ Done |
+| 9.2 | Capture export — CSV/JSON/HAR export of captured HTTP traffic | ✅ Done |
+| 9.3 | PCAP export improvements — filtered export (by protocol, IP, time range) | ✅ Done |
+| 9.4 | Alerting — webhook/email notifications when anomaly detector or suspicious activity triggers fire | ✅ Done |
+| 9.5 | Scheduled scans — cron-like recurring scan jobs with result comparison (drift detection) | ✅ Done |
 
 ---
 
@@ -275,9 +275,9 @@ The following items represent known gaps, incomplete integrations, or areas wher
 
 ## Resuming this project
 
-### Current status — all phases complete through 8
+### Current status — all phases complete through 9
 
-**Phases 1–8 and OpenRTB are complete.** The codebase is production-ready with:
+**Phases 1–9 and OpenRTB are complete.** The codebase is fully functional with:
 
 - 9 REST controllers, 40+ endpoints, 2 SignalR hubs
 - 3 proxy modes (explicit, gateway/iptables, ARP spoof)
@@ -295,7 +295,7 @@ The following items represent known gaps, incomplete integrations, or areas wher
 - **Frontend tests**: 11 component tests via Vitest + React Testing Library
 - **GitHub Actions CI**: `.github/workflows/ci.yml` — build, test, lint on PR/push with coverage artifact upload
 
-**Next recommended focus: Phase 9 (export & reporting)**.
+**Next recommended focus: Phase 10 (protocol expansion & active protocol proxying)**.
 
 ---
 

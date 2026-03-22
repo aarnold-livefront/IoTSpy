@@ -47,6 +47,9 @@ services.AddScoped<IOpenRtbEventRepository, OpenRtbEventRepository>();
         services.AddScoped<ICaptureDeviceRepository, CaptureDeviceRepository>();
         services.AddScoped<IPacketRepository, CaptureDeviceRepository>();
 
+        // Phase 9
+        services.AddScoped<IScheduledScanRepository, ScheduledScanRepository>();
+
         return services;
     }
 

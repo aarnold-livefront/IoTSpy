@@ -13,6 +13,7 @@ public static class ScannerExtensions
         services.AddSingleton<ConfigAuditor>();
         services.AddSingleton<IScannerService, ScannerService>();
         services.AddSingleton<IPacketCaptureService, PacketCaptureService>();
+        services.AddSingleton<IReportService, ReportService>();
 
         services.AddHttpClient<CveLookupService>(client =>
         {
