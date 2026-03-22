@@ -35,7 +35,7 @@ public class CaptureExportTests
             .Returns(new List<CapturedRequest> { MakeCapture() });
 
         var controller = new CapturesController(repo);
-        var result = await controller.ExportCsv(null, null, null, default) as FileContentResult;
+        var result = await controller.ExportCsv(null, null, null, TestContext.Current.CancellationToken) as FileContentResult;
 
         Assert.NotNull(result);
         Assert.Equal("text/csv", result.ContentType);
@@ -53,7 +53,7 @@ public class CaptureExportTests
             .Returns(new List<CapturedRequest> { capture });
 
         var controller = new CapturesController(repo);
-        var result = await controller.ExportJson(null, null, null, default) as FileContentResult;
+        var result = await controller.ExportJson(null, null, null, TestContext.Current.CancellationToken) as FileContentResult;
 
         Assert.NotNull(result);
         Assert.Equal("application/json", result.ContentType);
@@ -71,7 +71,7 @@ public class CaptureExportTests
             .Returns(new List<CapturedRequest> { MakeCapture() });
 
         var controller = new CapturesController(repo);
-        var result = await controller.ExportHar(null, null, null, default) as FileContentResult;
+        var result = await controller.ExportHar(null, null, null, TestContext.Current.CancellationToken) as FileContentResult;
 
         Assert.NotNull(result);
         var json = Encoding.UTF8.GetString(result.FileContents);

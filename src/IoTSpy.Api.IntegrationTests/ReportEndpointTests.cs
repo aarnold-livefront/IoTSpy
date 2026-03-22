@@ -54,7 +54,7 @@ public class ReportEndpointTests : IAsyncLifetime
     {
         var deviceId = await CreateDeviceAsync();
 
-        var response = await _client.GetAsync($"/api/reports/devices/{deviceId}/html");
+        var response = await _client.GetAsync($"/api/reports/devices/{deviceId}/html", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("text/html", response.Content.Headers.ContentType?.MediaType);
@@ -65,7 +65,7 @@ public class ReportEndpointTests : IAsyncLifetime
     {
         var deviceId = await CreateDeviceAsync();
 
-        var response = await _client.GetAsync($"/api/reports/devices/{deviceId}/pdf");
+        var response = await _client.GetAsync($"/api/reports/devices/{deviceId}/pdf", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal("application/pdf", response.Content.Headers.ContentType?.MediaType);
@@ -74,14 +74,14 @@ public class ReportEndpointTests : IAsyncLifetime
     [Fact]
     public async Task GetHtmlReport_NonExistentDevice_Returns404()
     {
-        var response = await _client.GetAsync($"/api/reports/devices/{Guid.NewGuid()}/html");
+        var response = await _client.GetAsync($"/api/reports/devices/{Guid.NewGuid()}/html", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
     public async Task GetPdfReport_NonExistentDevice_Returns404()
     {
-        var response = await _client.GetAsync($"/api/reports/devices/{Guid.NewGuid()}/pdf");
+        var response = await _client.GetAsync($"/api/reports/devices/{Guid.NewGuid()}/pdf", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 

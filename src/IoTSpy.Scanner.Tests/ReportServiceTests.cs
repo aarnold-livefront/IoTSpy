@@ -68,7 +68,7 @@ public class ReportServiceTests
         var scopeFactory = BuildScopeFactory(device, [job], findings);
         var service = new ReportService(scopeFactory, NullLogger<ReportService>.Instance);
 
-        var bytes = await service.GenerateHtmlReportAsync(device.Id);
+        var bytes = await service.GenerateHtmlReportAsync(device.Id, TestContext.Current.CancellationToken);
         var html = Encoding.UTF8.GetString(bytes);
 
         Assert.Contains("TestDevice", html);
@@ -88,7 +88,7 @@ public class ReportServiceTests
         var scopeFactory = BuildScopeFactory(device, [job], []);
         var service = new ReportService(scopeFactory, NullLogger<ReportService>.Instance);
 
-        var bytes = await service.GenerateHtmlReportAsync(device.Id);
+        var bytes = await service.GenerateHtmlReportAsync(device.Id, TestContext.Current.CancellationToken);
         var html = Encoding.UTF8.GetString(bytes);
 
         Assert.Contains("No findings", html);
@@ -108,7 +108,7 @@ public class ReportServiceTests
         var scopeFactory = BuildScopeFactory(device, [job], findings);
         var service = new ReportService(scopeFactory, NullLogger<ReportService>.Instance);
 
-        var bytes = await service.GeneratePdfReportAsync(device.Id);
+        var bytes = await service.GeneratePdfReportAsync(device.Id, TestContext.Current.CancellationToken);
 
         Assert.NotNull(bytes);
         Assert.True(bytes.Length > 0);

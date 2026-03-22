@@ -53,7 +53,7 @@ public class DataRetentionServiceTests
         // Run the service briefly
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
         await svc.StartAsync(cts.Token);
-        await Task.Delay(50);
+        await Task.Delay(50, TestContext.Current.CancellationToken);
         await svc.StopAsync(cts.Token);
 
         // Capture should still exist

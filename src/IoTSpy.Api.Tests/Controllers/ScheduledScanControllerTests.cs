@@ -26,7 +26,7 @@ public class ScheduledScanControllerTests
         scanRepo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(scans);
 
         var controller = new ScheduledScanController(scanRepo, deviceRepo);
-        var result = await controller.List(default) as OkObjectResult;
+        var result = await controller.List(TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         Assert.Equal(scans, result.Value);
@@ -41,7 +41,7 @@ public class ScheduledScanControllerTests
         scanRepo.GetByIdAsync(scan.Id, Arg.Any<CancellationToken>()).Returns(scan);
 
         var controller = new ScheduledScanController(scanRepo, deviceRepo);
-        var result = await controller.Get(scan.Id, default) as OkObjectResult;
+        var result = await controller.Get(scan.Id, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         Assert.Equal(scan, result.Value);
@@ -55,7 +55,7 @@ public class ScheduledScanControllerTests
         scanRepo.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((ScheduledScan?)null);
 
         var controller = new ScheduledScanController(scanRepo, deviceRepo);
-        var result = await controller.Get(Guid.NewGuid(), default);
+        var result = await controller.Get(Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -73,7 +73,7 @@ public class ScheduledScanControllerTests
 
         var controller = new ScheduledScanController(scanRepo, deviceRepo);
         var dto = new CreateScheduledScanDto(deviceId, "0 * * * *");
-        var result = await controller.Create(dto, default) as OkObjectResult;
+        var result = await controller.Create(dto, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var scan = Assert.IsType<ScheduledScan>(result.Value);
@@ -91,7 +91,7 @@ public class ScheduledScanControllerTests
 
         var controller = new ScheduledScanController(scanRepo, deviceRepo);
         var dto = new CreateScheduledScanDto(deviceId, "not-a-cron");
-        var result = await controller.Create(dto, default);
+        var result = await controller.Create(dto, TestContext.Current.CancellationToken);
 
         Assert.IsType<BadRequestObjectResult>(result);
     }
@@ -105,7 +105,7 @@ public class ScheduledScanControllerTests
         scanRepo.DeleteAsync(scan.Id, Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
         var controller = new ScheduledScanController(scanRepo, deviceRepo);
-        var result = await controller.Delete(scan.Id, default);
+        var result = await controller.Delete(scan.Id, TestContext.Current.CancellationToken);
 
         Assert.IsType<NoContentResult>(result);
         await scanRepo.Received(1).DeleteAsync(scan.Id, Arg.Any<CancellationToken>());

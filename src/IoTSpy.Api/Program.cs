@@ -3,7 +3,6 @@ using System.Threading.RateLimiting;
 using IoTSpy.Api.Hubs;
 using IoTSpy.Api.Services;
 using IoTSpy.Core.Interfaces;
-using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using IoTSpy.Protocols.Anomaly;
 using IoTSpy.Proxy;
