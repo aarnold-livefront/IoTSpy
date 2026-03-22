@@ -57,17 +57,27 @@ public class CertificateAuthority(
         }
     }
 
+    // Apple requires TLS leaf certificates to have a validity period ≤ 398 days
+    // (policy effective September 1 2020, applies to all certs regardless of CA trust type).
+    // Use 397 to stay safely under the limit and leave a one-day buffer.
+    private const int MaxLeafValidityDays = 397;
+
     public async Task<CertificateEntry> GetOrCreateHostCertificateAsync(string hostname, CancellationToken ct = default)
     {
         var expiry = DateTimeOffset.UtcNow.AddDays(1);
-        if (_hostCertCache.TryGetValue(hostname, out var cached) && cached.NotAfter > expiry)
+        if (_hostCertCache.TryGetValue(hostname, out var cached)
+            && cached.NotAfter > expiry
+            && (cached.NotAfter - cached.NotBefore).TotalDays <= MaxLeafValidityDays)
             return cached;
 
         using var scope = scopeFactory.CreateScope();
         var repository = scope.ServiceProvider.GetRequiredService<ICertificateRepository>();
 
         var existing = await repository.GetByHostnameAsync(hostname, ct);
-        if (existing is not null && existing.NotAfter > expiry)
+        // Reject cached certs that exceed Apple's 398-day limit — they were generated
+        // before the validity was corrected and will be silently rejected by iOS/macOS.
+        if (existing is not null && existing.NotAfter > expiry
+            && (existing.NotAfter - existing.NotBefore).TotalDays <= MaxLeafValidityDays)
         {
             _hostCertCache[hostname] = existing;
             return existing;
@@ -132,7 +142,7 @@ public class CertificateAuthority(
         var keyPair = GenerateKeyPair(2048);
         var serial = BigInteger.ProbablePrime(128, SecureRandom);
         var notBefore = DateTime.UtcNow.AddDays(-1);
-        var notAfter = DateTime.UtcNow.AddDays(825);
+        var notAfter = DateTime.UtcNow.AddDays(MaxLeafValidityDays);
 
         var gen = new X509V3CertificateGenerator();
         gen.SetSerialNumber(serial);
