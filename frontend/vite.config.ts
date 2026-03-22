@@ -21,6 +21,13 @@ export default defineConfig({
         target: 'http://localhost:5000',
         changeOrigin: true,
         ws: true,
+        configure: (proxy) => {
+          // ECONNRESET is expected when the backend restarts or SignalR closes a
+          // connection — the frontend SignalR client handles reconnection automatically.
+          proxy.on('error', (err) => {
+            if ((err as NodeJS.ErrnoException).code !== 'ECONNRESET') throw err
+          })
+        },
       },
     },
   },
