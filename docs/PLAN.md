@@ -230,7 +230,7 @@ The following items represent known gaps, incomplete integrations, or areas wher
 
 ---
 
-### Phase 9 — Export & reporting
+### Phase 9 — Export & reporting ✅
 
 **Goal:** Allow users to extract actionable outputs from IoTSpy.
 
