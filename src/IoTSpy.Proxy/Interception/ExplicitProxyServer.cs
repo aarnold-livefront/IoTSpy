@@ -186,18 +186,20 @@ public class ExplicitProxyServer(
 
         // TLS MITM
         var certEntry = await ca.GetOrCreateHostCertificateAsync(host, ct);
-        var x509 = BuildX509(certEntry);
+        var rootCaEntry = await ca.GetOrCreateRootCaAsync(ct);
+        var certContext = BuildCertContext(certEntry, rootCaEntry);
 
         using var sslClient = new SslStream(clientStream, leaveInnerStreamOpen: true);
         await sslClient.AuthenticateAsServerAsync(new SslServerAuthenticationOptions
         {
-            ServerCertificate = x509,
+            // Use ServerCertificateContext instead of ServerCertificate so that the CA
+            // cert is included in the TLS Certificate message. Without this, SChannel
+            // only looks in the Windows certificate store for chain certs — our CA is
+            // stored in SQLite, not the store, so iOS receives only the leaf cert and
+            // may fail to build the trust chain even with the CA installed on device.
+            ServerCertificateContext = certContext,
             EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
             ClientCertificateRequired = false,
-            // Explicitly advertise only HTTP/1.1 via ALPN.
-            // Without this, iOS/Android clients that propose h2 may have it accepted
-            // by the OS TLS stack (SChannel on Windows), causing the proxy's HTTP/1.1
-            // parser to receive binary HTTP/2 frames and drop every connection.
             ApplicationProtocols = [SslApplicationProtocol.Http11]
         }, ct);
 
@@ -595,11 +597,28 @@ public class ExplicitProxyServer(
         return null;
     }
 
-    private static X509Certificate2 BuildX509(CertificateEntry entry)
+    private static SslStreamCertificateContext BuildCertContext(CertificateEntry leaf, CertificateEntry rootCa)
     {
-        // CreateFromPem produces an ephemeral key that Windows SChannel cannot use.
-        // Round-tripping through PFX gives a persistent key handle on all platforms.
-        using var ephemeral = X509Certificate2.CreateFromPem(entry.CertificatePem, entry.PrivateKeyPem);
-        return X509CertificateLoader.LoadPkcs12(ephemeral.Export(X509ContentType.Pfx), null);
+        // Round-trip through PFX to get a persistent key handle usable by SChannel on Windows.
+        using var ephemeral = X509Certificate2.CreateFromPem(leaf.CertificatePem, leaf.PrivateKeyPem);
+        using var leafCert = X509CertificateLoader.LoadPkcs12(ephemeral.Export(X509ContentType.Pfx), null);
+
+        // Include the CA cert explicitly so .NET sends it in the TLS Certificate message.
+        // SChannel only discovers chain certs from the Windows cert store; our CA is in
+        // SQLite, not the store, so without this iOS receives only the leaf cert and
+        // cannot always build the chain from its trust store alone.
+        var caCert = X509CertificateLoader.LoadCertificate(PemToBytes(rootCa.CertificatePem));
+        var extraCerts = new X509Certificate2Collection(caCert);
+
+        return SslStreamCertificateContext.Create(leafCert, extraCerts, offline: true);
+    }
+
+    private static byte[] PemToBytes(string pem)
+    {
+        var b64 = pem
+            .Replace("-----BEGIN CERTIFICATE-----", "")
+            .Replace("-----END CERTIFICATE-----", "")
+            .Replace("\n", "").Replace("\r", "").Trim();
+        return Convert.FromBase64String(b64);
     }
 }

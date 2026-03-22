@@ -166,14 +166,14 @@ public class TransparentProxyServer(
         string clientIp, ProxySettings settings, IServiceScope scope, CancellationToken ct)
     {
         var certEntry = await ca.GetOrCreateHostCertificateAsync(host, ct);
-        using var ephemeral = X509Certificate2.CreateFromPem(certEntry.CertificatePem, certEntry.PrivateKeyPem);
-        using var x509 = X509CertificateLoader.LoadPkcs12(ephemeral.Export(X509ContentType.Pfx), null);
+        var rootCaEntry = await ca.GetOrCreateRootCaAsync(ct);
+        var certContext = BuildCertContext(certEntry, rootCaEntry);
 
         var clientStream = client.GetStream();
         using var sslClient = new SslStream(clientStream, leaveInnerStreamOpen: true);
         await sslClient.AuthenticateAsServerAsync(new SslServerAuthenticationOptions
         {
-            ServerCertificate = x509,
+            ServerCertificateContext = certContext,
             EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
             ClientCertificateRequired = false,
             ApplicationProtocols = [SslApplicationProtocol.Http11]
@@ -591,5 +591,22 @@ public class TransparentProxyServer(
                 return line[(headerName.Length + 1)..].Trim();
         }
         return null;
+    }
+
+    private static SslStreamCertificateContext BuildCertContext(CertificateEntry leaf, CertificateEntry rootCa)
+    {
+        using var ephemeral = X509Certificate2.CreateFromPem(leaf.CertificatePem, leaf.PrivateKeyPem);
+        using var leafCert = X509CertificateLoader.LoadPkcs12(ephemeral.Export(X509ContentType.Pfx), null);
+        var caCert = X509CertificateLoader.LoadCertificate(PemToBytes(rootCa.CertificatePem));
+        return SslStreamCertificateContext.Create(leafCert, new X509Certificate2Collection(caCert), offline: true);
+    }
+
+    private static byte[] PemToBytes(string pem)
+    {
+        var b64 = pem
+            .Replace("-----BEGIN CERTIFICATE-----", "")
+            .Replace("-----END CERTIFICATE-----", "")
+            .Replace("\n", "").Replace("\r", "").Trim();
+        return Convert.FromBase64String(b64);
     }
 }
