@@ -147,9 +147,19 @@ public class CertificateAuthority(
         gen.AddExtension(X509Extensions.ExtendedKeyUsage, false,
             new ExtendedKeyUsage(KeyPurposeID.id_kp_serverAuth));
 
-        // Subject Alternative Names
-        var sanList = new GeneralNames(new GeneralName(GeneralName.DnsName, hostname));
-        gen.AddExtension(X509Extensions.SubjectAlternativeName, false, sanList);
+        // Subject Alternative Names — iOS/macOS require the SAN to use IPAddress for
+        // IP literals; using DnsName for an IP causes the cert to be rejected outright.
+        GeneralName san;
+        if (System.Net.IPAddress.TryParse(hostname, out var ip))
+        {
+            san = new GeneralName(GeneralName.IPAddress,
+                new DerOctetString(ip.GetAddressBytes()));
+        }
+        else
+        {
+            san = new GeneralName(GeneralName.DnsName, hostname);
+        }
+        gen.AddExtension(X509Extensions.SubjectAlternativeName, false, new GeneralNames(san));
 
         // Authority Key Identifier — required by iOS to build the trust chain to the root CA
         gen.AddExtension(X509Extensions.AuthorityKeyIdentifier, false,

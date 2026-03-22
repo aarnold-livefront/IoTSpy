@@ -193,7 +193,12 @@ public class ExplicitProxyServer(
         {
             ServerCertificate = x509,
             EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
-            ClientCertificateRequired = false
+            ClientCertificateRequired = false,
+            // Explicitly advertise only HTTP/1.1 via ALPN.
+            // Without this, iOS/Android clients that propose h2 may have it accepted
+            // by the OS TLS stack (SChannel on Windows), causing the proxy's HTTP/1.1
+            // parser to receive binary HTTP/2 frames and drop every connection.
+            ApplicationProtocols = [SslApplicationProtocol.Http11]
         }, ct);
 
         // Resilient connect to upstream

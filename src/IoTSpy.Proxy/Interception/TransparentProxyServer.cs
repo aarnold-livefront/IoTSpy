@@ -175,7 +175,8 @@ public class TransparentProxyServer(
         {
             ServerCertificate = x509,
             EnabledSslProtocols = SslProtocols.Tls12 | SslProtocols.Tls13,
-            ClientCertificateRequired = false
+            ClientCertificateRequired = false,
+            ApplicationProtocols = [SslApplicationProtocol.Http11]
         }, ct);
 
         // Connect to real upstream
