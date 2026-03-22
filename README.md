@@ -12,7 +12,7 @@ IoT network security platform: transparent MITM proxy, protocol analyzer, pen-te
 |---|---|
 | Backend | .NET 10 / C# — ASP.NET Core 10, controllers + SignalR |
 | Real-time | SignalR (live traffic + packet streaming to dashboard) |
-| Packet capture | SharpPcap / PacketDotNet |
+| Packet capture | SharpPcap / PacketDotNet — requires [Npcap](https://npcap.com) on Windows |
 | TLS MITM | BouncyCastle (dynamic per-host certificate generation) |
 | Resilience | Polly 8 (retry, circuit-breaker, timeout) |
 | Storage | SQLite (default) / PostgreSQL (pluggable via appsettings) — EF Core 10 |
@@ -82,6 +82,23 @@ IoT network security platform: transparent MITM proxy, protocol analyzer, pen-te
 - .NET 10 SDK
 - Node.js 22+ (for frontend dev server)
 - (Optional) PostgreSQL if switching from SQLite
+
+#### Packet capture (Windows)
+
+Live packet capture and ARP spoofing require **Npcap** (the WinPcap successor) to be installed on the host machine. Without it the API still starts normally — the packet capture feature will be unavailable and a warning will be logged at startup.
+
+1. Download the installer from **[npcap.com](https://npcap.com/#download)**
+2. Run the installer — the defaults are fine; "WinPcap API-compatible Mode" is not required
+3. Restart the IoTSpy API after installation
+
+On Linux, install `libpcap-dev` instead:
+
+```bash
+sudo apt-get install libpcap-dev   # Debian / Ubuntu
+sudo yum install libpcap-devel     # RHEL / Fedora
+```
+
+On macOS, `libpcap` ships with the OS — no additional install needed.
 
 ### Run
 
@@ -427,7 +444,7 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full implementation plan, identified 
 | — | OpenRTB traffic inspection, PII detection and redaction | **Complete** |
 | 7 | Test coverage & CI/CD | **Complete** |
 | 8 | Observability & production hardening | **Complete** |
-| 9 | Export & reporting | **Planned** |
+| 9 | Export, reporting, alerting & scheduled scans | **Complete** |
 | 10 | Protocol expansion (WebSocket, MQTT proxy, gRPC, Modbus) | **Planned** |
 | 11 | UX polish & multi-user support | **Planned** |
 
