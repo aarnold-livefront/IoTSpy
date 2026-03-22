@@ -4,7 +4,7 @@ import type {
   FuzzerResult,
   StartFuzzerRequest,
   FuzzerStrategy,
-  CapturedRequest,
+  CapturedRequestSummary,
 } from '../../types/api'
 import '../../styles/manipulation.css'
 
@@ -13,7 +13,7 @@ interface Props {
   selectedResults: FuzzerResult[]
   loading: boolean
   error: string | null
-  captures: CapturedRequest[]
+  captures: CapturedRequestSummary[]
   onStart: (req: StartFuzzerRequest) => Promise<FuzzerJob | null>
   onViewResults: (id: string) => void
   onCancel: (id: string) => void

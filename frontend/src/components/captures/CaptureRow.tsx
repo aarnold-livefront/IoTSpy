@@ -1,8 +1,8 @@
-import type { CapturedRequest } from '../../types/api'
+import type { CapturedRequestSummary } from '../../types/api'
 import '../../styles/capture-list.css'
 
 interface Props {
-  capture: CapturedRequest
+  capture: CapturedRequestSummary
   selected: boolean
   onSelect: (id: string) => void
 }
@@ -31,8 +31,14 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes}b`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}k`
+  return `${(bytes / (1024 * 1024)).toFixed(1)}M`
+}
+
 export default function CaptureRow({ capture, selected, onSelect }: Props) {
-  const { id, method, host, path, statusCode, durationMs, isTls } = capture
+  const { id, method, host, path, statusCode, durationMs, isTls, requestBodySize } = capture
   const displayPath = path || '/'
 
   return (
@@ -50,7 +56,14 @@ export default function CaptureRow({ capture, selected, onSelect }: Props) {
         <span className="capture-row__host">{host}</span>
         <span className="capture-row__path">{displayPath}</span>
       </span>
-      <span className="capture-row__duration">{durationMs > 0 ? formatDuration(durationMs) : ''}</span>
+      <span className="capture-row__duration">
+        {durationMs > 0 ? formatDuration(durationMs) : ''}
+        {requestBodySize > 0 && (
+          <span className="capture-row__body-size" title="Request body size">
+            {' '}&#8593; {formatBytes(requestBodySize)}
+          </span>
+        )}
+      </span>
       <span className="capture-row__tls-indicator">{isTls ? '🔒' : ''}</span>
     </div>
   )

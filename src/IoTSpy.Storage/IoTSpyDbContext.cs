@@ -83,6 +83,8 @@ public DbSet<OpenRtbEvent> OpenRtbEvents => Set<OpenRtbEvent>();
         modelBuilder.Entity<ProxySettings>(e =>
         {
             e.HasKey(p => p.Id);
+            e.Property(p => p.CaptureRequestBodies).HasDefaultValue(true);
+            e.Property(p => p.CaptureResponseBodies).HasDefaultValue(true);
         });
 
         modelBuilder.Entity<ManipulationRule>(e =>

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { listCaptures } from '../api/captures'
-import type { CaptureFilters, CapturedRequest, TrafficCaptureEvent } from '../types/api'
+import type { CaptureFilters, CapturedRequestSummary, TrafficCaptureEvent } from '../types/api'
 
 const PAGE_SIZE = 50
 
 export function useCaptures(filters: CaptureFilters) {
-  const [captures, setCaptures] = useState<CapturedRequest[]>([])
+  const [captures, setCaptures] = useState<CapturedRequestSummary[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [pages, setPages] = useState(1)
@@ -54,12 +54,10 @@ export function useCaptures(filters: CaptureFilters) {
 
   /** Prepend a live SignalR capture to the top of the list */
   const prependCapture = useCallback((event: TrafficCaptureEvent) => {
-    const partial: CapturedRequest = {
+    const partial: CapturedRequestSummary = {
       ...event,
       requestHeaders: '',
-      requestBody: '',
       responseHeaders: '',
-      responseBody: '',
       tlsCipherSuite: '',
       isModified: false,
       notes: '',

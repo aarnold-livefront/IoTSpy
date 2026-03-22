@@ -1,9 +1,9 @@
 import { useMemo, useState, useRef, useCallback } from 'react'
-import type { CapturedRequest, Device } from '../../types/api'
+import type { CapturedRequestSummary, Device } from '../../types/api'
 import '../../styles/timeline.css'
 
 interface Props {
-  captures: CapturedRequest[]
+  captures: CapturedRequestSummary[]
   devices: Device[]
   selectedId: string | null
   onSelect: (id: string) => void
@@ -21,12 +21,12 @@ const ZOOM_DURATIONS: Record<Exclude<ZoomLevel, 'auto'>, number> = {
 
 export default function TimelineSwimlaneView({ captures, devices, selectedId, onSelect }: Props) {
   const [zoom, setZoom] = useState<ZoomLevel>('auto')
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; capture: CapturedRequest } | null>(null)
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; capture: CapturedRequestSummary } | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
 
   // Group captures by device
   const { deviceMap, sortedDeviceIds, timeRange, canvasWidth } = useMemo(() => {
-    const map = new Map<string, CapturedRequest[]>()
+    const map = new Map<string, CapturedRequestSummary[]>()
     let minTs = Infinity
     let maxTs = -Infinity
 
@@ -117,7 +117,7 @@ export default function TimelineSwimlaneView({ captures, devices, selectedId, on
     return 'status-0'
   }
 
-  const handleMouseEnter = (e: React.MouseEvent, capture: CapturedRequest) => {
+  const handleMouseEnter = (e: React.MouseEvent, capture: CapturedRequestSummary) => {
     setTooltip({ x: e.clientX + 12, y: e.clientY - 10, capture })
   }
 

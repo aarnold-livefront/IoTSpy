@@ -1,12 +1,12 @@
 import { useState } from 'react'
-import type { ReplaySession, CreateReplayRequest, CapturedRequest } from '../../types/api'
+import type { ReplaySession, CreateReplayRequest, CapturedRequestSummary } from '../../types/api'
 import '../../styles/manipulation.css'
 
 interface Props {
   replays: ReplaySession[]
   loading: boolean
   error: string | null
-  captures: CapturedRequest[]
+  captures: CapturedRequestSummary[]
   onReplay: (req: CreateReplayRequest) => Promise<ReplaySession | null>
   onDelete: (id: string) => void
 }
@@ -29,7 +29,7 @@ export default function ReplayPanel({ replays, loading, error, captures, onRepla
       setHost(capture.host)
       setPath(capture.path)
       setHeaders(capture.requestHeaders)
-      setBody(capture.requestBody)
+      setBody('')
     }
   }
 

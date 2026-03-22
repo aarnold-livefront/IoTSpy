@@ -194,3 +194,9 @@
   color: var(--color-success);
   text-align: center;
 }
+
+.capture-row__body-size {
+  font-size: var(--font-size-xs, 11px);
+  color: var(--color-text-muted);
+  margin-left: 4px;
+}

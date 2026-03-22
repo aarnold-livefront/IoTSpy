@@ -26,8 +26,34 @@ public class CapturesController(ICaptureRepository captures) : ControllerBase
     {
         pageSize = Math.Clamp(pageSize, 1, 200);
         var filter = new CaptureFilter(deviceId, host, method, statusCode, from, to, q);
-        var items = await captures.GetPagedAsync(filter, page, pageSize);
+        var rawItems = await captures.GetPagedAsync(filter, page, pageSize);
         var total = await captures.CountAsync(filter);
+        var items = rawItems.Select(c => new
+        {
+            c.Id,
+            c.DeviceId,
+            c.Method,
+            c.Scheme,
+            c.Host,
+            c.Port,
+            c.Path,
+            c.Query,
+            c.RequestHeaders,
+            c.RequestBodySize,
+            c.StatusCode,
+            c.StatusMessage,
+            c.ResponseHeaders,
+            c.ResponseBodySize,
+            c.IsTls,
+            c.TlsVersion,
+            c.TlsCipherSuite,
+            c.Protocol,
+            c.Timestamp,
+            c.DurationMs,
+            c.ClientIp,
+            c.IsModified,
+            c.Notes,
+        }).ToList();
         return Ok(new { items, total, page, pageSize, pages = (int)Math.Ceiling(total / (double)pageSize) });
     }
 

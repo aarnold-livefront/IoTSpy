@@ -3,11 +3,11 @@ import CaptureFilterBar from './CaptureFilterBar'
 import CaptureRow from './CaptureRow'
 import LoadingSpinner from '../common/LoadingSpinner'
 import ErrorBanner from '../common/ErrorBanner'
-import type { CaptureFilters, CapturedRequest, Device } from '../../types/api'
+import type { CaptureFilters, CapturedRequestSummary, Device } from '../../types/api'
 import '../../styles/capture-list.css'
 
 interface Props {
-  captures: CapturedRequest[]
+  captures: CapturedRequestSummary[]
   total: number
   loading: boolean
   loadingMore: boolean

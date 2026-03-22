@@ -92,10 +92,42 @@ export interface CertificateEntry {
   createdAt: string
 }
 
+/** Summary shape returned by the list endpoint — excludes requestBody and responseBody */
+export interface CapturedRequestSummary {
+  id: string
+  deviceId?: string
+  device?: Device
+  // Request
+  method: string
+  scheme: string
+  host: string
+  port: number
+  path: string
+  query: string
+  requestHeaders: string
+  requestBodySize: number
+  // Response
+  statusCode: number
+  statusMessage: string
+  responseHeaders: string
+  responseBodySize: number
+  // TLS
+  isTls: boolean
+  tlsVersion: string
+  tlsCipherSuite: string
+  // Meta
+  protocol: InterceptionProtocol
+  timestamp: string
+  durationMs: number
+  clientIp: string
+  isModified: boolean
+  notes: string
+}
+
 // ── API response shapes ───────────────────────────────────────────────────────
 
 export interface CaptureListResponse {
-  items: CapturedRequest[]
+  items: CapturedRequestSummary[]
   total: number
   page: number
   pageSize: number

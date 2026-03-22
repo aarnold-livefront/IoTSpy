@@ -11,6 +11,12 @@ import '../../styles/capture-detail.css'
 
 type Tab = 'request' | 'response' | 'tls'
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes}b`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}k`
+  return `${(bytes / (1024 * 1024)).toFixed(1)}M`
+}
+
 interface Props {
   captureId: string | null
 }
@@ -90,15 +96,23 @@ export default function CaptureDetail({ captureId }: Props) {
       </div>
 
       <div className="detail-tabs">
-        {(['request', 'response', 'tls'] as Tab[]).map((tab) => (
-          <button
-            key={tab}
-            className={`detail-tab${activeTab === tab ? ' detail-tab--active' : ''}`}
-            onClick={() => setActiveTab(tab)}
-          >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
-          </button>
-        ))}
+        {(['request', 'response', 'tls'] as Tab[]).map((tab) => {
+          let label = tab.charAt(0).toUpperCase() + tab.slice(1)
+          if (tab === 'request' && capture.requestBodySize > 0) {
+            label += ` · ${formatBytes(capture.requestBodySize)}`
+          } else if (tab === 'response' && capture.responseBodySize > 0) {
+            label += ` · ${formatBytes(capture.responseBodySize)}`
+          }
+          return (
+            <button
+              key={tab}
+              className={`detail-tab${activeTab === tab ? ' detail-tab--active' : ''}`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {label}
+            </button>
+          )
+        })}
       </div>
 
       {activeTab === 'request' && <RequestTab capture={capture} />}
