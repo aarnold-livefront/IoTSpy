@@ -601,7 +601,10 @@ public class ExplicitProxyServer(
     {
         // Round-trip through PFX to get a persistent key handle usable by SChannel on Windows.
         using var ephemeral = X509Certificate2.CreateFromPem(leaf.CertificatePem, leaf.PrivateKeyPem);
-        using var leafCert = X509CertificateLoader.LoadPkcs12(ephemeral.Export(X509ContentType.Pfx), null);
+        // Do NOT use 'using' here — SslStreamCertificateContext takes ownership of leafCert.
+        // Disposing it before the TLS handshake completes causes CryptographicException:
+        // "m_safeCertContext is an invalid handle".
+        var leafCert = X509CertificateLoader.LoadPkcs12(ephemeral.Export(X509ContentType.Pfx), null);
 
         // Include the CA cert explicitly so .NET sends it in the TLS Certificate message.
         // SChannel only discovers chain certs from the Windows cert store; our CA is in

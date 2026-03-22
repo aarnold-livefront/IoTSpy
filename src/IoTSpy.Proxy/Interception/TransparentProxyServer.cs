@@ -596,7 +596,8 @@ public class TransparentProxyServer(
     private static SslStreamCertificateContext BuildCertContext(CertificateEntry leaf, CertificateEntry rootCa)
     {
         using var ephemeral = X509Certificate2.CreateFromPem(leaf.CertificatePem, leaf.PrivateKeyPem);
-        using var leafCert = X509CertificateLoader.LoadPkcs12(ephemeral.Export(X509ContentType.Pfx), null);
+        // No 'using' — SslStreamCertificateContext owns leafCert's lifetime.
+        var leafCert = X509CertificateLoader.LoadPkcs12(ephemeral.Export(X509ContentType.Pfx), null);
         var caCert = X509CertificateLoader.LoadCertificate(PemToBytes(rootCa.CertificatePem));
         return SslStreamCertificateContext.Create(leafCert, new X509Certificate2Collection(caCert), offline: true);
     }
