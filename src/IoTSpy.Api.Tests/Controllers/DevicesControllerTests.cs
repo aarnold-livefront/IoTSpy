@@ -20,7 +20,7 @@ public class DevicesControllerTests
     public async Task List_ReturnsAllDevices()
     {
         var repo = Substitute.For<IDeviceRepository>();
-        repo.GetAllAsync().Returns(new List<Device> { MakeDevice(), MakeDevice() });
+        repo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(new List<Device> { MakeDevice(), MakeDevice() });
 
         var controller = new DevicesController(repo);
         var result = await controller.List() as OkObjectResult;
@@ -35,7 +35,7 @@ public class DevicesControllerTests
     {
         var id = Guid.NewGuid();
         var repo = Substitute.For<IDeviceRepository>();
-        repo.GetByIdAsync(id).Returns(MakeDevice(id));
+        repo.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(MakeDevice(id));
 
         var controller = new DevicesController(repo);
         var result = await controller.Get(id) as OkObjectResult;
@@ -48,7 +48,7 @@ public class DevicesControllerTests
     public async Task Get_WhenNotFound_ReturnsNotFound()
     {
         var repo = Substitute.For<IDeviceRepository>();
-        repo.GetByIdAsync(Arg.Any<Guid>()).Returns((Device?)null);
+        repo.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Device?)null);
 
         var controller = new DevicesController(repo);
         var result = await controller.Get(Guid.NewGuid());
@@ -62,8 +62,8 @@ public class DevicesControllerTests
         var id = Guid.NewGuid();
         var device = MakeDevice(id);
         var repo = Substitute.For<IDeviceRepository>();
-        repo.GetByIdAsync(id).Returns(device);
-        repo.UpdateAsync(Arg.Any<Device>()).Returns(device);
+        repo.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(device);
+        repo.UpdateAsync(Arg.Any<Device>(), Arg.Any<CancellationToken>()).Returns(device);
 
         var controller = new DevicesController(repo);
         var result = await controller.Update(id, new DevicePatchDto("New Label", "Notes", true)) as OkObjectResult;
@@ -78,7 +78,7 @@ public class DevicesControllerTests
     public async Task Update_WhenNotFound_ReturnsNotFound()
     {
         var repo = Substitute.For<IDeviceRepository>();
-        repo.GetByIdAsync(Arg.Any<Guid>()).Returns((Device?)null);
+        repo.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Device?)null);
 
         var controller = new DevicesController(repo);
         var result = await controller.Update(Guid.NewGuid(), new DevicePatchDto(null, null, null));
@@ -91,13 +91,13 @@ public class DevicesControllerTests
     {
         var id = Guid.NewGuid();
         var repo = Substitute.For<IDeviceRepository>();
-        repo.DeleteAsync(id).Returns(Task.CompletedTask);
+        repo.DeleteAsync(id, Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
         var controller = new DevicesController(repo);
         var result = await controller.Delete(id);
 
         Assert.IsType<NoContentResult>(result);
-        await repo.Received(1).DeleteAsync(id);
+        await repo.Received(1).DeleteAsync(id, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -109,8 +109,8 @@ public class DevicesControllerTests
         device.Notes = "Original Notes";
 
         var repo = Substitute.For<IDeviceRepository>();
-        repo.GetByIdAsync(id).Returns(device);
-        repo.UpdateAsync(Arg.Any<Device>()).Returns(device);
+        repo.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(device);
+        repo.UpdateAsync(Arg.Any<Device>(), Arg.Any<CancellationToken>()).Returns(device);
 
         var controller = new DevicesController(repo);
         await controller.Update(id, new DevicePatchDto(null, null, null));

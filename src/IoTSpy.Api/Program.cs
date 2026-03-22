@@ -171,7 +171,7 @@ app.UseSerilogRequestLogging(opts =>
 {
     opts.EnrichDiagnosticContext = (diag, ctx) =>
     {
-        diag.Set("RequestHost", ctx.Request.Host.Value);
+        diag.Set("RequestHost", ctx.Request.Host.Value ?? string.Empty);
         diag.Set("UserAgent", (object)(ctx.Request.Headers.UserAgent.FirstOrDefault() ?? string.Empty));
     };
 });

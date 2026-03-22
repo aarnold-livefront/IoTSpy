@@ -48,7 +48,7 @@ public class DataRetentionServiceTests
             Timestamp = DateTimeOffset.UtcNow.AddDays(-365),
             Host = "test.example.com"
         });
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Run the service briefly
         using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(200));
@@ -57,7 +57,7 @@ public class DataRetentionServiceTests
         await svc.StopAsync(cts.Token);
 
         // Capture should still exist
-        Assert.Equal(1, await db.Captures.CountAsync());
+        Assert.Equal(1, await db.Captures.CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -86,17 +86,17 @@ public class DataRetentionServiceTests
             Timestamp = DateTimeOffset.UtcNow.AddDays(-1),
             Host = "new.example.com"
         });
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Use InvokeRetentionPassAsync via reflection to test directly
         var svc = CreateService(scopeFactory, opts);
         var method = typeof(DataRetentionService)
             .GetMethod("RunRetentionPassAsync",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-        await (Task)method.Invoke(svc, [opts, CancellationToken.None])!;
+        await (Task)method.Invoke(svc, [opts, TestContext.Current.CancellationToken])!;
 
-        Assert.Equal(1, await db.Captures.CountAsync());
-        Assert.Equal("new.example.com", (await db.Captures.SingleAsync()).Host);
+        Assert.Equal(1, await db.Captures.CountAsync(TestContext.Current.CancellationToken));
+        Assert.Equal("new.example.com", (await db.Captures.SingleAsync(TestContext.Current.CancellationToken)).Host);
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public class DataRetentionServiceTests
         // ScanJob requires a Device FK
         var device = new Core.Models.Device { IpAddress = "10.0.0.1" };
         db.Devices.Add(device);
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         db.ScanJobs.Add(new ScanJob
         {
@@ -130,15 +130,15 @@ public class DataRetentionServiceTests
             CreatedAt = DateTimeOffset.UtcNow.AddDays(-3),
             Status = Core.Enums.ScanStatus.Completed
         });
-        await db.SaveChangesAsync();
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         var svc = CreateService(scopeFactory, opts);
         var method = typeof(DataRetentionService)
             .GetMethod("RunRetentionPassAsync",
                 System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-        await (Task)method.Invoke(svc, [opts, CancellationToken.None])!;
+        await (Task)method.Invoke(svc, [opts, TestContext.Current.CancellationToken])!;
 
-        Assert.Equal(1, await db.ScanJobs.CountAsync());
+        Assert.Equal(1, await db.ScanJobs.CountAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]

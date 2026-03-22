@@ -24,18 +24,18 @@ public class ScannerControllerTests
         var job = MakeScanJob();
 
         var scanner = Substitute.For<IScannerService>();
-        scanner.StartScanAsync(Arg.Any<ScanJob>()).Returns(job);
+        scanner.StartScanAsync(Arg.Any<ScanJob>(), Arg.Any<CancellationToken>()).Returns(job);
 
         var scanJobs = Substitute.For<IScanJobRepository>();
         var devices = Substitute.For<IDeviceRepository>();
-        devices.GetByIdAsync(device.Id).Returns(device);
+        devices.GetByIdAsync(device.Id, Arg.Any<CancellationToken>()).Returns(device);
 
         var controller = new ScannerController(scanner, scanJobs, devices);
         var dto = new StartScanDto(device.Id, null, null, null, null, null, null, null);
         var result = await controller.StartScan(dto) as OkObjectResult;
 
         Assert.NotNull(result);
-        await scanner.Received(1).StartScanAsync(Arg.Any<ScanJob>());
+        await scanner.Received(1).StartScanAsync(Arg.Any<ScanJob>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -44,7 +44,7 @@ public class ScannerControllerTests
         var scanner = Substitute.For<IScannerService>();
         var scanJobs = Substitute.For<IScanJobRepository>();
         var devices = Substitute.For<IDeviceRepository>();
-        devices.GetByIdAsync(Arg.Any<Guid>()).Returns((Device?)null);
+        devices.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Device?)null);
 
         var controller = new ScannerController(scanner, scanJobs, devices);
         var result = await controller.StartScan(new StartScanDto(Guid.NewGuid(), null, null, null, null, null, null, null));
@@ -56,7 +56,7 @@ public class ScannerControllerTests
     public async Task ListJobs_ReturnsAllJobs()
     {
         var scanJobs = Substitute.For<IScanJobRepository>();
-        scanJobs.GetAllAsync(1, 20).Returns(new List<ScanJob> { MakeScanJob(), MakeScanJob() });
+        scanJobs.GetAllAsync(1, 20, Arg.Any<CancellationToken>()).Returns(new List<ScanJob> { MakeScanJob(), MakeScanJob() });
 
         var controller = new ScannerController(
             Substitute.For<IScannerService>(), scanJobs, Substitute.For<IDeviceRepository>());
@@ -73,7 +73,7 @@ public class ScannerControllerTests
     {
         var id = Guid.NewGuid();
         var scanJobs = Substitute.For<IScanJobRepository>();
-        scanJobs.GetByIdAsync(id).Returns(MakeScanJob(id));
+        scanJobs.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(MakeScanJob(id));
 
         var controller = new ScannerController(
             Substitute.For<IScannerService>(), scanJobs, Substitute.For<IDeviceRepository>());
@@ -88,7 +88,7 @@ public class ScannerControllerTests
     public async Task GetJob_WhenNotFound_ReturnsNotFound()
     {
         var scanJobs = Substitute.For<IScanJobRepository>();
-        scanJobs.GetByIdAsync(Arg.Any<Guid>()).Returns((ScanJob?)null);
+        scanJobs.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((ScanJob?)null);
 
         var controller = new ScannerController(
             Substitute.For<IScannerService>(), scanJobs, Substitute.For<IDeviceRepository>());
@@ -103,7 +103,7 @@ public class ScannerControllerTests
     {
         var id = Guid.NewGuid();
         var scanJobs = Substitute.For<IScanJobRepository>();
-        scanJobs.GetByIdAsync(id).Returns(MakeScanJob(id));
+        scanJobs.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(MakeScanJob(id));
 
         var scanner = Substitute.For<IScannerService>();
         scanner.IsScanRunning(id).Returns(true);
@@ -120,7 +120,7 @@ public class ScannerControllerTests
     {
         var id = Guid.NewGuid();
         var scanJobs = Substitute.For<IScanJobRepository>();
-        scanJobs.DeleteAsync(id).Returns(Task.CompletedTask);
+        scanJobs.DeleteAsync(id, Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
         var controller = new ScannerController(
             Substitute.For<IScannerService>(), scanJobs, Substitute.For<IDeviceRepository>());
@@ -128,6 +128,6 @@ public class ScannerControllerTests
         var result = await controller.DeleteJob(id);
 
         Assert.IsType<NoContentResult>(result);
-        await scanJobs.Received(1).DeleteAsync(id);
+        await scanJobs.Received(1).DeleteAsync(id, Arg.Any<CancellationToken>());
     }
 }

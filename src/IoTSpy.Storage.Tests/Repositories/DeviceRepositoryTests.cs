@@ -14,7 +14,7 @@ public class DeviceRepositoryTests : IDisposable
     public async Task GetAllAsync_WhenEmpty_ReturnsEmptyList()
     {
         var repo = new DeviceRepository(_db);
-        var result = await repo.GetAllAsync();
+        var result = await repo.GetAllAsync(TestContext.Current.CancellationToken);
         Assert.Empty(result);
     }
 
@@ -24,12 +24,12 @@ public class DeviceRepositoryTests : IDisposable
         var repo = new DeviceRepository(_db);
         var device = new Device { IpAddress = "192.168.1.10", Label = "Test" };
 
-        var result = await repo.UpsertByIpAsync(device);
+        var result = await repo.UpsertByIpAsync(device, TestContext.Current.CancellationToken);
 
         Assert.NotEqual(Guid.Empty, result.Id);
         Assert.Equal("192.168.1.10", result.IpAddress);
 
-        var all = await repo.GetAllAsync();
+        var all = await repo.GetAllAsync(TestContext.Current.CancellationToken);
         Assert.Single(all);
     }
 
@@ -38,12 +38,12 @@ public class DeviceRepositoryTests : IDisposable
     {
         var repo = new DeviceRepository(_db);
         var device = new Device { IpAddress = "192.168.1.20", Label = "First" };
-        await repo.UpsertByIpAsync(device);
+        await repo.UpsertByIpAsync(device, TestContext.Current.CancellationToken);
 
         var updated = new Device { IpAddress = "192.168.1.20", Label = "Second" };
-        await repo.UpsertByIpAsync(updated);
+        await repo.UpsertByIpAsync(updated, TestContext.Current.CancellationToken);
 
-        var all = await repo.GetAllAsync();
+        var all = await repo.GetAllAsync(TestContext.Current.CancellationToken);
         Assert.Single(all);
     }
 
@@ -51,9 +51,9 @@ public class DeviceRepositoryTests : IDisposable
     public async Task GetByIdAsync_WhenFound_ReturnsDevice()
     {
         var repo = new DeviceRepository(_db);
-        var inserted = await repo.UpsertByIpAsync(new Device { IpAddress = "10.0.0.1" });
+        var inserted = await repo.UpsertByIpAsync(new Device { IpAddress = "10.0.0.1" }, TestContext.Current.CancellationToken);
 
-        var result = await repo.GetByIdAsync(inserted.Id);
+        var result = await repo.GetByIdAsync(inserted.Id, TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         Assert.Equal("10.0.0.1", result.IpAddress);
@@ -63,7 +63,7 @@ public class DeviceRepositoryTests : IDisposable
     public async Task GetByIdAsync_WhenNotFound_ReturnsNull()
     {
         var repo = new DeviceRepository(_db);
-        var result = await repo.GetByIdAsync(Guid.NewGuid());
+        var result = await repo.GetByIdAsync(Guid.NewGuid(), TestContext.Current.CancellationToken);
         Assert.Null(result);
     }
 
@@ -71,9 +71,9 @@ public class DeviceRepositoryTests : IDisposable
     public async Task GetByIpAsync_WhenFound_ReturnsDevice()
     {
         var repo = new DeviceRepository(_db);
-        await repo.UpsertByIpAsync(new Device { IpAddress = "10.0.0.2" });
+        await repo.UpsertByIpAsync(new Device { IpAddress = "10.0.0.2" }, TestContext.Current.CancellationToken);
 
-        var result = await repo.GetByIpAsync("10.0.0.2");
+        var result = await repo.GetByIpAsync("10.0.0.2", TestContext.Current.CancellationToken);
 
         Assert.NotNull(result);
         Assert.Equal("10.0.0.2", result.IpAddress);
@@ -83,7 +83,7 @@ public class DeviceRepositoryTests : IDisposable
     public async Task GetByIpAsync_WhenNotFound_ReturnsNull()
     {
         var repo = new DeviceRepository(_db);
-        var result = await repo.GetByIpAsync("99.99.99.99");
+        var result = await repo.GetByIpAsync("99.99.99.99", TestContext.Current.CancellationToken);
         Assert.Null(result);
     }
 
@@ -91,12 +91,12 @@ public class DeviceRepositoryTests : IDisposable
     public async Task UpdateAsync_PersistsChanges()
     {
         var repo = new DeviceRepository(_db);
-        var device = await repo.UpsertByIpAsync(new Device { IpAddress = "10.0.0.3", Label = "Old" });
+        var device = await repo.UpsertByIpAsync(new Device { IpAddress = "10.0.0.3", Label = "Old" }, TestContext.Current.CancellationToken);
 
         device.Label = "Updated";
-        await repo.UpdateAsync(device);
+        await repo.UpdateAsync(device, TestContext.Current.CancellationToken);
 
-        var refetched = await repo.GetByIdAsync(device.Id);
+        var refetched = await repo.GetByIdAsync(device.Id, TestContext.Current.CancellationToken);
         Assert.Equal("Updated", refetched!.Label);
     }
 
@@ -104,11 +104,11 @@ public class DeviceRepositoryTests : IDisposable
     public async Task DeleteAsync_RemovesDevice()
     {
         var repo = new DeviceRepository(_db);
-        var device = await repo.UpsertByIpAsync(new Device { IpAddress = "10.0.0.4" });
+        var device = await repo.UpsertByIpAsync(new Device { IpAddress = "10.0.0.4" }, TestContext.Current.CancellationToken);
 
-        await repo.DeleteAsync(device.Id);
+        await repo.DeleteAsync(device.Id, TestContext.Current.CancellationToken);
 
-        var result = await repo.GetByIdAsync(device.Id);
+        var result = await repo.GetByIdAsync(device.Id, TestContext.Current.CancellationToken);
         Assert.Null(result);
     }
 
@@ -116,11 +116,11 @@ public class DeviceRepositoryTests : IDisposable
     public async Task GetAllAsync_ReturnsMultipleDevices()
     {
         var repo = new DeviceRepository(_db);
-        await repo.UpsertByIpAsync(new Device { IpAddress = "10.0.1.1" });
-        await repo.UpsertByIpAsync(new Device { IpAddress = "10.0.1.2" });
-        await repo.UpsertByIpAsync(new Device { IpAddress = "10.0.1.3" });
+        await repo.UpsertByIpAsync(new Device { IpAddress = "10.0.1.1" }, TestContext.Current.CancellationToken);
+        await repo.UpsertByIpAsync(new Device { IpAddress = "10.0.1.2" }, TestContext.Current.CancellationToken);
+        await repo.UpsertByIpAsync(new Device { IpAddress = "10.0.1.3" }, TestContext.Current.CancellationToken);
 
-        var all = await repo.GetAllAsync();
+        var all = await repo.GetAllAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(3, all.Count);
     }

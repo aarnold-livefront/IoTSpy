@@ -26,7 +26,7 @@ public class AuthControllerTests
     public async Task Status_WhenPasswordNotSet_ReturnsFalse()
     {
         var settingsRepo = Substitute.For<IProxySettingsRepository>();
-        settingsRepo.GetAsync().Returns(new ProxySettings { PasswordHash = string.Empty });
+        settingsRepo.GetAsync(Arg.Any<CancellationToken>()).Returns(new ProxySettings { PasswordHash = string.Empty });
 
         var controller = new AuthController(CreateAuthService(), settingsRepo);
         var result = await controller.Status() as OkObjectResult;
@@ -43,7 +43,7 @@ public class AuthControllerTests
         var hash = auth.HashPassword("password123");
 
         var settingsRepo = Substitute.For<IProxySettingsRepository>();
-        settingsRepo.GetAsync().Returns(new ProxySettings { PasswordHash = hash });
+        settingsRepo.GetAsync(Arg.Any<CancellationToken>()).Returns(new ProxySettings { PasswordHash = hash });
 
         var controller = new AuthController(auth, settingsRepo);
         var result = await controller.Status() as OkObjectResult;
@@ -60,14 +60,14 @@ public class AuthControllerTests
         var settings = new ProxySettings { PasswordHash = string.Empty };
 
         var settingsRepo = Substitute.For<IProxySettingsRepository>();
-        settingsRepo.GetAsync().Returns(settings);
-        settingsRepo.SaveAsync(Arg.Any<ProxySettings>()).Returns(Task.FromResult(settings));
+        settingsRepo.GetAsync(Arg.Any<CancellationToken>()).Returns(settings);
+        settingsRepo.SaveAsync(Arg.Any<ProxySettings>(), Arg.Any<CancellationToken>()).Returns(Task.FromResult(settings));
 
         var controller = new AuthController(auth, settingsRepo);
         var result = await controller.Setup(new AuthController.SetupRequest("newpassword"));
 
         Assert.IsType<OkObjectResult>(result);
-        await settingsRepo.Received(1).SaveAsync(Arg.Is<ProxySettings>(s => !string.IsNullOrEmpty(s.PasswordHash)));
+        await settingsRepo.Received(1).SaveAsync(Arg.Is<ProxySettings>(s => !string.IsNullOrEmpty(s.PasswordHash)), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public class AuthControllerTests
         var hash = auth.HashPassword("existing");
 
         var settingsRepo = Substitute.For<IProxySettingsRepository>();
-        settingsRepo.GetAsync().Returns(new ProxySettings { PasswordHash = hash });
+        settingsRepo.GetAsync(Arg.Any<CancellationToken>()).Returns(new ProxySettings { PasswordHash = hash });
 
         var controller = new AuthController(auth, settingsRepo);
         var result = await controller.Setup(new AuthController.SetupRequest("newpassword"));
@@ -92,7 +92,7 @@ public class AuthControllerTests
         var hash = auth.HashPassword("correctpassword");
 
         var settingsRepo = Substitute.For<IProxySettingsRepository>();
-        settingsRepo.GetAsync().Returns(new ProxySettings { PasswordHash = hash });
+        settingsRepo.GetAsync(Arg.Any<CancellationToken>()).Returns(new ProxySettings { PasswordHash = hash });
 
         var controller = new AuthController(auth, settingsRepo);
         var result = await controller.Login(new AuthController.LoginRequest("admin", "correctpassword"));
@@ -107,7 +107,7 @@ public class AuthControllerTests
         var hash = auth.HashPassword("correctpassword");
 
         var settingsRepo = Substitute.For<IProxySettingsRepository>();
-        settingsRepo.GetAsync().Returns(new ProxySettings { PasswordHash = hash });
+        settingsRepo.GetAsync(Arg.Any<CancellationToken>()).Returns(new ProxySettings { PasswordHash = hash });
 
         var controller = new AuthController(auth, settingsRepo);
         var result = await controller.Login(new AuthController.LoginRequest("admin", "wrongpassword"));
@@ -122,7 +122,7 @@ public class AuthControllerTests
         var hash = auth.HashPassword("password");
 
         var settingsRepo = Substitute.For<IProxySettingsRepository>();
-        settingsRepo.GetAsync().Returns(new ProxySettings { PasswordHash = hash });
+        settingsRepo.GetAsync(Arg.Any<CancellationToken>()).Returns(new ProxySettings { PasswordHash = hash });
 
         var controller = new AuthController(auth, settingsRepo);
         var result = await controller.Login(new AuthController.LoginRequest("notadmin", "password"));

@@ -15,15 +15,15 @@ public class HealthCheckEndpointTests(IoTSpyWebApplicationFactory factory)
     [Fact]
     public async Task GetHealth_ReturnsOk()
     {
-        var response = await _client.GetAsync("/health");
+        var response = await _client.GetAsync("/health", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
     public async Task GetHealth_ReturnsJsonWithHealthyStatus()
     {
-        var response = await _client.GetAsync("/health");
-        var body = await response.Content.ReadAsStringAsync();
+        var response = await _client.GetAsync("/health", TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         using var doc = JsonDocument.Parse(body);
         var status = doc.RootElement.GetProperty("status").GetString();
@@ -33,15 +33,15 @@ public class HealthCheckEndpointTests(IoTSpyWebApplicationFactory factory)
     [Fact]
     public async Task GetReady_ReturnsOk()
     {
-        var response = await _client.GetAsync("/ready");
+        var response = await _client.GetAsync("/ready", TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
     [Fact]
     public async Task GetReady_ReturnsJsonWithChecks()
     {
-        var response = await _client.GetAsync("/ready");
-        var body = await response.Content.ReadAsStringAsync();
+        var response = await _client.GetAsync("/ready", TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
 
         using var doc = JsonDocument.Parse(body);
         Assert.True(doc.RootElement.TryGetProperty("status", out _));
@@ -53,7 +53,7 @@ public class HealthCheckEndpointTests(IoTSpyWebApplicationFactory factory)
     public async Task GetHealth_DoesNotRequireAuthentication()
     {
         // Health endpoints must be reachable by load balancers without a JWT
-        var response = await _client.GetAsync("/health");
+        var response = await _client.GetAsync("/health", TestContext.Current.CancellationToken);
         Assert.NotEqual(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 }

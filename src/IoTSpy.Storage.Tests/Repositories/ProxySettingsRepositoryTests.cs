@@ -15,7 +15,7 @@ public class ProxySettingsRepositoryTests : IDisposable
     public async Task GetAsync_WhenNoSettings_ReturnsDefaults()
     {
         var repo = new ProxySettingsRepository(_db);
-        var settings = await repo.GetAsync();
+        var settings = await repo.GetAsync(TestContext.Current.CancellationToken);
 
         Assert.NotNull(settings);
         // Default port is 8888
@@ -26,8 +26,8 @@ public class ProxySettingsRepositoryTests : IDisposable
     public async Task GetAsync_CalledTwice_ReturnsSameRow()
     {
         var repo = new ProxySettingsRepository(_db);
-        var s1 = await repo.GetAsync();
-        var s2 = await repo.GetAsync();
+        var s1 = await repo.GetAsync(TestContext.Current.CancellationToken);
+        var s2 = await repo.GetAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(s1.Id, s2.Id);
     }
@@ -36,13 +36,13 @@ public class ProxySettingsRepositoryTests : IDisposable
     public async Task SaveAsync_PersistsChanges()
     {
         var repo = new ProxySettingsRepository(_db);
-        var settings = await repo.GetAsync();
+        var settings = await repo.GetAsync(TestContext.Current.CancellationToken);
         settings.ProxyPort = 9999;
         settings.Mode = ProxyMode.GatewayRedirect;
 
-        await repo.SaveAsync(settings);
+        await repo.SaveAsync(settings, TestContext.Current.CancellationToken);
 
-        var reloaded = await repo.GetAsync();
+        var reloaded = await repo.GetAsync(TestContext.Current.CancellationToken);
         Assert.Equal(9999, reloaded.ProxyPort);
         Assert.Equal(ProxyMode.GatewayRedirect, reloaded.Mode);
     }
@@ -53,9 +53,9 @@ public class ProxySettingsRepositoryTests : IDisposable
         var repo = new ProxySettingsRepository(_db);
         var newSettings = new ProxySettings { ProxyPort = 7777 };
 
-        await repo.SaveAsync(newSettings);
+        await repo.SaveAsync(newSettings, TestContext.Current.CancellationToken);
 
-        var reloaded = await repo.GetAsync();
+        var reloaded = await repo.GetAsync(TestContext.Current.CancellationToken);
         Assert.Equal(7777, reloaded.ProxyPort);
     }
 }

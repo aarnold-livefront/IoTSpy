@@ -16,10 +16,10 @@ public class AuthEndpointTests : IClassFixture<IoTSpyWebApplicationFactory>
     [Fact]
     public async Task GetAuthStatus_ReturnsOkWithPasswordSetFalse()
     {
-        var response = await _client.GetAsync("/api/auth/status");
+        var response = await _client.GetAsync("/api/auth/status", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Contains("passwordSet", body);
     }
 
@@ -30,7 +30,7 @@ public class AuthEndpointTests : IClassFixture<IoTSpyWebApplicationFactory>
         await factory.InitializeDbAsync();
         var client = factory.CreateClient();
 
-        var response = await client.PostAsJsonAsync("/api/auth/setup", new { password = "initialpass123" });
+        var response = await client.PostAsJsonAsync("/api/auth/setup", new { password = "initialpass123" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -43,7 +43,7 @@ public class AuthEndpointTests : IClassFixture<IoTSpyWebApplicationFactory>
         var client = factory.CreateClient();
 
         var response = await client.PostAsJsonAsync("/api/auth/login",
-            new { username = "admin", password = "anything" });
+            new { username = "admin", password = "anything" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
@@ -56,15 +56,15 @@ public class AuthEndpointTests : IClassFixture<IoTSpyWebApplicationFactory>
         var client = factory.CreateClient();
 
         // Set up password
-        var setupResp = await client.PostAsJsonAsync("/api/auth/setup", new { password = "securepass123" });
+        var setupResp = await client.PostAsJsonAsync("/api/auth/setup", new { password = "securepass123" }, TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, setupResp.StatusCode);
 
         // Login with correct credentials
         var loginResp = await client.PostAsJsonAsync("/api/auth/login",
-            new { username = "admin", password = "securepass123" });
+            new { username = "admin", password = "securepass123" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, loginResp.StatusCode);
-        var body = await loginResp.Content.ReadAsStringAsync();
+        var body = await loginResp.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Contains("token", body);
     }
 
@@ -75,8 +75,8 @@ public class AuthEndpointTests : IClassFixture<IoTSpyWebApplicationFactory>
         await factory.InitializeDbAsync();
         var client = factory.CreateClient();
 
-        await client.PostAsJsonAsync("/api/auth/setup", new { password = "firstpass123" });
-        var second = await client.PostAsJsonAsync("/api/auth/setup", new { password = "secondpass" });
+        await client.PostAsJsonAsync("/api/auth/setup", new { password = "firstpass123" }, TestContext.Current.CancellationToken);
+        var second = await client.PostAsJsonAsync("/api/auth/setup", new { password = "secondpass" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
     }

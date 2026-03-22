@@ -49,39 +49,39 @@ public class ProxyControllerTests
     public async Task Start_CallsProxyStartAndReturnsOk()
     {
         var proxy = CreateProxyService();
-        proxy.StartAsync().Returns(Task.CompletedTask);
+        proxy.StartAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
         var controller = new ProxyController(proxy);
 
         var result = await controller.Start() as OkObjectResult;
 
         Assert.NotNull(result);
-        await proxy.Received(1).StartAsync();
+        await proxy.Received(1).StartAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task Stop_CallsProxyStopAndReturnsOk()
     {
         var proxy = CreateProxyService(isRunning: true);
-        proxy.StopAsync().Returns(Task.CompletedTask);
+        proxy.StopAsync(Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
         var controller = new ProxyController(proxy);
 
         var result = await controller.Stop() as OkObjectResult;
 
         Assert.NotNull(result);
-        await proxy.Received(1).StopAsync();
+        await proxy.Received(1).StopAsync(Arg.Any<CancellationToken>());
     }
 
     [Fact]
     public async Task UpdateSettings_CallsUpdateAndReturnsSettings()
     {
         var proxy = CreateProxyService();
-        proxy.UpdateSettingsAsync(Arg.Any<ProxySettings>()).Returns(Task.CompletedTask);
+        proxy.UpdateSettingsAsync(Arg.Any<ProxySettings>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
         var controller = new ProxyController(proxy);
 
         var newSettings = new ProxySettings { ProxyPort = 9999 };
         var result = await controller.UpdateSettings(newSettings) as OkObjectResult;
 
         Assert.NotNull(result);
-        await proxy.Received(1).UpdateSettingsAsync(Arg.Any<ProxySettings>());
+        await proxy.Received(1).UpdateSettingsAsync(Arg.Any<ProxySettings>(), Arg.Any<CancellationToken>());
     }
 }
