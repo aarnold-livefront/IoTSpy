@@ -88,6 +88,10 @@ builder.Services.AddSingleton<ICertificateAuthority, CertificateAuthority>();
 builder.Services.AddSingleton<IProxyService, ProxyService>();
 builder.Services.AddHostedService(sp => (ProxyService)sp.GetRequiredService<IProxyService>());
 
+// ── Phase 10: Protocol proxies (MQTT broker proxy, CoAP proxy) ─────────────
+builder.Services.AddSingleton<IMqttBrokerProxy, MqttBrokerProxy>();
+builder.Services.AddSingleton<ICoapProxy, CoapProxy>();
+
 // ── Anomaly detection (Phase 8.5) ─────────────────────────────────────────
 builder.Services.AddSingleton<IAnomalyDetector, AnomalyDetector>();
 

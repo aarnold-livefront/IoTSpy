@@ -28,6 +28,12 @@ public class CaptureRepository(IoTSpyDbContext db) : ICaptureRepository
     public Task<CapturedRequest?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         db.Captures.FirstOrDefaultAsync(c => c.Id == id, ct);
 
+    public async Task UpdateAsync(CapturedRequest capture, CancellationToken ct = default)
+    {
+        db.Captures.Update(capture);
+        await db.SaveChangesAsync(ct);
+    }
+
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
         var capture = await db.Captures.FindAsync([id], ct);

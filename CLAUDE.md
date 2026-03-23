@@ -43,15 +43,19 @@ IoTSpy.Api (ASP.NET Core host)
   └── IoTSpy.Manipulation  (rules engine, scripted breakpoints, replay, fuzzer, AI mock, OpenRTB PII, packet analysis)
 ```
 
-`Protocols` has MQTT, DNS, CoAP, OpenRTB, and telemetry decoders. `Scanner` has the pen-test suite and packet capture. `Manipulation` has the rules engine, C#/JS scripted breakpoints, request replay, mutation fuzzer, AI mock engine, OpenRTB PII service, and packet capture analyzer.
+`Protocols` has MQTT, DNS, CoAP, WebSocket, gRPC/Protobuf, Modbus TCP, OpenRTB, and telemetry decoders. `Scanner` has the pen-test suite and packet capture. `Manipulation` has the rules engine, C#/JS scripted breakpoints, request replay, mutation fuzzer, AI mock engine, OpenRTB PII service, and packet capture analyzer. `Proxy` has HTTP/HTTPS interception, MQTT broker proxy, and CoAP UDP proxy.
 
 ### Data flow
 
 ```
 IoT Device → ExplicitProxy :8888      (explicit mode — device configured to use proxy)
            → TransparentProxy :9999   (gateway/ARP mode — iptables REDIRECT)
+           → MqttBrokerProxy :1883    (MQTT MITM — decodes packets, topic-level filtering)
+           → CoapProxy :5683 (UDP)    (CoAP forward proxy — decodes messages, captures)
   └─ ExplicitProxyServer / TransparentProxyServer
        ├─ Plain HTTP → InterceptHttpStreamAsync
+       ├─ WebSocket Upgrade (101) → RelayWebSocketFramesAsync (bidirectional frame capture)
+       ├─ gRPC (application/grpc) → capture with Protocol=Grpc
        └─ TLS (CONNECT or transparent)
             ├─ CaptureTls=false → passthrough
             └─ CaptureTls=true  → CertificateAuthority.GetOrCreateHostCertAsync()
@@ -62,7 +66,7 @@ IoT Device → ExplicitProxy :8888      (explicit mode — device configured to 
 
 ### Key service lifetimes (Program.cs)
 
-- `ExplicitProxyServer`, `TransparentProxyServer`, `CertificateAuthority`, `ProxyService`, `ArpSpoofEngine`, `IptablesHelper`, `SignalRCapturePublisher`, `PortScanner`, `ServiceFingerprinter`, `CredentialTester`, `ConfigAuditor`, `ScannerService` — **Singleton** (TCP listeners / long-lived services).
+- `ExplicitProxyServer`, `TransparentProxyServer`, `CertificateAuthority`, `ProxyService`, `ArpSpoofEngine`, `IptablesHelper`, `SignalRCapturePublisher`, `PortScanner`, `ServiceFingerprinter`, `CredentialTester`, `ConfigAuditor`, `ScannerService`, `MqttBrokerProxy`, `CoapProxy` — **Singleton** (TCP/UDP listeners / long-lived services).
 - `ProxyService` is registered both as `IProxyService` (singleton) and as `IHostedService` via `AddHostedService(sp => ...)` to avoid double instantiation.
 - Repositories are **Scoped** (EF Core DbContext).
 
@@ -93,7 +97,7 @@ Single-user model. BCrypt password hash stored in the single `ProxySettings` row
 
 ## Current status
 
-All phases (1–7) plus OpenRTB inspection are complete. Seven test projects (Protocols.Tests, Manipulation.Tests, Scanner.Tests + Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests) with 14+ test classes. Nine REST controllers (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb) with 40+ endpoints. EF Core migrations: `InitialCreate` + `AddPhase2ProxySettings` + `AddPhase3Scanner` + `AddPhase4ManipulationFix` + `AddOpenRtbInspection` + `AddPacketCapture`. GitHub Actions CI at `.github/workflows/ci.yml`.
+All phases (1–10) plus OpenRTB inspection are complete. Seven test projects (Protocols.Tests, Manipulation.Tests, Scanner.Tests + Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests) with 14+ test classes. Ten REST controllers (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy) with 46+ endpoints. EF Core migrations: `InitialCreate` + `AddPhase2ProxySettings` + `AddPhase3Scanner` + `AddPhase4ManipulationFix` + `AddOpenRtbInspection` + `AddPacketCapture`. GitHub Actions CI at `.github/workflows/ci.yml`.
 
 **Phase 3 additions:**
 - `IoTSpy.Scanner` — `PortScanner` (TCP connect scan, configurable concurrency/port ranges), `ServiceFingerprinter` (banner grab, CPE extraction via regex), `CredentialTester` (FTP/Telnet/MQTT default credential checks), `CveLookupService` (OSV.dev API), `ConfigAuditor` (Telnet, UPnP, anon MQTT, exposed DB, HTTP admin detection)
@@ -171,6 +175,23 @@ All phases (1–7) plus OpenRTB inspection are complete. Seven test projects (Pr
 - Tests: `HealthCheckEndpointTests` (5 integration tests), `DataRetentionServiceTests` (4 unit tests), `GracefulShutdownTests` (4 unit tests)
 - Total: **248 backend tests** across 7 test projects + **11 frontend component tests** (all green)
 
-All phases (1–8) plus OpenRTB are complete. See `docs/PLAN.md` for the full plan, identified gaps, and forward-looking roadmap (Phase 9–11).
+**Phase 10 additions (complete):**
+- `IoTSpy.Protocols` — `WebSocketDecoder` (RFC 6455 frame decoder: FIN, opcode, masking, extended lengths, close codes) + `WebSocketDecodedFrame` model
+- `IoTSpy.Protocols` — `GrpcDecoder` (gRPC Length-Prefixed Message framing, schema-less protobuf field extraction: varint, fixed32/64, length-delimited) + `GrpcMessage`, `ProtobufField` models
+- `IoTSpy.Protocols` — `ModbusDecoder` (Modbus TCP MBAP header parsing, function codes 1-16 + exception responses, register/coil value decoding) + `ModbusMessage` model
+- `IoTSpy.Protocols` — `CoapDecoder` (RFC 7252 CoAP message decoder: header, tokens, delta-encoded options, payload) — complements existing `CoapMessage` model
+- `IoTSpy.Core` — `WebSocketFrame`, `MqttCapturedMessage`, `MqttBrokerSettings`, `CoapProxySettings` models; `WebSocketOpcode` enum; `IMqttBrokerProxy`, `ICoapProxy` interfaces; `InterceptionProtocol` extended with `WebSocket`, `WebSocketTls`, `Grpc`, `Modbus`
+- `IoTSpy.Core` — `ICapturePublisher` extended with `PublishWebSocketFrameAsync()`, `PublishMqttMessageAsync()`; `ICaptureRepository` extended with `UpdateAsync()`
+- `IoTSpy.Proxy` — `MqttBrokerProxy` (TCP MQTT MITM: bidirectional relay, packet decoding, topic-level wildcard filtering `+`/`#`, real-time message publishing via SignalR)
+- `IoTSpy.Proxy` — `CoapProxy` (UDP forward proxy: CoAP message decoding, upstream relay with timeout, device registration, capture recording)
+- `IoTSpy.Proxy` — WebSocket interception in both `ExplicitProxyServer` and `TransparentProxyServer`: detects 101 Switching Protocols + `Upgrade: websocket`, switches to bidirectional frame relay with capture
+- `IoTSpy.Proxy` — gRPC detection in both proxy servers: `application/grpc` content-type sets `InterceptionProtocol.Grpc` on captures
+- `IoTSpy.Proxy` — now references `IoTSpy.Protocols` for MQTT/CoAP decoder access
+- `IoTSpy.Api` — `ProtocolProxyController` (6 endpoints: MQTT start/stop/status, CoAP start/stop/status)
+- `IoTSpy.Api` — `TrafficHub` extended with `SubscribeToWebSocketFrames()`, `SubscribeToMqttMessages()` SignalR subscriptions
+- `IoTSpy.Api` — `SignalRCapturePublisher` implements new `PublishWebSocketFrameAsync()`, `PublishMqttMessageAsync()`
+- Tests: `WebSocketDecoderTests` (14 tests), `GrpcDecoderTests` (8 tests), `ModbusDecoderTests` (9 tests), `CoapDecoderTests` (10 tests), `MqttTopicMatchTests` (15 tests)
+
+All phases (1–10) plus OpenRTB are complete. See `docs/PLAN.md` for the full plan, identified gaps, and forward-looking roadmap (Phase 11).
 
 See `docs/architecture.md` for full architecture spec and `docs/PLAN.md` for the phased task list.

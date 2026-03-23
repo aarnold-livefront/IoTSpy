@@ -8,4 +8,6 @@ namespace IoTSpy.Core.Interfaces;
 public interface ICapturePublisher
 {
     Task PublishAsync(CapturedRequest capture, CancellationToken ct = default);
+    Task PublishWebSocketFrameAsync(WebSocketFrame frame, CancellationToken ct = default);
+    Task PublishMqttMessageAsync(MqttCapturedMessage message, CancellationToken ct = default);
 }

@@ -9,5 +9,9 @@ public enum InterceptionProtocol
     CoAP,
     Dns,
     MDns,
+    WebSocket,
+    WebSocketTls,
+    Grpc,
+    Modbus,
     Other
 }
