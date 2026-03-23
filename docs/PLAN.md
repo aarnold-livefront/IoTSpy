@@ -13,7 +13,7 @@ README / quick start: [`README.md`](../README.md)
 
 ---
 
-## Completed phases (1–6 + OpenRTB)
+## Completed phases (1–10 + OpenRTB + TLS passthrough/SSL stripping)
 
 All foundational phases are complete. Below is a summary of what was delivered.
 
@@ -142,7 +142,7 @@ All foundational phases are complete. Below is a summary of what was delivered.
 | REST controllers | 10 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy) |
 | HTTP endpoints | 46+ |
 | SignalR hubs | 2 (TrafficHub, PacketCaptureHub) — TrafficHub extended with WebSocket frame + MQTT message subscriptions |
-| EF Core migrations | 6 (InitialCreate → AddPacketCapture) |
+| EF Core migrations | 8 (InitialCreate → AddTlsPassthroughAndSslStrip) |
 | Frontend components | 50+ TypeScript files across 13 component directories |
 | Protocols supported | HTTP/HTTPS, WebSocket, MQTT 3.1.1/5.0 (passive decode + active proxy), DNS/mDNS, CoAP (passive decode + active proxy), gRPC/Protobuf, Modbus TCP, OpenRTB 2.5, Datadog, Firehose, Splunk HEC, Azure Monitor |
 | CI | GitHub Actions (`.github/workflows/ci.yml`) — build, test, lint, coverage on push/PR |
@@ -258,6 +258,25 @@ The following items represent known gaps, incomplete integrations, or areas wher
 
 ---
 
+### TLS Passthrough & SSL Stripping (post-Phase 10) ✅
+
+**Goal:** Enable HTTPS visibility for IoT devices where CA installation is not possible.
+
+| # | Task | Status |
+|---|---|---|
+| TLS.1 | `IoTSpy.Core` — `TlsMetadata` model (SNI, JA3/JA3S, cipher suites, cert details, byte counts); `InterceptionProtocol.TlsPassthrough` enum value; `CapturedRequest.TlsMetadataJson` field; `ProxySettings.SslStrip` field | ✅ Done |
+| TLS.2 | `IoTSpy.Proxy` — `TlsClientHelloParser` (SNI extraction, cipher suite enumeration, JA3 fingerprint with GREASE filtering per RFC 8701) | ✅ Done |
+| TLS.3 | `IoTSpy.Proxy` — `TlsServerHelloParser` (ServerHello: selected cipher/version, `supported_versions` for TLS 1.3, JA3S; Certificate: X.509 leaf cert extraction for TLS 1.2, skipped for TLS 1.3) | ✅ Done |
+| TLS.4 | `IoTSpy.Proxy` — `HandleTlsPassthroughAsync` in both `ExplicitProxyServer` and `TransparentProxyServer`: buffer ClientHello, parse SNI/JA3, relay, parse ServerHello/JA3S + Certificate, count bytes, record `CapturedRequest` with `TlsMetadataJson` | ✅ Done |
+| TLS.5 | `IoTSpy.Proxy` — `SslStripService` (intercept HTTP→HTTPS redirects, follow upstream TLS, strip HSTS, rewrite `https://` links in Location/Set-Cookie/CSP headers and HTML/JSON bodies) | ✅ Done |
+| TLS.6 | `IoTSpy.Proxy` — SSL strip integration in `InterceptHttpStreamAsync` of both proxy servers: detect HTTPS redirects, fetch via TLS, strip HSTS from all responses when `SslStrip=true` | ✅ Done |
+| TLS.7 | `IoTSpy.Storage` — `AddTlsPassthroughAndSslStrip` migration (adds `TlsMetadataJson` to Captures, `SslStrip` to ProxySettings) | ✅ Done |
+| TLS.8 | `IoTSpy.Api` — `SslStripService` registered as singleton in `Program.cs` | ✅ Done |
+| TLS.9 | Structured logging with `DnsCorrelationKey={ClientIp}→{SniHostname}` on all TLS passthrough events for DNS-to-TLS correlation | ✅ Done |
+| TLS.10 | Documentation updates (CLAUDE.md, architecture.md, PLAN.md, README.md) | ✅ Done |
+
+---
+
 ### Phase 11 — UX & multi-user
 
 **Goal:** Polish the user experience and support team usage.
@@ -275,12 +294,14 @@ The following items represent known gaps, incomplete integrations, or areas wher
 
 ## Resuming this project
 
-### Current status — all phases complete through 10
+### Current status — all phases complete through 10 + TLS passthrough/SSL stripping
 
-**Phases 1–10 and OpenRTB are complete.** The codebase is fully functional with:
+**Phases 1–10, OpenRTB, and TLS passthrough/SSL stripping are complete.** The codebase is fully functional with:
 
 - 10 REST controllers, 46+ endpoints, 2 SignalR hubs
 - 3 proxy modes (explicit, gateway/iptables, ARP spoof) + MQTT broker proxy + CoAP proxy
+- TLS passthrough with JA3/JA3S fingerprinting and server certificate extraction (no CA install required)
+- SSL stripping for IoT devices that cannot accept custom CAs
 - Protocol decoders: MQTT 3.1.1/5.0, DNS/mDNS, CoAP, gRPC/Protobuf, Modbus TCP, WebSocket, OpenRTB 2.5, 4 telemetry formats
 - Active protocol proxying: MQTT MITM with topic filtering, CoAP UDP forward proxy, WebSocket frame interception
 - Pen-test suite: port scan, fingerprinting, credential testing, CVE lookup, config audit
@@ -292,6 +313,7 @@ The following items represent known gaps, incomplete integrations, or areas wher
 - **Data governance**: `DataRetentionService` background service with configurable TTLs per data type
 - **Resilience**: graceful proxy shutdown (drains active connections), DB connection pooling
 - **Anomaly alerts**: `AnomalyDetector` wired into the proxy pipeline; alerts streamed in real time via SignalR
+- **DNS correlation**: Structured logging with `DnsCorrelationKey` for joining DNS captures with TLS passthrough metadata
 - **7 test projects**: 248+ backend tests across Protocols.Tests, Manipulation.Tests, Scanner.Tests, Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests
 - **Frontend tests**: 11 component tests via Vitest + React Testing Library
 - **GitHub Actions CI**: `.github/workflows/ci.yml` — build, test, lint on PR/push with coverage artifact upload
@@ -368,7 +390,7 @@ dotnet run --project src/IoTSpy.Api
 ## Notes for Claude Code sessions
 
 - `IoTSpy.Protocols` has MQTT, DNS/mDNS, CoAP, OpenRTB, and four telemetry decoders (Datadog, Firehose, Splunk HEC, Azure Monitor). `IoTSpy.Scanner` has port scan, fingerprinting, credential testing, CVE lookup, config audit, and packet capture. `IoTSpy.Manipulation` has rules engine, scripted breakpoints (C#/JS), replay, fuzzer, AI mock engine, packet capture analyzer, and OpenRTB PII service.
-- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` — 6 migrations applied (InitialCreate, AddPhase2ProxySettings, AddPhase3Scanner, AddPhase4ManipulationFix, AddOpenRtbInspection, AddPacketCapture). Run `dotnet ef migrations add <Name> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api` from the repo root when adding new entities or properties.
+- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` — 8 migrations applied (InitialCreate, AddPhase2ProxySettings, AddPhase3Scanner, AddPhase4ManipulationFix, AddOpenRtbInspection, AddPacketCapture, AddTlsPassthroughAndSslStrip). Run `dotnet ef migrations add <Name> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api` from the repo root when adding new entities or properties.
 - `DateTimeOffset` properties are stored as Unix milliseconds (`long`) via a `ValueConverter` in `IoTSpyDbContext` — required for SQLite `ORDER BY` compatibility.
 - Seven test projects: `IoTSpy.Protocols.Tests`, `IoTSpy.Manipulation.Tests`, `IoTSpy.Scanner.Tests` (original) + `IoTSpy.Api.Tests`, `IoTSpy.Proxy.Tests`, `IoTSpy.Storage.Tests`, `IoTSpy.Api.IntegrationTests` (Phase 7). 248 backend tests total.
 - `AnomalyDetector` is wired into both proxy servers (Phase 8.5). After each captured request, `IAnomalyDetector.Record()` is called; any returned `AnomalyAlert` objects are published via `IAnomalyAlertPublisher` → `SignalRAnomalyPublisher` → `TrafficHub` SignalR group `"anomaly-alerts"`.
