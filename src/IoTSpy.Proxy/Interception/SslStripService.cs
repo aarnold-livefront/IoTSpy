@@ -10,7 +10,7 @@ namespace IoTSpy.Proxy.Interception;
 /// URL upstream, and serves the decrypted response back over plain HTTP.
 /// Also strips HSTS headers and rewrites https:// links in responses.
 /// </summary>
-public sealed class SslStripService(ILogger<SslStripService> logger)
+public class SslStripService(ILogger<SslStripService> logger)
 {
     /// <summary>
     /// Returns the HTTPS Location URL if the response is a redirect to HTTPS, otherwise null.
