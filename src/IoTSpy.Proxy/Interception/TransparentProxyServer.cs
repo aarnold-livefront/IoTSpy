@@ -6,10 +6,12 @@ using System.Runtime.InteropServices;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.Json;
 using IoTSpy.Core.Enums;
 using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using IoTSpy.Proxy.Resilience;
+using IoTSpy.Proxy.Tls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Polly;
@@ -34,6 +36,7 @@ public class TransparentProxyServer(
     IOpenRtbService openRtbService,
     IAnomalyDetector anomalyDetector,
     IAnomalyAlertPublisher anomalyPublisher,
+    SslStripService sslStripService,
     IServiceScopeFactory scopeFactory,
     ResiliencePipelineProvider<string> connectPipelineProvider,
     ILogger<TransparentProxyServer> logger)
@@ -133,7 +136,7 @@ public class TransparentProxyServer(
                 if (isTlsPort && settings.CaptureTls)
                     await HandleTlsTransparentAsync(client, host, destPort, clientIp, settings, scope, ct);
                 else if (isTlsPort)
-                    await HandlePassthroughAsync(client, host, destPort, ct);
+                    await HandleTlsPassthroughAsync(client, host, destPort, clientIp, scope, ct);
                 else
                     await HandlePlainTransparentAsync(client, host, destPort, clientIp, settings, scope, ct);
             }
@@ -232,25 +235,233 @@ public class TransparentProxyServer(
         }
     }
 
-    // ── Passthrough (no interception) ────────────────────────────────────────
+    // ── TLS passthrough with metadata capture ─────────────────────────────
 
-    private async Task HandlePassthroughAsync(TcpClient client, string host, int port, CancellationToken ct)
+    private async Task HandleTlsPassthroughAsync(
+        TcpClient client, string host, int port,
+        string clientIp, IServiceScope scope, CancellationToken ct)
     {
+        var started = DateTimeOffset.UtcNow;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var metadata = new TlsMetadata();
+        long clientToServer = 0;
+        long serverToClient = 0;
+
+        var clientStream = client.GetStream();
+
+        // Buffer initial bytes from client to parse ClientHello
+        var initialBuf = new byte[16 * 1024];
+        var initialLen = 0;
+
+        while (initialLen < 5)
+        {
+            var n = await clientStream.ReadAsync(initialBuf.AsMemory(initialLen), ct);
+            if (n == 0) return;
+            initialLen += n;
+        }
+
+        var neededLen = TlsClientHelloParser.GetRecordLength(initialBuf.AsSpan(0, initialLen));
+        if (neededLen > 0)
+        {
+            if (neededLen > initialBuf.Length)
+                Array.Resize(ref initialBuf, neededLen);
+
+            while (initialLen < neededLen)
+            {
+                var n = await clientStream.ReadAsync(initialBuf.AsMemory(initialLen), ct);
+                if (n == 0) break;
+                initialLen += n;
+            }
+        }
+
+        // Parse ClientHello for SNI and JA3
+        var sniHost = host;
+        if (TlsClientHelloParser.TryParse(initialBuf.AsSpan(0, initialLen), out var clientHello))
+        {
+            if (!string.IsNullOrEmpty(clientHello.SniHostname))
+                sniHost = clientHello.SniHostname;
+
+            metadata.SniHostname = clientHello.SniHostname;
+            metadata.Ja3Hash = clientHello.Ja3Hash;
+            metadata.Ja3Raw = clientHello.Ja3Raw;
+            metadata.ClientTlsVersion = clientHello.TlsVersion;
+            metadata.ClientCipherSuites = clientHello.CipherSuites;
+            metadata.ClientExtensions = clientHello.Extensions;
+
+            logger.LogInformation(
+                "TLS passthrough ClientHello: {ClientIp}→{SniHostname} JA3={Ja3Hash} DnsCorrelationKey={DnsCorrelationKey}",
+                clientIp, sniHost, clientHello.Ja3Hash, $"{clientIp}→{sniHost}");
+        }
+        else
+        {
+            logger.LogDebug("TLS passthrough: could not parse ClientHello from {ClientIp} to {Host}:{Port}",
+                clientIp, host, port);
+        }
+
+        // Connect upstream — use SNI hostname if available for DNS resolution
         var upstream = new TcpClient();
         var pipeline = connectPipelineProvider.GetPipeline(ProxyResiliencePipelines.ConnectPipelineKey);
         await pipeline.ExecuteAsync(async token =>
         {
-            await upstream.ConnectAsync(host, port, token);
+            await upstream.ConnectAsync(sniHost != host ? sniHost : host, port, token);
             return upstream;
         }, ct);
 
         using (upstream)
         {
+            var upstreamStream = upstream.GetStream();
+
+            // Forward buffered ClientHello
+            await upstreamStream.WriteAsync(initialBuf.AsMemory(0, initialLen), ct);
+            clientToServer += initialLen;
+
+            // Read ServerHello + Certificate from upstream
+            var serverBuf = new byte[32 * 1024];
+            var serverBufLen = 0;
+            var parsedServerHello = false;
+            var parsedCert = false;
+            var isTls13 = false;
+
+            // In TLS 1.3 the Certificate message is encrypted, so we can only extract
+            // ServerHello metadata — skip certificate parsing when 1.3 is negotiated.
+            for (var attempt = 0; attempt < 5 && (!parsedServerHello || (!parsedCert && !isTls13)); attempt++)
+            {
+                var n = await upstreamStream.ReadAsync(serverBuf.AsMemory(serverBufLen), ct);
+                if (n == 0) break;
+                serverBufLen += n;
+
+                await clientStream.WriteAsync(serverBuf.AsMemory(serverBufLen - n, n), ct);
+                serverToClient += n;
+
+                var parsePos = 0;
+                while (parsePos < serverBufLen)
+                {
+                    var remaining = serverBuf.AsSpan(parsePos, serverBufLen - parsePos);
+                    var recordLen = TlsServerHelloParser.GetRecordLength(remaining);
+                    if (recordLen == 0 || recordLen > remaining.Length)
+                        break;
+
+                    var hsType = TlsServerHelloParser.GetHandshakeType(remaining);
+                    if (hsType == 0x02 && !parsedServerHello)
+                    {
+                        if (TlsServerHelloParser.TryParseServerHello(remaining, out var serverHelloInfo))
+                        {
+                            parsedServerHello = true;
+                            metadata.Ja3sHash = serverHelloInfo.Ja3sHash;
+                            metadata.Ja3sRaw = serverHelloInfo.Ja3sRaw;
+                            metadata.ServerTlsVersion = serverHelloInfo.TlsVersion;
+                            metadata.ServerCipherSuite = serverHelloInfo.CipherSuite;
+                            metadata.ServerExtensions = serverHelloInfo.Extensions;
+
+                            isTls13 = serverHelloInfo.TlsVersion >= 0x0304;
+
+                            logger.LogInformation(
+                                "TLS passthrough ServerHello: {SniHostname} TLS={TlsVersion:X4} Cipher={CipherSuite:X4} JA3S={Ja3sHash}",
+                                sniHost, serverHelloInfo.TlsVersion, serverHelloInfo.CipherSuite, serverHelloInfo.Ja3sHash);
+
+                            if (isTls13)
+                                logger.LogDebug("TLS 1.3 detected for {SniHostname} — certificate is encrypted, skipping cert extraction", sniHost);
+                        }
+                    }
+                    else if (hsType == 0x0B && !parsedCert && !isTls13) // Certificate (TLS 1.2 only)
+                    {
+                        if (TlsServerHelloParser.TryParseCertificate(remaining, out var certInfo))
+                        {
+                            parsedCert = true;
+                            metadata.CertSubject = certInfo.Subject;
+                            metadata.CertIssuer = certInfo.Issuer;
+                            metadata.CertSerial = certInfo.SerialNumber;
+                            metadata.CertSanList = certInfo.SanList;
+                            metadata.CertNotBefore = certInfo.NotBefore;
+                            metadata.CertNotAfter = certInfo.NotAfter;
+                            metadata.CertSha256Fingerprint = certInfo.Sha256Fingerprint;
+
+                            logger.LogInformation(
+                                "TLS passthrough certificate: {SniHostname} Subject={CertSubject} Issuer={CertIssuer} " +
+                                "SHA256={CertFingerprint} SAN=[{CertSan}] Expires={CertExpiry}",
+                                sniHost, certInfo.Subject, certInfo.Issuer,
+                                certInfo.Sha256Fingerprint, string.Join(", ", certInfo.SanList),
+                                certInfo.NotAfter);
+                        }
+                    }
+
+                    parsePos += recordLen;
+                }
+            }
+
+            // Relay remaining traffic bidirectionally
             await Task.WhenAll(
-                client.GetStream().CopyToAsync(upstream.GetStream(), ct),
-                upstream.GetStream().CopyToAsync(client.GetStream(), ct));
+                RelayAndCountAsync(clientStream, upstreamStream, v => Interlocked.Add(ref clientToServer, v), ct),
+                RelayAndCountAsync(upstreamStream, clientStream, v => Interlocked.Add(ref serverToClient, v), ct));
+
+            metadata.ClientToServerBytes = Interlocked.Read(ref clientToServer);
+            metadata.ServerToClientBytes = Interlocked.Read(ref serverToClient);
         }
+
+        sw.Stop();
+
+        // Record capture
+        var devices = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
+        var captures = scope.ServiceProvider.GetRequiredService<ICaptureRepository>();
+        var device = await GetOrRegisterDeviceAsync(devices, clientIp, ct);
+
+        var capture = new CapturedRequest
+        {
+            DeviceId = device?.Id,
+            Method = "CONNECT",
+            Scheme = "tls-passthrough",
+            Host = sniHost,
+            Port = port,
+            Path = "/",
+            IsTls = true,
+            TlsVersion = FormatTlsVersion(metadata.ServerTlsVersion),
+            TlsCipherSuite = $"0x{metadata.ServerCipherSuite:X4}",
+            Protocol = InterceptionProtocol.TlsPassthrough,
+            Timestamp = started,
+            DurationMs = sw.ElapsedMilliseconds,
+            ClientIp = clientIp,
+            RequestBodySize = metadata.ClientToServerBytes,
+            ResponseBodySize = metadata.ServerToClientBytes,
+            TlsMetadataJson = JsonSerializer.Serialize(metadata)
+        };
+
+        await captures.AddAsync(capture, ct);
+        await publisher.PublishAsync(capture, ct);
+
+        logger.LogInformation(
+            "TLS passthrough complete: {ClientIp}→{SniHostname}:{Port} Duration={DurationMs}ms " +
+            "C→S={ClientToServerBytes}B S→C={ServerToClientBytes}B JA3={Ja3Hash} DnsCorrelationKey={DnsCorrelationKey}",
+            clientIp, sniHost, port, sw.ElapsedMilliseconds,
+            metadata.ClientToServerBytes, metadata.ServerToClientBytes,
+            metadata.Ja3Hash, $"{clientIp}→{sniHost}");
     }
+
+    private static async Task RelayAndCountAsync(
+        Stream source, Stream dest, Action<long> addBytes, CancellationToken ct)
+    {
+        var buf = new byte[16 * 1024];
+        try
+        {
+            while (!ct.IsCancellationRequested)
+            {
+                var n = await source.ReadAsync(buf, ct);
+                if (n == 0) break;
+                await dest.WriteAsync(buf.AsMemory(0, n), ct);
+                addBytes(n);
+            }
+        }
+        catch (IOException) { }
+        catch (OperationCanceledException) { }
+    }
+
+    private static string FormatTlsVersion(ushort version) => version switch
+    {
+        0x0301 => "TLS 1.0",
+        0x0302 => "TLS 1.1",
+        0x0303 => "TLS 1.2",
+        0x0304 => "TLS 1.3",
+        _ => $"0x{version:X4}"
+    };
 
     // ── HTTP stream interception (shared with ExplicitProxyServer) ───────────
 
@@ -307,6 +518,31 @@ public class TransparentProxyServer(
 
             var (statusLine, respHeaders, respBody, respBodyBytes) = await ReadHttpMessageAsync(upstreamStream, settings.MaxBodySizeKb, ct);
 
+            // SSL stripping: intercept HTTPS redirects and follow them transparently
+            if (settings.SslStrip && statusLine is not null)
+            {
+                ParseStatusLine(statusLine, out var redirectCode, out _);
+                var httpsLocation = SslStripService.GetHttpsRedirectLocation(redirectCode, respHeaders);
+                if (httpsLocation is not null)
+                {
+                    logger.LogInformation(
+                        "SSL strip: intercepting redirect {StatusCode} → {HttpsLocation} for {ClientIp}, " +
+                        "fetching over HTTPS and serving as HTTP. DnsCorrelationKey={DnsCorrelationKey}",
+                        redirectCode, httpsLocation, clientIp, $"{clientIp}→{host}");
+
+                    var stripped = await sslStripService.FetchHttpsAsync(
+                        httpsLocation, reqHeaders, reqBodyBytes, method, settings.MaxBodySizeKb, ct);
+                    if (stripped is not null)
+                    {
+                        statusLine = stripped.Value.statusLine;
+                        respHeaders = stripped.Value.headers;
+                        respBody = stripped.Value.body;
+                        respBodyBytes = stripped.Value.bodyBytes;
+                        modified = true;
+                    }
+                }
+            }
+
             // Apply response-phase manipulation pipeline
             if (statusLine is not null)
             {
@@ -335,6 +571,12 @@ public class TransparentProxyServer(
                     respBodyBytes = Encoding.UTF8.GetBytes(respBody);
                     respHeaders = UpdateContentLength(respHeaders, respBodyBytes.Length);
                 }
+            }
+
+            // SSL strip: always remove HSTS and rewrite https links in non-redirect responses
+            if (settings.SslStrip && statusLine is not null)
+            {
+                respHeaders = SslStripService.StripResponseHeaders(respHeaders);
             }
 
             sw.Stop();

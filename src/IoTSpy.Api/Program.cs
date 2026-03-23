@@ -80,6 +80,7 @@ builder.Services.AddProxyResilience(resilienceOptions);
 
 // ── Proxy ────────────────────────────────────────────────────────────────────
 // All proxy servers and supporting engines are singletons (long-lived TCP listeners)
+builder.Services.AddSingleton<SslStripService>();
 builder.Services.AddSingleton<ExplicitProxyServer>();
 builder.Services.AddSingleton<TransparentProxyServer>();
 builder.Services.AddSingleton<IptablesHelper>();

@@ -38,4 +38,5 @@ public class CapturedRequest
     public string ClientIp { get; set; } = string.Empty;
     public bool IsModified { get; set; }
     public string Notes { get; set; } = string.Empty;
+    public string TlsMetadataJson { get; set; } = string.Empty;
 }

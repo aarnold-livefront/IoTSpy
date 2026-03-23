@@ -28,12 +28,20 @@ IoT network security platform: transparent MITM proxy, protocol analyzer, pen-te
 - **Gateway/transparent proxy** (`:9999`) — iptables REDIRECT for network-level interception
 - **ARP spoof mode** — automatically redirect device traffic via ARP poisoning (SharpPcap)
 - **TLS MITM** — dynamic per-host certificate generation with BouncyCastle CA
+- **TLS passthrough** — when CA install isn't possible, extract SNI, JA3/JA3S fingerprints, server certificates, and byte counts from TLS handshakes without decrypting traffic
+- **SSL stripping** — intercept HTTP→HTTPS redirects, fetch upstream via TLS, serve decrypted content over HTTP; strips HSTS headers and rewrites `https://` links
+- **MQTT broker proxy** (`:1883`) — transparent MQTT MITM with topic-level wildcard filtering
+- **CoAP proxy** (`:5683` UDP) — CoAP forward proxy with message decoding and capture
+- **WebSocket interception** — bidirectional frame relay with per-frame capture
 - **Real-time dashboard** — SignalR streaming of all captured HTTP/HTTPS traffic
 
 ### Protocol analysis
 - **MQTT 3.1.1 / 5.0** — full packet decoding (CONNECT, PUBLISH, SUBSCRIBE, etc.)
 - **DNS / mDNS** — query/response decoding with label decompression
-- **CoAP** — Constrained Application Protocol message decoding
+- **CoAP** — RFC 7252 Constrained Application Protocol message decoding
+- **WebSocket** — RFC 6455 frame decoding (FIN, opcode, masking, close codes)
+- **gRPC / Protobuf** — Length-Prefixed Message framing + schema-less protobuf field extraction
+- **Modbus TCP** — MBAP header parsing, function codes 1-16, exception responses
 - **OpenRTB 2.5** — bid request/response parsing with PII detection and policy-based redaction
 - **Telemetry decoders** — Datadog, AWS Firehose, Splunk HEC, Azure Monitor
 
@@ -254,9 +262,14 @@ All endpoints (except `/api/auth/*`, `/api/certificates/root-ca/download`, `/hea
   "captureTls": true,
   "captureRequestBodies": true,
   "captureResponseBodies": true,
-  "maxBodySizeKb": 1024
+  "maxBodySizeKb": 1024,
+  "sslStrip": false
 }
 ```
+
+- `captureTls: true` — full TLS MITM (requires CA installed on device)
+- `captureTls: false` — TLS passthrough with metadata extraction (JA3/JA3S fingerprints, SNI, server cert)
+- `sslStrip: true` — intercept HTTP→HTTPS redirects and serve decrypted content (no CA needed)
 
 ### Captures
 
@@ -352,6 +365,34 @@ All endpoints (except `/api/auth/*`, `/api/certificates/root-ca/download`, `/hea
 | DELETE | `/api/openrtb/pii-policies/{id}` | Delete a PII policy |
 | GET | `/api/openrtb/pii-audit` | Get PII audit log entries |
 
+### Reports
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/reports/devices/{id}/html` | Generate HTML scan report for a device |
+| GET | `/api/reports/devices/{id}/pdf` | Generate PDF scan report for a device |
+
+### Scheduled Scans
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/scheduled-scans` | List all scheduled scans |
+| GET | `/api/scheduled-scans/{id}` | Get a scheduled scan |
+| POST | `/api/scheduled-scans` | Create a scheduled scan (`{ "deviceId": "...", "cronExpression": "0 * * * *" }`) |
+| PUT | `/api/scheduled-scans/{id}` | Update (enable/disable, change cron) |
+| DELETE | `/api/scheduled-scans/{id}` | Delete a scheduled scan |
+
+### Protocol Proxies
+
+| Method | Path | Description |
+|---|---|---|
+| POST | `/api/protocol-proxy/mqtt/start` | Start MQTT broker proxy |
+| POST | `/api/protocol-proxy/mqtt/stop` | Stop MQTT broker proxy |
+| GET | `/api/protocol-proxy/mqtt/status` | MQTT proxy status |
+| POST | `/api/protocol-proxy/coap/start` | Start CoAP proxy |
+| POST | `/api/protocol-proxy/coap/stop` | Stop CoAP proxy |
+| GET | `/api/protocol-proxy/coap/status` | CoAP proxy status |
+
 ### Real-time (SignalR)
 
 #### Traffic hub
@@ -397,7 +438,7 @@ src/
   IoTSpy.Scanner/       # Port scan, fingerprinting, CVE lookup, packet capture
   IoTSpy.Manipulation/  # Rules engine, replay, fuzzer, AI mock, OpenRTB PII, packet analysis
   IoTSpy.Storage/       # EF Core DbContext, repositories, migrations
-  IoTSpy.Api/           # ASP.NET Core host, 9 controllers, 2 SignalR hubs
+  IoTSpy.Api/           # ASP.NET Core host, 12 controllers, 2 SignalR hubs
 frontend/               # Vite 6 + React 19 + TypeScript dashboard
 docs/
   architecture.md       # Full architecture spec
@@ -445,7 +486,8 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full implementation plan, identified 
 | 7 | Test coverage & CI/CD | **Complete** |
 | 8 | Observability & production hardening | **Complete** |
 | 9 | Export, reporting, alerting & scheduled scans | **Complete** |
-| 10 | Protocol expansion (WebSocket, MQTT proxy, gRPC, Modbus) | **Planned** |
+| 10 | Protocol expansion (WebSocket, MQTT proxy, gRPC, Modbus) | **Complete** |
+| — | TLS passthrough & SSL stripping (no-CA-install HTTPS visibility) | **Complete** |
 | 11 | UX polish & multi-user support | **Planned** |
 
 ---
@@ -455,7 +497,8 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full implementation plan, identified 
 - IoTSpy is intended for use on networks and devices you own or have explicit authorization to test.
 - The root CA private key is stored in the local database. Do not expose the API publicly without proper access controls.
 - Change `Auth:JwtSecret` and set a strong password before running in any non-localhost environment.
-- `CaptureTls: false` disables MITM and passes HTTPS tunnels through unmodified.
+- `CaptureTls: false` disables MITM and enables TLS passthrough mode — extracts metadata (SNI, JA3/JA3S, server cert) without decrypting traffic.
+- `SslStrip: true` enables SSL stripping on HTTP connections — intercepts HTTPS redirects and serves decrypted content. Use only on devices you own or have authorization to test.
 
 ---
 

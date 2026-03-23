@@ -22,4 +22,7 @@ public class ProxySettings
     public string TargetDeviceIp { get; set; } = string.Empty;
     public string GatewayIp { get; set; } = string.Empty;
     public string NetworkInterface { get; set; } = string.Empty;
+
+    // ── SSL stripping ────────────────────────────────────────────────────
+    public bool SslStrip { get; set; }
 }

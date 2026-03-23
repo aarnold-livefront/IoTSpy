@@ -4,7 +4,7 @@
 
 IoTSpy is a .NET 10 / C# solution that acts as a transparent MITM proxy, multi-protocol decoder, statistical anomaly detector, and lightweight pen-test suite for IoT network research. A REST + SignalR API exposes all functionality; the frontend is a Vite 6 + React 19 + TypeScript single-page application.
 
-All eight implementation phases are complete (Phases 1–8 + OpenRTB). Phase 9 (export & reporting) is next.
+All phases (1–10) plus OpenRTB inspection and TLS passthrough/SSL stripping are complete. Phase 11 (UX & multi-user) is next.
 
 ---
 
@@ -14,7 +14,7 @@ All eight implementation phases are complete (Phases 1–8 + OpenRTB). Phase 9 (
 IoTSpy.sln
 src/
   IoTSpy.Core/           — domain models, interfaces, enums (no infrastructure deps)
-  IoTSpy.Proxy/          — TCP listeners, TLS MITM, ARP spoof, Polly resilience
+  IoTSpy.Proxy/          — TCP listeners, TLS MITM, TLS passthrough + JA3, SSL stripping, Polly resilience
   IoTSpy.Protocols/      — protocol decoders + anomaly detection
   IoTSpy.Scanner/        — pen-test suite (port scan, CVE lookup, config audit)
   IoTSpy.Manipulation/   — rules engine, scripted breakpoints, replay, fuzzer, AI mock
@@ -38,7 +38,7 @@ docs/
 ```
 IoTSpy.Api
   ├── IoTSpy.Core          ← domain only; no infrastructure deps
-  ├── IoTSpy.Proxy         ← BouncyCastle, SharpPcap, Polly
+  ├── IoTSpy.Proxy         ← BouncyCastle, SharpPcap, Polly, IoTSpy.Protocols
   ├── IoTSpy.Storage       ← EF Core 10, Npgsql
   ├── IoTSpy.Protocols     ← IoTSpy.Core only
   ├── IoTSpy.Scanner       ← IoTSpy.Core, Microsoft.Extensions.Http
@@ -53,13 +53,16 @@ Test projects reference only the library under test (plus xunit 2.9.3).
 
 Pure domain layer — no NuGet dependencies beyond the BCL.
 
-### Models (25)
+### Models (30+)
+
+Domain models live in `IoTSpy.Core/Models/`; DTOs and result types are co-located with their interfaces in `IoTSpy.Core/Interfaces/`.
 
 | Model | Purpose |
 |---|---|
-| `CapturedRequest` | One intercepted HTTP/HTTPS exchange; includes request + response headers/body, TLS flag, protocol, timestamp, durationMs, `IsModified` |
+| `CapturedRequest` | One intercepted HTTP/HTTPS exchange; includes request + response headers/body, TLS flag, protocol, timestamp, durationMs, `IsModified`, `TlsMetadataJson` |
 | `Device` | IoT device record: IP, MAC, hostname, vendor, label, `SecurityScore` |
-| `ProxySettings` | Singleton config row (Id=1): ports, mode, TLS/body capture flags, PBKDF2 password hash |
+| `ProxySettings` | Singleton config row (Id=1): ports, mode, TLS/body capture flags, PBKDF2 password hash, `SslStrip` toggle |
+| `TlsMetadata` | All metadata extracted from TLS handshake during passthrough mode: SNI, JA3/JA3S, cipher suites, server cert details, byte counts (serialized as JSON in `CapturedRequest.TlsMetadataJson`) |
 | `CertificateEntry` | PEM-encoded root CA or per-host leaf cert with validity range |
 | `ResilienceOptions` | Typed options for Polly pipeline configuration |
 | `ScanJob` | A scanner run: target IP, port range, which checks to run, status, result counts |
@@ -74,10 +77,18 @@ Pure domain layer — no NuGet dependencies beyond the BCL.
 | `AiProviderConfig` | AI provider selection and credentials |
 | `AnomalyAlert` | Statistical anomaly: host, type, expected/actual values, deviation factor |
 | `HostBaseline` | Per-host Welford running state: duration/size mean+M2, status distribution, request timestamps |
-| `HttpMessage` | Mutable request/response for the manipulation pipeline |
+| `OpenRtbEvent` | Captured OpenRTB bid request/response with decoded fields |
+| `OpenRtbPiiPolicy` | PII redaction policy: field path, strategy, auto-apply flag |
+| `PiiStrippingLog` | Audit log entry for PII redaction actions |
+| `ScheduledScan` | Cron-scheduled recurring scan job (Phase 9) |
 | `CaptureDevice` | Network interface available for packet capture (name, IPs, MAC) |
 | `CapturedPacket` | Captured network packet with L2-L4 fields, protocol flags, `[NotMapped] RawData` |
 | `PacketFilter` | Filter criteria for captured packet queries |
+| `NetworkDevice` | Discovered network device from packet capture |
+| `WebSocketFrame` | Captured WebSocket frame with opcode, payload, direction |
+| `MqttCapturedMessage` | Captured MQTT message with topic, payload, QoS |
+| `MqttBrokerSettings` | Configuration for the MQTT broker proxy |
+| `CoapProxySettings` | Configuration for the CoAP UDP proxy |
 | `PacketFilterDto` | API-facing filter DTO: protocol, IP, port, time range, payload search |
 | `FreezeFrameResult` | Frozen packet with hex dump and per-layer breakdown |
 | `ProtocolDistribution` / `ProtocolStats` | Protocol distribution statistics |
@@ -85,16 +96,16 @@ Pure domain layer — no NuGet dependencies beyond the BCL.
 | `SuspiciousActivity` | Detection result: category, severity, evidence list |
 | `NetworkDeviceStatistics` | Live capture stats: PPS, BPS, drop rate |
 
-### Interfaces (21)
+### Interfaces (30)
 
-`ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`, `IAnomalyAlertPublisher`, `IPacketCaptureService`, `IPacketCaptureAnalyzer`, `IPacketCapturePublisher`
+`ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`, `IAnomalyAlertPublisher`, `IPacketCaptureService`, `IPacketCaptureAnalyzer`, `IPacketCapturePublisher`, `IOpenRtbEventRepository`, `IOpenRtbPiiPolicyRepository`, `IOpenRtbService`, `IPiiStrippingLogRepository`, `ICaptureDeviceRepository`, `IAlertingService`, `IReportService`, `IScheduledScanRepository`, `IMqttBrokerProxy`, `ICoapProxy`
 
-### Enums (10)
+### Enums (13)
 
 | Enum | Values |
 |---|---|
 | `ProxyMode` | ExplicitProxy, ArpSpoof, GatewayRedirect |
-| `InterceptionProtocol` | Http, Https, Mqtt, MqttTls, CoAP, Dns, MDns, Other |
+| `InterceptionProtocol` | Http, Https, Mqtt, MqttTls, CoAP, Dns, MDns, WebSocket, WebSocketTls, Grpc, Modbus, TlsPassthrough, Other |
 | `ScanStatus` | Pending, Running, Completed, Failed, Cancelled |
 | `ScanFindingType` | OpenPort, ServiceBanner, DefaultCredential, Cve, ConfigIssue |
 | `ScanFindingSeverity` | Info, Low, Medium, High, Critical |
@@ -103,6 +114,9 @@ Pure domain layer — no NuGet dependencies beyond the BCL.
 | `ScriptLanguage` | CSharp, JavaScript |
 | `FuzzerStrategy` | Random, Boundary, BitFlip |
 | `FuzzerJobStatus` | Pending, Running, Completed, Cancelled, Failed |
+| `WebSocketOpcode` | Continuation, Text, Binary, Close, Ping, Pong |
+| `OpenRtbMessageType` | BidRequest, BidResponse |
+| `PiiRedactionStrategy` | Redact, Hash, Mask, Remove |
 
 ---
 
@@ -128,6 +142,38 @@ Both servers share a unified `InterceptHttpStreamAsync` pipeline: HTTP is interc
 
 Root CA: 4096-bit RSA, self-signed, generated lazily on first use, stored as PEM in `CertificateEntries`, cached in memory.
 Leaf certs: 2048-bit RSA, 825-day validity, SAN-bearing, cached in DB, reused until one day before expiry.
+
+### TLS Passthrough (`Tls/TlsClientHelloParser`, `Tls/TlsServerHelloParser`)
+
+When `CaptureTls=false`, traffic is **not** decrypted but metadata is extracted from the TLS handshake:
+
+1. Proxy buffers the initial bytes from the client until a complete TLS record is available (`GetRecordLength()`).
+2. `TlsClientHelloParser.TryParse()` extracts:
+   - **SNI hostname** (extension type 0x0000)
+   - **Cipher suites** and **extensions** lists
+   - **Elliptic curves** and **EC point formats**
+   - **JA3 fingerprint** — MD5 of `TLSVersion,Ciphers,Extensions,EllipticCurves,EcPointFormats` with GREASE values (RFC 8701) excluded
+3. The buffered ClientHello is forwarded to the upstream server.
+4. `TlsServerHelloParser.TryParseServerHello()` extracts:
+   - **Selected cipher** and **TLS version** (including `supported_versions` extension for TLS 1.3 real version)
+   - **JA3S fingerprint** — MD5 of `TLSVersion,Cipher,Extensions`
+5. `TlsServerHelloParser.TryParseCertificate()` extracts the leaf X.509 certificate (TLS 1.2 only — Certificate is encrypted in TLS 1.3):
+   - Subject, issuer, SAN list, serial number, SHA-256 fingerprint, validity dates
+6. Traffic is relayed bidirectionally with byte counting (`ClientToServerBytes`, `ServerToClientBytes`).
+7. A `CapturedRequest` is recorded with `Protocol=TlsPassthrough` and `TlsMetadataJson` containing the serialized `TlsMetadata` model.
+
+All log entries include `DnsCorrelationKey={ClientIp}→{SniHostname}` for joining with DNS packet captures.
+
+### SSL Stripping (`Interception/SslStripService`)
+
+When `ProxySettings.SslStrip=true` on **plain HTTP** connections, `SslStripService` intercepts HTTP→HTTPS redirects and serves decrypted content over HTTP — useful for IoT devices that cannot have custom CAs installed.
+
+1. `GetHttpsRedirectLocation()` detects 301/302/303/307/308 responses with `https://` Location headers.
+2. `FetchHttpsAsync()` connects to the HTTPS URL upstream, performs a real TLS handshake, and returns the decrypted response.
+3. `StripResponseHeaders()` removes `Strict-Transport-Security` headers and rewrites `https://` → `http://` in `Location`, `Set-Cookie`, and `Content-Security-Policy` headers.
+4. `StripHttpsFromBody()` rewrites `https://` links in text response bodies (HTML, JSON, etc.).
+
+Integrated into `InterceptHttpStreamAsync` of both `ExplicitProxyServer` and `TransparentProxyServer`. When `SslStrip=true`, HSTS headers are also stripped from all non-redirect responses.
 
 ### Network interception helpers
 
@@ -185,6 +231,11 @@ public interface IProtocolDecoder<T>
 | `Telemetry/` | `FirehoseDecoder` | `TelemetryMessage` | AWS Kinesis Firehose HTTP PUT (base64 records) |
 | `Telemetry/` | `SplunkHecDecoder` | `TelemetryMessage` | Splunk HEC single-event + newline-batched JSON |
 | `Telemetry/` | `AzureMonitorDecoder` | `TelemetryMessage` | Azure Monitor array / `records`-wrapped / DCR ingestion payloads |
+| `OpenRtb/` | `OpenRtbDecoder` | `OpenRtbEvent` | OpenRTB 2.5 bid request/response parsing |
+| `WebSocket/` | `WebSocketDecoder` | `WebSocketDecodedFrame` | RFC 6455 frame decoding (FIN, opcode, masking, extended lengths, close codes) |
+| `Grpc/` | `GrpcDecoder` | `GrpcMessage` | gRPC Length-Prefixed Message framing + schema-less protobuf field extraction |
+| `Modbus/` | `ModbusDecoder` | `ModbusMessage` | Modbus TCP MBAP header, function codes 1-16 + exception responses |
+| `Coap/` | `CoapDecoder` | `CoapMessage` | RFC 7252 full message decoding (header, tokens, delta-encoded options, payload) |
 
 `TelemetryMessage` carries: detected protocol, source, timestamp, flat `Fields` map, per-event `Events` list, raw JSON (capped at 8 KB).
 
@@ -321,27 +372,35 @@ EF Core 10 data access layer; supports SQLite (default) and PostgreSQL.
 | `ReplaySessions` | `ReplaySession` | — |
 | `FuzzerJobs` | `FuzzerJob` | Cascade-deletes FuzzerResults |
 | `FuzzerResults` | `FuzzerResult` | FK → FuzzerJob |
+| `OpenRtbEvents` | `OpenRtbEvent` | OpenRTB bid request/response events |
+| `OpenRtbPiiPolicies` | `OpenRtbPiiPolicy` | PII redaction policies |
+| `PiiStrippingLogs` | `PiiStrippingLog` | PII redaction audit trail |
 | `CaptureDevices` | `CaptureDevice` | Indexed on IpAddress, MacAddress |
 | `Packets` | `CapturedPacket` | FK → CaptureDevice; indexed on Timestamp, DeviceId, Protocol, SourceIp, DestinationIp |
+| `ScheduledScans` | `ScheduledScan` | Cron-based recurring scan jobs (Phase 9) |
 
 `DateTimeOffset` columns are stored as Unix milliseconds (`long`) via a `ValueConverter` — required for SQLite `ORDER BY` compatibility.
 
-### Repositories (9)
+### Repositories (12+)
 
-`CaptureRepository`, `DeviceRepository`, `CertificateRepository`, `ProxySettingsRepository`, `ScanJobRepository`, `ManipulationRuleRepository`, `BreakpointRepository`, `ReplaySessionRepository`, `FuzzerJobRepository`
+`CaptureRepository`, `DeviceRepository`, `CertificateRepository`, `ProxySettingsRepository`, `ScanJobRepository`, `ManipulationRuleRepository`, `BreakpointRepository`, `ReplaySessionRepository`, `FuzzerJobRepository`, `OpenRtbEventRepository`, `OpenRtbPiiPolicyRepository`, `PiiStrippingLogRepository`, `CaptureDeviceRepository`, `ScheduledScanRepository`
 
 All repositories are **scoped** (one per HTTP request / DI scope) because they depend on the scoped EF Core `DbContext`.
 
-### Migrations (6)
+### Migrations (10)
 
 | Migration | Contents |
 |---|---|
 | `InitialCreate` | Devices, Captures, ProxySettings, CertificateEntries |
 | `AddPhase2ProxySettings` | TransparentProxyPort, TargetDeviceIp, GatewayIp columns |
 | `AddPhase3Scanner` | ScanJobs, ScanFindings |
-| `AddPhase4ManipulationFix` | Pre-fix migration |
-| `AddPhase4Manipulation` | ManipulationRules, Breakpoints, ReplaySessions, FuzzerJobs, FuzzerResults |
+| `AddPhase4ManipulationFix` | ManipulationRules, Breakpoints, ReplaySessions, FuzzerJobs, FuzzerResults |
+| `AddOpenRtbInspection` | OpenRtbEvents, OpenRtbPiiPolicies, PiiStrippingLogs |
 | `AddPacketCapture` | CaptureDevices, Packets (with FK and indexes) |
+| `AddMissingPhase7Changes` | Schema fixes for Phase 7 test compatibility |
+| `AddPhase9ScheduledScans` | ScheduledScans table |
+| `AddBodyCaptureDefaults` | Body capture default column values |
+| `AddTlsPassthroughAndSslStrip` | `TlsMetadataJson` (TEXT) on Captures, `SslStrip` (BOOLEAN) on ProxySettings |
 
 ---
 
@@ -351,13 +410,13 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 
 ### Service lifetimes
 
-- **Singleton**: `ExplicitProxyServer`, `TransparentProxyServer`, `CertificateAuthority`, `ProxyService`, `ArpSpoofEngine`, `IptablesHelper`, `SignalRCapturePublisher`, `SignalRAnomalyPublisher`, `PortScanner`, `ServiceFingerprinter`, `CredentialTester`, `ConfigAuditor`, `ScannerService`
+- **Singleton**: `ExplicitProxyServer`, `TransparentProxyServer`, `CertificateAuthority`, `ProxyService`, `SslStripService`, `ArpSpoofEngine`, `IptablesHelper`, `SignalRCapturePublisher`, `SignalRAnomalyPublisher`, `PortScanner`, `ServiceFingerprinter`, `CredentialTester`, `ConfigAuditor`, `ScannerService`, `MqttBrokerProxy`, `CoapProxy`
   *(TCP listeners and other long-lived services that must not be re-created per request)*
 - **Hosted services**: `ProxyService` (via `AddHostedService(sp => sp.GetRequiredService<ProxyService>())`), `DataRetentionService` (background cleanup; disabled by default)
 - **Scoped**: All EF Core repositories, `DbContext`
 - `ProxyService` is registered once as `IProxyService` and once as `IHostedService` via `AddHostedService(sp => sp.GetRequiredService<ProxyService>())` to prevent double instantiation.
 
-### Controllers
+### Controllers (12)
 
 | Controller | Endpoints |
 |---|---|
@@ -369,6 +428,10 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 | `ScannerController` | `POST /api/scanner/scan`, `GET /api/scanner/jobs`, `GET /api/scanner/jobs/{id}`, `GET /api/scanner/jobs/{id}/findings`, `POST /api/scanner/jobs/{id}/cancel`, `DELETE /api/scanner/jobs/{id}` |
 | `ManipulationController` | CRUD for rules, breakpoints; `POST /replay`, `POST /fuzzer`, `GET+DELETE /fuzzer/{id}`, `POST /ai-mock/generate`, `DELETE /ai-mock/{host}/cache` |
 | `PacketCaptureController` | Device list, start/stop capture, packet filtering, freeze frame (create/get), protocol distribution, communication patterns, suspicious activity, freeze/unfreeze analysis |
+| `OpenRtbController` | OpenRTB events CRUD, PII policies CRUD, PII audit logs |
+| `ProtocolProxyController` | MQTT start/stop/status, CoAP start/stop/status |
+| `ReportController` | `GET /api/reports/devices/{id}/html`, `GET /api/reports/devices/{id}/pdf` — scan report generation |
+| `ScheduledScanController` | CRUD `GET/POST/PUT/DELETE /api/scheduled-scans` — cron-based recurring scan jobs |
 
 ### SignalR
 
@@ -403,27 +466,24 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 ## Data flow
 
 ```
-IoT Device
-    │  HTTP/CONNECT :8888  (explicit)
-    │  TCP :9999           (transparent — iptables REDIRECT or ARP spoof)
-    ▼
-ExplicitProxyServer / TransparentProxyServer  (TcpListener)
-    │
-    ├─ Plain HTTP ─────────────────────────────────────────────────────────┐
-    │                                                                      │
-    └─ TLS (CONNECT or transparent)                                        │
-           │  CaptureTls=false → passthrough                               │
-           └─ CaptureTls=true  → CertificateAuthority.GetOrCreateHostCertAsync()
-                                  SslStream MITM ──────────────────────────┤
-                                                                           │
-                                               InterceptHttpStreamAsync ◄──┘
-                                                        │
-                               ┌────────────────────────┼───────────────────┐
-                               │                        │                   │
-                    IManipulationService          CaptureRepository    ICapturePublisher
-                    (rules → scripts)             (SQLite / PG)        → SignalR
-                    ← request phase                                    → dashboard
-                    → response phase
+IoT Device → ExplicitProxy :8888      (explicit mode — device configured to use proxy)
+           → TransparentProxy :9999   (gateway/ARP mode — iptables REDIRECT)
+           → MqttBrokerProxy :1883    (MQTT MITM — decodes packets, topic-level filtering)
+           → CoapProxy :5683 (UDP)    (CoAP forward proxy — decodes messages, captures)
+  └─ ExplicitProxyServer / TransparentProxyServer
+       ├─ Plain HTTP → InterceptHttpStreamAsync
+       ├─ WebSocket Upgrade (101) → RelayWebSocketFramesAsync (bidirectional frame capture)
+       ├─ gRPC (application/grpc) → capture with Protocol=Grpc
+       ├─ Plain HTTP + SslStrip=true → SslStripService (intercept HTTPS redirects, fetch upstream TLS, serve HTTP)
+       └─ TLS (CONNECT or transparent)
+            ├─ CaptureTls=false → HandleTlsPassthroughAsync
+            │    └─ Parse ClientHello (SNI, JA3) → relay → parse ServerHello (JA3S) + Certificate (TLS 1.2)
+            │         → record CapturedRequest with Protocol=TlsPassthrough + TlsMetadataJson
+            └─ CaptureTls=true  → CertificateAuthority.GetOrCreateHostCertAsync()
+                                   SslStream MITM → InterceptHttpStreamAsync
+                                        ├─ IManipulationService (rules → scripts, request + response phases)
+                                        ├─ CaptureRepository (SQLite/PG)
+                                        └─ ICapturePublisher → SignalR (group-routed) → dashboard
 ```
 
 ---
