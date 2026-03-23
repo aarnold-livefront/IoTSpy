@@ -365,6 +365,23 @@ All endpoints (except `/api/auth/*`, `/api/certificates/root-ca/download`, `/hea
 | DELETE | `/api/openrtb/pii-policies/{id}` | Delete a PII policy |
 | GET | `/api/openrtb/pii-audit` | Get PII audit log entries |
 
+### Reports
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/reports/devices/{id}/html` | Generate HTML scan report for a device |
+| GET | `/api/reports/devices/{id}/pdf` | Generate PDF scan report for a device |
+
+### Scheduled Scans
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/scheduled-scans` | List all scheduled scans |
+| GET | `/api/scheduled-scans/{id}` | Get a scheduled scan |
+| POST | `/api/scheduled-scans` | Create a scheduled scan (`{ "deviceId": "...", "cronExpression": "0 * * * *" }`) |
+| PUT | `/api/scheduled-scans/{id}` | Update (enable/disable, change cron) |
+| DELETE | `/api/scheduled-scans/{id}` | Delete a scheduled scan |
+
 ### Protocol Proxies
 
 | Method | Path | Description |
@@ -421,7 +438,7 @@ src/
   IoTSpy.Scanner/       # Port scan, fingerprinting, CVE lookup, packet capture
   IoTSpy.Manipulation/  # Rules engine, replay, fuzzer, AI mock, OpenRTB PII, packet analysis
   IoTSpy.Storage/       # EF Core DbContext, repositories, migrations
-  IoTSpy.Api/           # ASP.NET Core host, 10 controllers, 2 SignalR hubs
+  IoTSpy.Api/           # ASP.NET Core host, 12 controllers, 2 SignalR hubs
 frontend/               # Vite 6 + React 19 + TypeScript dashboard
 docs/
   architecture.md       # Full architecture spec

@@ -53,7 +53,9 @@ Test projects reference only the library under test (plus xunit 2.9.3).
 
 Pure domain layer — no NuGet dependencies beyond the BCL.
 
-### Models (28)
+### Models (30+)
+
+Domain models live in `IoTSpy.Core/Models/`; DTOs and result types are co-located with their interfaces in `IoTSpy.Core/Interfaces/`.
 
 | Model | Purpose |
 |---|---|
@@ -75,10 +77,18 @@ Pure domain layer — no NuGet dependencies beyond the BCL.
 | `AiProviderConfig` | AI provider selection and credentials |
 | `AnomalyAlert` | Statistical anomaly: host, type, expected/actual values, deviation factor |
 | `HostBaseline` | Per-host Welford running state: duration/size mean+M2, status distribution, request timestamps |
-| `HttpMessage` | Mutable request/response for the manipulation pipeline |
+| `OpenRtbEvent` | Captured OpenRTB bid request/response with decoded fields |
+| `OpenRtbPiiPolicy` | PII redaction policy: field path, strategy, auto-apply flag |
+| `PiiStrippingLog` | Audit log entry for PII redaction actions |
+| `ScheduledScan` | Cron-scheduled recurring scan job (Phase 9) |
 | `CaptureDevice` | Network interface available for packet capture (name, IPs, MAC) |
 | `CapturedPacket` | Captured network packet with L2-L4 fields, protocol flags, `[NotMapped] RawData` |
 | `PacketFilter` | Filter criteria for captured packet queries |
+| `NetworkDevice` | Discovered network device from packet capture |
+| `WebSocketFrame` | Captured WebSocket frame with opcode, payload, direction |
+| `MqttCapturedMessage` | Captured MQTT message with topic, payload, QoS |
+| `MqttBrokerSettings` | Configuration for the MQTT broker proxy |
+| `CoapProxySettings` | Configuration for the CoAP UDP proxy |
 | `PacketFilterDto` | API-facing filter DTO: protocol, IP, port, time range, payload search |
 | `FreezeFrameResult` | Frozen packet with hex dump and per-layer breakdown |
 | `ProtocolDistribution` / `ProtocolStats` | Protocol distribution statistics |
@@ -86,11 +96,11 @@ Pure domain layer — no NuGet dependencies beyond the BCL.
 | `SuspiciousActivity` | Detection result: category, severity, evidence list |
 | `NetworkDeviceStatistics` | Live capture stats: PPS, BPS, drop rate |
 
-### Interfaces (24)
+### Interfaces (30)
 
-`ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`, `IAnomalyAlertPublisher`, `IPacketCaptureService`, `IPacketCaptureAnalyzer`, `IPacketCapturePublisher`, `IOpenRtbEventRepository`, `IOpenRtbPiiPolicyRepository`, `IMqttBrokerProxy`, `ICoapProxy`
+`ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`, `IAnomalyAlertPublisher`, `IPacketCaptureService`, `IPacketCaptureAnalyzer`, `IPacketCapturePublisher`, `IOpenRtbEventRepository`, `IOpenRtbPiiPolicyRepository`, `IOpenRtbService`, `IPiiStrippingLogRepository`, `ICaptureDeviceRepository`, `IAlertingService`, `IReportService`, `IScheduledScanRepository`, `IMqttBrokerProxy`, `ICoapProxy`
 
-### Enums (10)
+### Enums (13)
 
 | Enum | Values |
 |---|---|
@@ -104,6 +114,9 @@ Pure domain layer — no NuGet dependencies beyond the BCL.
 | `ScriptLanguage` | CSharp, JavaScript |
 | `FuzzerStrategy` | Random, Boundary, BitFlip |
 | `FuzzerJobStatus` | Pending, Running, Completed, Cancelled, Failed |
+| `WebSocketOpcode` | Continuation, Text, Binary, Close, Ping, Pong |
+| `OpenRtbMessageType` | BidRequest, BidResponse |
+| `PiiRedactionStrategy` | Redact, Hash, Mask, Remove |
 
 ---
 
@@ -361,28 +374,32 @@ EF Core 10 data access layer; supports SQLite (default) and PostgreSQL.
 | `FuzzerResults` | `FuzzerResult` | FK → FuzzerJob |
 | `OpenRtbEvents` | `OpenRtbEvent` | OpenRTB bid request/response events |
 | `OpenRtbPiiPolicies` | `OpenRtbPiiPolicy` | PII redaction policies |
+| `PiiStrippingLogs` | `PiiStrippingLog` | PII redaction audit trail |
 | `CaptureDevices` | `CaptureDevice` | Indexed on IpAddress, MacAddress |
 | `Packets` | `CapturedPacket` | FK → CaptureDevice; indexed on Timestamp, DeviceId, Protocol, SourceIp, DestinationIp |
+| `ScheduledScans` | `ScheduledScan` | Cron-based recurring scan jobs (Phase 9) |
 
 `DateTimeOffset` columns are stored as Unix milliseconds (`long`) via a `ValueConverter` — required for SQLite `ORDER BY` compatibility.
 
-### Repositories (9)
+### Repositories (12+)
 
-`CaptureRepository`, `DeviceRepository`, `CertificateRepository`, `ProxySettingsRepository`, `ScanJobRepository`, `ManipulationRuleRepository`, `BreakpointRepository`, `ReplaySessionRepository`, `FuzzerJobRepository`
+`CaptureRepository`, `DeviceRepository`, `CertificateRepository`, `ProxySettingsRepository`, `ScanJobRepository`, `ManipulationRuleRepository`, `BreakpointRepository`, `ReplaySessionRepository`, `FuzzerJobRepository`, `OpenRtbEventRepository`, `OpenRtbPiiPolicyRepository`, `PiiStrippingLogRepository`, `CaptureDeviceRepository`, `ScheduledScanRepository`
 
 All repositories are **scoped** (one per HTTP request / DI scope) because they depend on the scoped EF Core `DbContext`.
 
-### Migrations (8)
+### Migrations (10)
 
 | Migration | Contents |
 |---|---|
 | `InitialCreate` | Devices, Captures, ProxySettings, CertificateEntries |
 | `AddPhase2ProxySettings` | TransparentProxyPort, TargetDeviceIp, GatewayIp columns |
 | `AddPhase3Scanner` | ScanJobs, ScanFindings |
-| `AddPhase4ManipulationFix` | Pre-fix migration |
-| `AddPhase4Manipulation` | ManipulationRules, Breakpoints, ReplaySessions, FuzzerJobs, FuzzerResults |
-| `AddOpenRtbInspection` | OpenRtbEvents, OpenRtbPiiPolicies |
+| `AddPhase4ManipulationFix` | ManipulationRules, Breakpoints, ReplaySessions, FuzzerJobs, FuzzerResults |
+| `AddOpenRtbInspection` | OpenRtbEvents, OpenRtbPiiPolicies, PiiStrippingLogs |
 | `AddPacketCapture` | CaptureDevices, Packets (with FK and indexes) |
+| `AddMissingPhase7Changes` | Schema fixes for Phase 7 test compatibility |
+| `AddPhase9ScheduledScans` | ScheduledScans table |
+| `AddBodyCaptureDefaults` | Body capture default column values |
 | `AddTlsPassthroughAndSslStrip` | `TlsMetadataJson` (TEXT) on Captures, `SslStrip` (BOOLEAN) on ProxySettings |
 
 ---
@@ -399,7 +416,7 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 - **Scoped**: All EF Core repositories, `DbContext`
 - `ProxyService` is registered once as `IProxyService` and once as `IHostedService` via `AddHostedService(sp => sp.GetRequiredService<ProxyService>())` to prevent double instantiation.
 
-### Controllers (10)
+### Controllers (12)
 
 | Controller | Endpoints |
 |---|---|
@@ -413,6 +430,8 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 | `PacketCaptureController` | Device list, start/stop capture, packet filtering, freeze frame (create/get), protocol distribution, communication patterns, suspicious activity, freeze/unfreeze analysis |
 | `OpenRtbController` | OpenRTB events CRUD, PII policies CRUD, PII audit logs |
 | `ProtocolProxyController` | MQTT start/stop/status, CoAP start/stop/status |
+| `ReportController` | `GET /api/reports/devices/{id}/html`, `GET /api/reports/devices/{id}/pdf` — scan report generation |
+| `ScheduledScanController` | CRUD `GET/POST/PUT/DELETE /api/scheduled-scans` — cron-based recurring scan jobs |
 
 ### SignalR
 
