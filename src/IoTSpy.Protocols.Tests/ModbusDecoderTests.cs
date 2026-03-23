@@ -90,7 +90,7 @@ public class ModbusDecoderTests
         Assert.Single(messages);
         var msg = messages[0];
         Assert.Equal(0x03, msg.FunctionCode);
-        Assert.Equal(4, msg.ByteCount);
+        Assert.Equal((byte)4, msg.ByteCount);
         Assert.NotNull(msg.RegisterValues);
         Assert.Equal(2, msg.RegisterValues!.Length);
         Assert.Equal((ushort)100, msg.RegisterValues[0]);

@@ -179,7 +179,7 @@ public class MqttBrokerProxy(
     /// <summary>
     /// Matches an MQTT topic against a filter pattern (supports + and # wildcards).
     /// </summary>
-    internal static bool MatchesTopic(string filter, string topic)
+    public static bool MatchesTopic(string filter, string topic)
     {
         var filterParts = filter.Split('/');
         var topicParts = topic.Split('/');
