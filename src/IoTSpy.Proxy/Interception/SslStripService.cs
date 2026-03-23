@@ -215,42 +215,50 @@ public sealed class SslStripService(ILogger<SslStripService> logger)
         byte[] bodyBytes = [];
         var body = string.Empty;
 
-        if (contentLength > 0)
+        try
         {
-            var maxBytes = maxBodyKb * 1024;
-            var readLen = Math.Min(contentLength, maxBytes);
-            bodyBytes = new byte[readLen];
-            await stream.ReadExactlyAsync(bodyBytes, ct);
-            body = Encoding.UTF8.GetString(bodyBytes);
-            if (contentLength > maxBytes)
+            if (contentLength > 0)
             {
-                var drain = new byte[contentLength - maxBytes];
-                await stream.ReadExactlyAsync(drain, ct);
-            }
-        }
-        else if (chunked)
-        {
-            var rawList = new List<byte>();
-            var sb = new StringBuilder();
-            while (true)
-            {
-                var sizeLine = await ReadLineAsync(stream, ct);
-                if (sizeLine is null) break;
-                var chunkSize = Convert.ToInt32(sizeLine.Trim().Split(';')[0], 16);
-                if (chunkSize == 0) { await ReadLineAsync(stream, ct); break; }
-                var buf = new byte[chunkSize];
-                await stream.ReadExactlyAsync(buf, ct);
-                await ReadLineAsync(stream, ct);
                 var maxBytes = maxBodyKb * 1024;
-                if (rawList.Count < maxBytes)
+                var readLen = Math.Min(contentLength, maxBytes);
+                bodyBytes = new byte[readLen];
+                await stream.ReadExactlyAsync(bodyBytes, ct);
+                body = Encoding.UTF8.GetString(bodyBytes);
+                if (contentLength > maxBytes)
                 {
-                    var take = Math.Min(chunkSize, maxBytes - rawList.Count);
-                    rawList.AddRange(buf.AsSpan(0, take));
-                    sb.Append(Encoding.UTF8.GetString(buf, 0, take));
+                    var drain = new byte[contentLength - maxBytes];
+                    await stream.ReadExactlyAsync(drain, ct);
                 }
             }
-            bodyBytes = rawList.ToArray();
-            body = sb.ToString();
+            else if (chunked)
+            {
+                var rawList = new List<byte>();
+                var sb = new StringBuilder();
+                while (true)
+                {
+                    var sizeLine = await ReadLineAsync(stream, ct);
+                    if (sizeLine is null) break;
+                    if (!int.TryParse(sizeLine.Trim().Split(';')[0], System.Globalization.NumberStyles.HexNumber, null, out var chunkSize))
+                        break; // Malformed chunk size — stop reading
+                    if (chunkSize == 0) { await ReadLineAsync(stream, ct); break; }
+                    var buf = new byte[chunkSize];
+                    await stream.ReadExactlyAsync(buf, ct);
+                    await ReadLineAsync(stream, ct);
+                    var maxBytes = maxBodyKb * 1024;
+                    if (rawList.Count < maxBytes)
+                    {
+                        var take = Math.Min(chunkSize, maxBytes - rawList.Count);
+                        rawList.AddRange(buf.AsSpan(0, take));
+                        sb.Append(Encoding.UTF8.GetString(buf, 0, take));
+                    }
+                }
+                bodyBytes = rawList.ToArray();
+                body = sb.ToString();
+            }
+        }
+        catch (EndOfStreamException)
+        {
+            // Upstream closed before sending complete body — return what we have
         }
 
         return (statusLine, headers, body, bodyBytes);

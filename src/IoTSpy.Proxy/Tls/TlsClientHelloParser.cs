@@ -116,6 +116,7 @@ public static class TlsClientHelloParser
                 }
 
                 pos += extLen;
+                if (pos > extEnd) break; // Extension overran declared bounds
             }
         }
 

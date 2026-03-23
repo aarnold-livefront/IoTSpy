@@ -320,8 +320,11 @@ public class TransparentProxyServer(
             var serverBufLen = 0;
             var parsedServerHello = false;
             var parsedCert = false;
+            var isTls13 = false;
 
-            for (var attempt = 0; attempt < 5 && (!parsedServerHello || !parsedCert); attempt++)
+            // In TLS 1.3 the Certificate message is encrypted, so we can only extract
+            // ServerHello metadata — skip certificate parsing when 1.3 is negotiated.
+            for (var attempt = 0; attempt < 5 && (!parsedServerHello || (!parsedCert && !isTls13)); attempt++)
             {
                 var n = await upstreamStream.ReadAsync(serverBuf.AsMemory(serverBufLen), ct);
                 if (n == 0) break;
@@ -350,12 +353,17 @@ public class TransparentProxyServer(
                             metadata.ServerCipherSuite = serverHelloInfo.CipherSuite;
                             metadata.ServerExtensions = serverHelloInfo.Extensions;
 
+                            isTls13 = serverHelloInfo.TlsVersion >= 0x0304;
+
                             logger.LogInformation(
                                 "TLS passthrough ServerHello: {SniHostname} TLS={TlsVersion:X4} Cipher={CipherSuite:X4} JA3S={Ja3sHash}",
                                 sniHost, serverHelloInfo.TlsVersion, serverHelloInfo.CipherSuite, serverHelloInfo.Ja3sHash);
+
+                            if (isTls13)
+                                logger.LogDebug("TLS 1.3 detected for {SniHostname} — certificate is encrypted, skipping cert extraction", sniHost);
                         }
                     }
-                    else if (hsType == 0x0B && !parsedCert)
+                    else if (hsType == 0x0B && !parsedCert && !isTls13) // Certificate (TLS 1.2 only)
                     {
                         if (TlsServerHelloParser.TryParseCertificate(remaining, out var certInfo))
                         {

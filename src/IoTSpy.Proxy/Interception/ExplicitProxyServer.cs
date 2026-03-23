@@ -686,9 +686,12 @@ public class ExplicitProxyServer(
             var serverBufLen = 0;
             var parsedServerHello = false;
             var parsedCert = false;
+            var isTls13 = false;
 
-            // Read a few TLS records from the server to get ServerHello + Certificate
-            for (var attempt = 0; attempt < 5 && (!parsedServerHello || !parsedCert); attempt++)
+            // Read a few TLS records from the server to get ServerHello + Certificate.
+            // In TLS 1.3 the Certificate message is encrypted, so we can only extract
+            // ServerHello metadata — skip certificate parsing when 1.3 is negotiated.
+            for (var attempt = 0; attempt < 5 && (!parsedServerHello || (!parsedCert && !isTls13)); attempt++)
             {
                 var n = await upstreamStream.ReadAsync(serverBuf.AsMemory(serverBufLen), ct);
                 if (n == 0) break;
@@ -719,12 +722,18 @@ public class ExplicitProxyServer(
                             metadata.ServerCipherSuite = serverHello.CipherSuite;
                             metadata.ServerExtensions = serverHello.Extensions;
 
+                            // TLS 1.3 (0x0304) encrypts Certificate — cannot parse it in passthrough
+                            isTls13 = serverHello.TlsVersion >= 0x0304;
+
                             logger.LogInformation(
                                 "TLS passthrough ServerHello: {SniHostname} TLS={TlsVersion:X4} Cipher={CipherSuite:X4} JA3S={Ja3sHash}",
                                 sniHost, serverHello.TlsVersion, serverHello.CipherSuite, serverHello.Ja3sHash);
+
+                            if (isTls13)
+                                logger.LogDebug("TLS 1.3 detected for {SniHostname} — certificate is encrypted, skipping cert extraction", sniHost);
                         }
                     }
-                    else if (hsType == 0x0B && !parsedCert) // Certificate
+                    else if (hsType == 0x0B && !parsedCert && !isTls13) // Certificate (TLS 1.2 only)
                     {
                         if (TlsServerHelloParser.TryParseCertificate(remaining, out var certInfo))
                         {
@@ -751,10 +760,9 @@ public class ExplicitProxyServer(
             }
 
             // Relay remaining traffic bidirectionally, counting bytes
-            var relayBuf = new byte[16 * 1024];
             await Task.WhenAll(
-                RelayAndCountAsync(clientStream, upstreamStream, relayBuf, v => Interlocked.Add(ref clientToServer, v), ct),
-                RelayAndCountAsync(upstreamStream, clientStream, relayBuf, v => Interlocked.Add(ref serverToClient, v), ct));
+                RelayAndCountAsync(clientStream, upstreamStream, v => Interlocked.Add(ref clientToServer, v), ct),
+                RelayAndCountAsync(upstreamStream, clientStream, v => Interlocked.Add(ref serverToClient, v), ct));
 
             metadata.ClientToServerBytes = Interlocked.Read(ref clientToServer);
             metadata.ServerToClientBytes = Interlocked.Read(ref serverToClient);
@@ -799,11 +807,10 @@ public class ExplicitProxyServer(
     }
 
     private static async Task RelayAndCountAsync(
-        Stream source, Stream dest, byte[] buffer,
+        Stream source, Stream dest,
         Action<long> addBytes, CancellationToken ct)
     {
-        // Each direction gets its own buffer to avoid races
-        var localBuf = new byte[buffer.Length];
+        var localBuf = new byte[16 * 1024];
         try
         {
             while (!ct.IsCancellationRequested)
