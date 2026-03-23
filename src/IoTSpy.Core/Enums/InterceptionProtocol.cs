@@ -13,5 +13,6 @@ public enum InterceptionProtocol
     WebSocketTls,
     Grpc,
     Modbus,
+    TlsPassthrough,
     Other
 }
