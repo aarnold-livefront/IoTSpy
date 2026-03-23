@@ -137,14 +137,14 @@ All foundational phases are complete. Below is a summary of what was delivered.
 |---|---|
 | Backend projects | 7 (Core, Proxy, Protocols, Scanner, Manipulation, Storage, Api) |
 | Test projects | 7 (Protocols.Tests, Manipulation.Tests, Scanner.Tests, Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests) |
-| Backend tests | 248 (all passing) |
+| Backend tests | 248+ (all passing) + Phase 10 decoder tests |
 | Frontend tests | 11 component tests via Vitest + React Testing Library |
-| REST controllers | 9 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb) |
-| HTTP endpoints | 40+ |
-| SignalR hubs | 2 (TrafficHub, PacketCaptureHub) |
+| REST controllers | 10 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy) |
+| HTTP endpoints | 46+ |
+| SignalR hubs | 2 (TrafficHub, PacketCaptureHub) — TrafficHub extended with WebSocket frame + MQTT message subscriptions |
 | EF Core migrations | 6 (InitialCreate → AddPacketCapture) |
 | Frontend components | 50+ TypeScript files across 13 component directories |
-| Protocols supported | HTTP/HTTPS, MQTT 3.1.1/5.0, DNS/mDNS, CoAP, OpenRTB 2.5, Datadog, Firehose, Splunk HEC, Azure Monitor |
+| Protocols supported | HTTP/HTTPS, WebSocket, MQTT 3.1.1/5.0 (passive decode + active proxy), DNS/mDNS, CoAP (passive decode + active proxy), gRPC/Protobuf, Modbus TCP, OpenRTB 2.5, Datadog, Firehose, Splunk HEC, Azure Monitor |
 | CI | GitHub Actions (`.github/workflows/ci.yml`) — build, test, lint, coverage on push/PR |
 
 ---
@@ -158,9 +158,9 @@ The following items represent known gaps, incomplete integrations, or areas wher
 | Gap | Description | Severity |
 |---|---|---|
 | ~~Anomaly detector not wired~~ | ~~`IAnomalyDetector` / `AnomalyDetector` exists but is not integrated into the proxy pipeline~~ | ✅ **Resolved in Phase 8.5** |
-| No WebSocket interception | The proxy intercepts HTTP/HTTPS only; WebSocket upgrade frames pass through without content capture or inspection | Medium |
-| No MQTT proxy mode | MQTT is decoded from packet captures but not actively proxied/intercepted at the application layer | Low |
-| CoAP decoder is passive | CoAP is decoded from captures but there is no CoAP proxy or interception capability | Low |
+| ~~No WebSocket interception~~ | ~~The proxy intercepts HTTP/HTTPS only; WebSocket upgrade frames pass through without content capture~~ | ✅ **Resolved in Phase 10.1** |
+| ~~No MQTT proxy mode~~ | ~~MQTT is decoded from packet captures but not actively proxied/intercepted at the application layer~~ | ✅ **Resolved in Phase 10.2** |
+| ~~CoAP decoder is passive~~ | ~~CoAP is decoded from captures but there is no CoAP proxy or interception capability~~ | ✅ **Resolved in Phase 10.3** |
 
 ### Test coverage gaps
 
@@ -244,17 +244,17 @@ The following items represent known gaps, incomplete integrations, or areas wher
 
 ---
 
-### Phase 10 — Protocol expansion & active protocol proxying
+### Phase 10 — Protocol expansion & active protocol proxying ✅
 
 **Goal:** Extend beyond passive protocol decoding to active interception.
 
 | # | Task | Status |
 |---|---|---|
-| 10.1 | WebSocket interception — capture and display WebSocket frames in the proxy pipeline | ⬚ Not started |
-| 10.2 | MQTT broker proxy — transparent MQTT MITM with topic-level inspection and manipulation | ⬚ Not started |
-| 10.3 | CoAP proxy — UDP-based interception for constrained IoT devices | ⬚ Not started |
-| 10.4 | gRPC/Protobuf decoding — recognize and decode gRPC traffic passing through the proxy | ⬚ Not started |
-| 10.5 | Modbus TCP decoder — industrial IoT protocol support | ⬚ Not started |
+| 10.1 | WebSocket interception — detect WebSocket upgrades in the proxy pipeline, relay frames bidirectionally, capture frame metadata via SignalR | ✅ Done |
+| 10.2 | MQTT broker proxy — transparent TCP MQTT MITM with topic-level filtering, packet decoding, and real-time message publishing via SignalR | ✅ Done |
+| 10.3 | CoAP proxy — UDP-based forward proxy with CoAP message decoding, device registration, and capture recording | ✅ Done |
+| 10.4 | gRPC/Protobuf decoding — detect `application/grpc` content-type in proxy, decode Length-Prefixed Messages and protobuf fields without schema | ✅ Done |
+| 10.5 | Modbus TCP decoder — MBAP header parsing, function code decoding (coils, registers, exceptions), multi-frame support | ✅ Done |
 
 ---
 
@@ -275,13 +275,14 @@ The following items represent known gaps, incomplete integrations, or areas wher
 
 ## Resuming this project
 
-### Current status — all phases complete through 9
+### Current status — all phases complete through 10
 
-**Phases 1–9 and OpenRTB are complete.** The codebase is fully functional with:
+**Phases 1–10 and OpenRTB are complete.** The codebase is fully functional with:
 
-- 9 REST controllers, 40+ endpoints, 2 SignalR hubs
-- 3 proxy modes (explicit, gateway/iptables, ARP spoof)
-- Protocol decoders: MQTT 3.1.1/5.0, DNS/mDNS, CoAP, OpenRTB 2.5, 4 telemetry formats
+- 10 REST controllers, 46+ endpoints, 2 SignalR hubs
+- 3 proxy modes (explicit, gateway/iptables, ARP spoof) + MQTT broker proxy + CoAP proxy
+- Protocol decoders: MQTT 3.1.1/5.0, DNS/mDNS, CoAP, gRPC/Protobuf, Modbus TCP, WebSocket, OpenRTB 2.5, 4 telemetry formats
+- Active protocol proxying: MQTT MITM with topic filtering, CoAP UDP forward proxy, WebSocket frame interception
 - Pen-test suite: port scan, fingerprinting, credential testing, CVE lookup, config audit
 - Traffic manipulation: rules engine, C#/JS scripted breakpoints, replay, fuzzer, AI mock
 - Packet capture with protocol analysis, pattern detection, suspicious activity alerts
@@ -291,11 +292,11 @@ The following items represent known gaps, incomplete integrations, or areas wher
 - **Data governance**: `DataRetentionService` background service with configurable TTLs per data type
 - **Resilience**: graceful proxy shutdown (drains active connections), DB connection pooling
 - **Anomaly alerts**: `AnomalyDetector` wired into the proxy pipeline; alerts streamed in real time via SignalR
-- **7 test projects**: 248 backend tests across Protocols.Tests, Manipulation.Tests, Scanner.Tests, Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests
+- **7 test projects**: 248+ backend tests across Protocols.Tests, Manipulation.Tests, Scanner.Tests, Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests
 - **Frontend tests**: 11 component tests via Vitest + React Testing Library
 - **GitHub Actions CI**: `.github/workflows/ci.yml` — build, test, lint on PR/push with coverage artifact upload
 
-**Next recommended focus: Phase 10 (protocol expansion & active protocol proxying)**.
+**Next recommended focus: Phase 11 (UX & multi-user)**.
 
 ---
 

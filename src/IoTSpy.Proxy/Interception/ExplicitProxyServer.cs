@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Net;
 using System.Net.Security;
 using Microsoft.Extensions.DependencyInjection;
@@ -402,6 +403,10 @@ public class ExplicitProxyServer(
                 IsModified = modified
             };
 
+            // Detect gRPC traffic by content-type
+            if (contentType.StartsWith("application/grpc", StringComparison.OrdinalIgnoreCase))
+                capture.Protocol = InterceptionProtocol.Grpc;
+
             await captures.AddAsync(capture, ct);
             await publisher.PublishAsync(capture, ct);
 
@@ -417,11 +422,163 @@ public class ExplicitProxyServer(
                 }
             }
 
+            // WebSocket upgrade — switch to frame relay mode
+            if (statusCode == 101 &&
+                respHeaders.Contains("Upgrade: websocket", StringComparison.OrdinalIgnoreCase))
+            {
+                capture.Protocol = scheme == "https"
+                    ? InterceptionProtocol.WebSocketTls
+                    : InterceptionProtocol.WebSocket;
+                await captures.UpdateAsync(capture, ct);
+
+                logger.LogInformation("WebSocket upgrade detected for {Host}{Path}, relaying frames", host, path);
+                await RelayWebSocketFramesAsync(clientStream, upstreamStream, capture.Id,
+                    host, clientIp, captures, ct);
+                break;
+            }
+
             // HTTP/1.0 or Connection: close — stop after one exchange
             if (respHeaders.Contains("Connection: close", StringComparison.OrdinalIgnoreCase) ||
                 (reqLine ?? "").EndsWith("HTTP/1.0"))
                 break;
         }
+    }
+
+    // ── WebSocket frame relay ─────────────────────────────────────────────
+
+    private async Task RelayWebSocketFramesAsync(
+        Stream clientStream, Stream upstreamStream, Guid captureId,
+        string host, string clientIp, ICaptureRepository captures, CancellationToken ct)
+    {
+        var sequence = 0;
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+
+        async Task RelayDirection(Stream source, Stream dest, bool isFromClient, CancellationToken token)
+        {
+            var buffer = new byte[16 * 1024];
+            try
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    // Read WebSocket frame header (2 bytes minimum)
+                    var headerRead = await ReadAtLeastAsync(source, buffer, 2, token);
+                    if (headerRead < 2) break;
+
+                    var byte0 = buffer[0];
+                    var byte1 = buffer[1];
+                    var opcode = (WebSocketOpcode)(byte0 & 0x0F);
+                    var masked = (byte1 & 0x80) != 0;
+                    long payloadLen = byte1 & 0x7F;
+                    var headerSize = 2;
+
+                    if (payloadLen == 126)
+                    {
+                        headerRead = await ReadAtLeastAsync(source, buffer.AsMemory(headerRead), 4 - headerRead, token);
+                        payloadLen = BinaryPrimitives.ReadUInt16BigEndian(buffer.AsSpan(2));
+                        headerSize = 4;
+                    }
+                    else if (payloadLen == 127)
+                    {
+                        headerRead = await ReadAtLeastAsync(source, buffer.AsMemory(headerRead), 10 - headerRead, token);
+                        payloadLen = (long)BinaryPrimitives.ReadUInt64BigEndian(buffer.AsSpan(2));
+                        headerSize = 10;
+                    }
+
+                    if (masked) headerSize += 4;
+
+                    // Read remaining header bytes if needed
+                    if (headerRead < headerSize)
+                    {
+                        var need = headerSize - headerRead;
+                        await source.ReadExactlyAsync(buffer.AsMemory(headerRead, need), token);
+                        headerRead = headerSize;
+                    }
+
+                    // Forward the header
+                    await dest.WriteAsync(buffer.AsMemory(0, headerSize), token);
+
+                    // Read and forward payload in chunks
+                    byte[]? maskKey = masked ? buffer.AsSpan(headerSize - 4, 4).ToArray() : null;
+                    var payloadBytes = new List<byte>();
+                    long remaining = payloadLen;
+                    int maskOffset = 0;
+
+                    while (remaining > 0)
+                    {
+                        var chunk = (int)Math.Min(remaining, buffer.Length);
+                        await source.ReadExactlyAsync(buffer.AsMemory(0, chunk), token);
+                        await dest.WriteAsync(buffer.AsMemory(0, chunk), token);
+
+                        // Capture unmasked payload (up to 64KB for storage)
+                        if (payloadBytes.Count < 64 * 1024)
+                        {
+                            var captureLen = (int)Math.Min(chunk, 64 * 1024 - payloadBytes.Count);
+                            var slice = buffer.AsSpan(0, captureLen).ToArray();
+                            if (maskKey != null)
+                            {
+                                for (var i = 0; i < slice.Length; i++)
+                                    slice[i] ^= maskKey[(maskOffset + i) % 4];
+                            }
+                            payloadBytes.AddRange(slice);
+                        }
+                        maskOffset += chunk;
+                        remaining -= chunk;
+                    }
+
+                    // Publish frame capture
+                    var seq = Interlocked.Increment(ref sequence);
+                    string? text = null;
+                    if (opcode is WebSocketOpcode.Text or WebSocketOpcode.Close)
+                    {
+                        try { text = Encoding.UTF8.GetString(payloadBytes.ToArray()); }
+                        catch { /* binary data */ }
+                    }
+
+                    var frame = new WebSocketFrame
+                    {
+                        CaptureId = captureId,
+                        Fin = (byte0 & 0x80) != 0,
+                        Opcode = opcode,
+                        Masked = masked,
+                        PayloadLength = payloadLen,
+                        PayloadText = text,
+                        PayloadBinary = opcode == WebSocketOpcode.Binary ? payloadBytes.ToArray() : null,
+                        IsFromClient = isFromClient,
+                        SequenceNumber = seq
+                    };
+
+                    await publisher.PublishWebSocketFrameAsync(frame, ct);
+                    logger.LogTrace("WS frame {Opcode} seq={Seq} len={Len} {Dir} on {Host}",
+                        opcode, seq, payloadLen, isFromClient ? "→" : "←", host);
+
+                    if (opcode == WebSocketOpcode.Close) break;
+                }
+            }
+            catch (Exception ex) when (!token.IsCancellationRequested)
+            {
+                logger.LogTrace(ex, "WebSocket relay ended ({Dir})", isFromClient ? "client→upstream" : "upstream→client");
+            }
+            finally
+            {
+                await cts.CancelAsync();
+            }
+        }
+
+        await Task.WhenAll(
+            RelayDirection(clientStream, upstreamStream, isFromClient: true, cts.Token),
+            RelayDirection(upstreamStream, clientStream, isFromClient: false, cts.Token));
+    }
+
+    private static async Task<int> ReadAtLeastAsync(Stream stream, Memory<byte> buffer, int minBytes, CancellationToken ct)
+    {
+        var totalRead = 0;
+        while (totalRead < minBytes)
+        {
+            var read = await stream.ReadAsync(buffer[totalRead..], ct);
+            if (read == 0) return totalRead;
+            totalRead += read;
+        }
+        return totalRead;
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────

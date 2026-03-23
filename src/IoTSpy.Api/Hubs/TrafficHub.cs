@@ -15,6 +15,20 @@ public class TrafficHub : Hub
     public async Task UnsubscribeFromAnomalyAlerts() =>
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, "anomaly-alerts");
 
+    // ── WebSocket frame subscriptions ────────────────────────────────────────
+    public async Task SubscribeToWebSocketFrames(string captureId) =>
+        await Groups.AddToGroupAsync(Context.ConnectionId, $"ws-frames:{captureId}");
+
+    public async Task UnsubscribeFromWebSocketFrames(string captureId) =>
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"ws-frames:{captureId}");
+
+    // ── MQTT message subscriptions ──────────────────────────────────────────
+    public async Task SubscribeToMqttMessages() =>
+        await Groups.AddToGroupAsync(Context.ConnectionId, "mqtt-messages");
+
+    public async Task UnsubscribeFromMqttMessages() =>
+        await Groups.RemoveFromGroupAsync(Context.ConnectionId, "mqtt-messages");
+
 
     // ── Device subscriptions ─────────────────────────────────────────────────
     public async Task SubscribeToDevice(string deviceId) =>
@@ -85,6 +99,45 @@ public class SignalRCapturePublisher(IHubContext<TrafficHub> hub) : ICapturePubl
         // Send to all matching groups in one call
         if (groups.Count > 0)
             await hub.Clients.Groups(groups).SendAsync("TrafficCapture", dto, ct);
+    }
+
+    public async Task PublishWebSocketFrameAsync(WebSocketFrame frame, CancellationToken ct = default)
+    {
+        var dto = new
+        {
+            id = frame.Id,
+            captureId = frame.CaptureId,
+            fin = frame.Fin,
+            opcode = frame.Opcode.ToString(),
+            masked = frame.Masked,
+            payloadLength = frame.PayloadLength,
+            payloadText = frame.PayloadText,
+            isFromClient = frame.IsFromClient,
+            timestamp = frame.Timestamp,
+            sequenceNumber = frame.SequenceNumber
+        };
+        await hub.Clients.All.SendAsync("WebSocketFrame", dto, ct);
+        await hub.Clients.Group($"ws-frames:{frame.CaptureId}").SendAsync("WebSocketFrame", dto, ct);
+    }
+
+    public async Task PublishMqttMessageAsync(MqttCapturedMessage message, CancellationToken ct = default)
+    {
+        var dto = new
+        {
+            id = message.Id,
+            clientId = message.ClientId,
+            clientIp = message.ClientIp,
+            packetType = message.PacketType,
+            topic = message.Topic,
+            qos = message.QoS,
+            retain = message.Retain,
+            payloadText = message.PayloadText,
+            payloadSize = message.PayloadSize,
+            direction = message.Direction,
+            timestamp = message.Timestamp
+        };
+        await hub.Clients.All.SendAsync("MqttMessage", dto, ct);
+        await hub.Clients.Group("mqtt-messages").SendAsync("MqttMessage", dto, ct);
     }
 
     private static object CaptureToDto(CapturedRequest c) => new

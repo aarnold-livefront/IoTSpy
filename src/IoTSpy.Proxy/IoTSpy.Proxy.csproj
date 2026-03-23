@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\IoTSpy.Core\IoTSpy.Core.csproj" />
+    <ProjectReference Include="..\IoTSpy.Protocols\IoTSpy.Protocols.csproj" />
   </ItemGroup>
 
   <ItemGroup>
