@@ -143,7 +143,7 @@ public static class TlsServerHelloParser
 
         try
         {
-            using var cert = new X509Certificate2(certBytes.ToArray());
+            using var cert = X509CertificateLoader.LoadCertificate(certBytes);
             var sanList = new List<string>();
 
             // Extract Subject Alternative Names
