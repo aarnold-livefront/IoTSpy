@@ -22,7 +22,7 @@ export default function PanelPacketCapture() {
     if (activeTab === 'protocols') analysis.loadProtocols()
     else if (activeTab === 'patterns') analysis.loadPatterns()
     else if (activeTab === 'suspicious') analysis.loadSuspicious()
-  }, [activeTab])
+  }, [activeTab, analysis])
 
   const tabs: { key: AnalysisTab; label: string }[] = [
     { key: 'packets', label: 'Packets' },

@@ -6,6 +6,7 @@ import CaptureList from '../components/captures/CaptureList'
 import CaptureDetail from '../components/captures/CaptureDetail'
 import TimelineSwimlaneView from '../components/timeline/TimelineSwimlaneView'
 import PanelPacketCapture from '../components/panels/PanelPacketCapture'
+import ManipulationPanel from '../components/manipulation/ManipulationPanel'
 import { useProxy } from '../hooks/useProxy'
 import { useCaptures } from '../hooks/useCaptures'
 import { useDevices } from '../hooks/useDevices'
@@ -13,7 +14,7 @@ import { useTrafficStream } from '../hooks/useTrafficStream'
 import { useTheme } from '../hooks/useTheme'
 import type { CaptureFilters } from '../types/api'
 
-type ViewMode = 'list' | 'timeline' | 'packet-capture'
+type ViewMode = 'list' | 'timeline' | 'packet-capture' | 'manipulation'
 
 export default function DashboardPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -59,13 +60,13 @@ export default function DashboardPage() {
     >
       {/* View mode toggle */}
       <div className="view-toggle">
-        {(['list', 'timeline', 'packet-capture'] as const).map(mode => (
+        {(['list', 'timeline', 'packet-capture', 'manipulation'] as const).map(mode => (
           <button
             key={mode}
             className={`view-toggle__btn${viewMode === mode ? ' view-toggle__btn--active' : ''}`}
             onClick={() => setViewMode(mode)}
           >
-            {mode === 'list' ? 'List' : mode === 'timeline' ? 'Timeline' : 'Packet Capture'}
+            {mode === 'list' ? 'List' : mode === 'timeline' ? 'Timeline' : mode === 'packet-capture' ? 'Packet Capture' : 'Manipulation'}
           </button>
         ))}
       </div>
@@ -114,6 +115,10 @@ export default function DashboardPage() {
 
       {viewMode === 'packet-capture' && (
         <PanelPacketCapture />
+      )}
+
+      {viewMode === 'manipulation' && (
+        <ManipulationPanel captures={captures} />
       )}
     </AppShell>
   )

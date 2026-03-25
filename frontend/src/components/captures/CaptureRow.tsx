@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { CapturedRequestSummary } from '../../types/api'
 import '../../styles/capture-list.css'
 
@@ -60,7 +61,7 @@ function protocolLabel(protocol: string, isTls: boolean): string | null {
   }
 }
 
-export default function CaptureRow({ capture, selected, onSelect }: Props) {
+export default memo(function CaptureRow({ capture, selected, onSelect }: Props) {
   const { id, method, host, path, statusCode, durationMs, isTls, requestBodySize, protocol, timestamp } = capture
   const displayPath = path || '/'
   const proto = protocolLabel(protocol, isTls)
@@ -97,4 +98,4 @@ export default function CaptureRow({ capture, selected, onSelect }: Props) {
       </span>
     </div>
   )
-}
+})

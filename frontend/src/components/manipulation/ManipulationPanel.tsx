@@ -1,20 +1,23 @@
 import { useState } from 'react'
 import { useManipulation } from '../../hooks/useManipulation'
-import { useCaptures } from '../../hooks/useCaptures'
 import RulesEditor from './RulesEditor'
 import BreakpointsEditor from './BreakpointsEditor'
 import ReplayPanel from './ReplayPanel'
 import FuzzerPanel from './FuzzerPanel'
 import ApiSpecPanel from '../apispec/ApiSpecPanel'
+import type { CapturedRequestSummary } from '../../types/api'
 import '../../styles/manipulation.css'
 
 type ManipTab = 'rules' | 'breakpoints' | 'replay' | 'fuzzer' | 'apispec'
 
-export default function ManipulationPanel() {
+interface Props {
+  captures: CapturedRequestSummary[]
+}
+
+export default function ManipulationPanel({ captures }: Props) {
   const [activeTab, setActiveTab] = useState<ManipTab>('rules')
 
   const manip = useManipulation()
-  const { captures } = useCaptures({ page: 1, pageSize: 100 })
 
   const tabs: { key: ManipTab; label: string }[] = [
     { key: 'rules', label: 'Rules' },
