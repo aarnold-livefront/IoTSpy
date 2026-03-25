@@ -17,6 +17,59 @@ namespace IoTSpy.Storage.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.3");
 
+            modelBuilder.Entity("IoTSpy.Core.Models.ApiSpecDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Host")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("MockEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OpenApiJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("PassthroughFirst")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("UpdatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("UseLlmAnalysis")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Host");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("ApiSpecDocuments");
+                });
+
             modelBuilder.Entity("IoTSpy.Core.Models.Breakpoint", b =>
                 {
                     b.Property<Guid>("Id")
@@ -385,6 +438,62 @@ namespace IoTSpy.Storage.Migrations
                     b.HasIndex("IsRootCa");
 
                     b.ToTable("Certificates");
+                });
+
+            modelBuilder.Entity("IoTSpy.Core.Models.ContentReplacementRule", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Action")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("ApiSpecDocumentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Enabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("HostPattern")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MatchPattern")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("MatchType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PathPattern")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ReplacementContentType")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReplacementFilePath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReplacementValue")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApiSpecDocumentId");
+
+                    b.HasIndex("Priority");
+
+                    b.ToTable("ContentReplacementRules");
                 });
 
             modelBuilder.Entity("IoTSpy.Core.Models.Device", b =>
@@ -1171,6 +1280,17 @@ namespace IoTSpy.Storage.Migrations
                     b.ToTable("DashboardLayouts");
                 });
 
+            modelBuilder.Entity("IoTSpy.Core.Models.ContentReplacementRule", b =>
+                {
+                    b.HasOne("IoTSpy.Core.Models.ApiSpecDocument", "ApiSpecDocument")
+                        .WithMany("ReplacementRules")
+                        .HasForeignKey("ApiSpecDocumentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApiSpecDocument");
+                });
+
             modelBuilder.Entity("IoTSpy.Core.Models.CapturedPacket", b =>
                 {
                     b.HasOne("IoTSpy.Core.Models.CaptureDevice", "Device")
@@ -1256,6 +1376,11 @@ namespace IoTSpy.Storage.Migrations
                         .IsRequired();
 
                     b.Navigation("Device");
+                });
+
+            modelBuilder.Entity("IoTSpy.Core.Models.ApiSpecDocument", b =>
+                {
+                    b.Navigation("ReplacementRules");
                 });
 
             modelBuilder.Entity("IoTSpy.Core.Models.CaptureDevice", b =>

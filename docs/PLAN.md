@@ -19,13 +19,13 @@ README / quick start: [`README.md`](../README.md)
 |---|---|
 | Backend projects | 7 (Core, Proxy, Protocols, Scanner, Manipulation, Storage, Api) |
 | Test projects | 8 (Core.Tests, Protocols.Tests, Manipulation.Tests, Scanner.Tests, Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests) |
-| Backend tests | 300+ (all passing) — includes Phase 10 decoders + Phase 11 TLS parser/SSL strip/model/auth tests |
+| Backend tests | 350+ (all passing) — includes Phase 10 decoders + Phase 11 TLS parser/SSL strip/model/auth tests + API spec generator/replacer/controller tests |
 | Frontend tests | 11 component tests via Vitest + React Testing Library |
-| REST controllers | 13 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy, Report, ScheduledScan, Dashboard) |
-| HTTP endpoints | 60+ |
+| REST controllers | 14 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy, Report, ScheduledScan, Dashboard, ApiSpec) |
+| HTTP endpoints | 80+ |
 | SignalR hubs | 2 (TrafficHub, PacketCaptureHub) — TrafficHub extended with WebSocket frame + MQTT message + anomaly alert subscriptions |
-| EF Core migrations | 11 (InitialCreate → AddPhase11MultiUserAndAudit) |
-| Frontend components | 55+ TypeScript files across 14 component directories |
+| EF Core migrations | 12 (InitialCreate → AddApiSpecAndContentReplacement) |
+| Frontend components | 60+ TypeScript files across 15 component directories |
 | Protocols supported | HTTP/HTTPS, TLS passthrough (JA3/JA3S), WebSocket, MQTT 3.1.1/5.0 (passive decode + active proxy), DNS/mDNS, CoAP (passive decode + active proxy), gRPC/Protobuf, Modbus TCP, OpenRTB 2.5, Datadog, Firehose, Splunk HEC, Azure Monitor |
 | CI | GitHub Actions (`.github/workflows/ci.yml`) — build, test, lint, coverage on push/PR |
 
@@ -33,7 +33,7 @@ README / quick start: [`README.md`](../README.md)
 
 ## What has been built
 
-All phases 1–11, plus OpenRTB inspection and TLS passthrough/SSL stripping, are complete.
+All phases 1–11, plus OpenRTB inspection, TLS passthrough/SSL stripping, and API Spec Generation & Content-Aware Mocking are complete.
 
 ### Phase 1 — Foundation
 
@@ -106,6 +106,24 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Core model tests** — `IoTSpy.Core.Tests` project (30+ tests): model defaults, enum coverage, new User/AuditEntry/DashboardLayout models
 - **Auth controller tests updated** — 10 tests covering multi-user + legacy auth
 - EF Core migration `AddPhase11MultiUserAndAudit` — adds `Users`, `AuditEntries`, `DashboardLayouts` tables
+
+### API Spec Generation & Content-Aware Mocking
+
+**Goal:** Generate OpenAPI 3.0 specs from captured traffic, mock API responses based on observed data, and replace content (images, video, etc.) in responses with custom assets.
+
+- **OpenAPI spec generation** — `ApiSpecGenerator` analyzes captured traffic to produce OpenAPI 3.0 JSON; path normalization detects GUID/numeric/hex segments and replaces with `{id}` placeholders; recursive JSON schema inference with format detection (uuid, date-time, email, uri)
+- **Import/export** — Import and export API spec `.json` files via `ApiSpecController`; specs can be shared across environments
+- **Passthrough-first mocking** — `ApiSpecMockService` allows real traffic through while observing payloads; dual-layer cache (ConcurrentDictionary + Timer-based background DB flush) records observed responses as OpenAPI examples
+- **LLM-enhanced refinement** — `ApiSpecLlmEnhancer` uses existing `IAiProvider` infrastructure (Claude/OpenAI/Ollama) to improve spec descriptions, add summaries, and infer semantic types
+- **Content replacement engine** — `ContentReplacer` supports four match types: `ContentType` (wildcards like `image/*`), `JsonPath`, `HeaderValue`, `BodyRegex`; four actions: `ReplaceWithFile`, `ReplaceWithUrl`, `ReplaceWithValue`, `Redact`; priority-based rule ordering with host/path scope patterns
+- **Asset management** — Local filesystem storage (`./data/assets/`) for replacement files (images, video, audio); upload/list/delete via API endpoints; 50MB upload limit
+- **Proxy pipeline integration** — `ApiSpecMockService.ApplyMockAsync` called in the manipulation pipeline between rules engine and breakpoint scripts
+- **Models** — `ApiSpecDocument` (spec entity with status, mock/passthrough/LLM flags), `ContentReplacementRule` (replacement rule with match type, action, priority), `ApiSpecGenerationRequest` (generation DTO)
+- **Enums** — `ApiSpecStatus` (Draft/Active/Archived), `ContentMatchType` (ContentType/JsonPath/HeaderValue/BodyRegex), `ContentReplacementAction` (ReplaceWithFile/ReplaceWithUrl/ReplaceWithValue/Redact)
+- **Controller** — `ApiSpecController` with 20+ endpoints: spec CRUD, generate, import, export, refine, activate/deactivate, replacement rules CRUD, asset upload/list/delete
+- **Tests** — `ApiSpecGeneratorTests` (18 tests: path normalization, JSON schema inference, format detection), `ContentReplacerTests` (14 tests: match types, actions, scope, priority), `ApiSpecControllerTests` (14 tests: controller endpoints)
+- **Frontend** — `ApiSpecPanel`, `GenerateSpecDialog`, `SpecEditor`, `ReplacementRulesEditor`, `ImportExportControls` components; `useApiSpec` hook; new "API Spec" tab in ManipulationPanel
+- EF Core migration `AddApiSpecAndContentReplacement` — adds `ApiSpecDocuments` and `ContentReplacementRules` tables with indexes and FK cascade delete
 
 ---
 
@@ -314,8 +332,8 @@ dotnet run --project src/IoTSpy.Api
 - `IoTSpy.Proxy` has explicit + transparent proxy servers, TLS MITM CA, TLS passthrough (JA3/JA3S), SSL stripping, MQTT broker proxy, CoAP proxy, WebSocket interception, ARP spoofing, iptables helper, Polly resilience. References `IoTSpy.Protocols` for decoder access.
 - `IoTSpy.Protocols` has MQTT, DNS/mDNS, CoAP, WebSocket, gRPC/Protobuf, Modbus TCP, OpenRTB, and four telemetry decoders (Datadog, Firehose, Splunk HEC, Azure Monitor).
 - `IoTSpy.Scanner` has port scan, fingerprinting, credential testing, CVE lookup, config audit, and packet capture.
-- `IoTSpy.Manipulation` has rules engine, scripted breakpoints (C#/JS), replay, fuzzer, AI mock engine, packet capture analyzer, and OpenRTB PII service.
-- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` — 11 migrations applied: InitialCreate, AddPhase2ProxySettings, AddPhase3Scanner, AddPhase4ManipulationFix, AddOpenRtbInspection, AddPacketCapture, AddMissingPhase7Changes, AddPhase9ScheduledScans, AddBodyCaptureDefaults, AddTlsPassthroughAndSslStrip, AddPhase11MultiUserAndAudit. Run `dotnet ef migrations add <Name> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api` from the repo root.
+- `IoTSpy.Manipulation` has rules engine, scripted breakpoints (C#/JS), replay, fuzzer, AI mock engine, packet capture analyzer, OpenRTB PII service, API spec generation, content replacement, and LLM-enhanced spec refinement.
+- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` — 12 migrations applied: InitialCreate, AddPhase2ProxySettings, AddPhase3Scanner, AddPhase4ManipulationFix, AddOpenRtbInspection, AddPacketCapture, AddMissingPhase7Changes, AddPhase9ScheduledScans, AddBodyCaptureDefaults, AddTlsPassthroughAndSslStrip, AddPhase11MultiUserAndAudit, AddApiSpecAndContentReplacement. Run `dotnet ef migrations add <Name> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api` from the repo root.
 - **Multi-user RBAC** — `User` model with `UserRole` enum (Admin/Operator/Viewer); `IUserRepository`; JWT claims include `sub` (user ID) + `role`; admin-only user CRUD in `AuthController`; backward-compatible with legacy single-user auth (falls back to `ProxySettings.PasswordHash` when no `User` record matches).
 - **Audit log** — `AuditEntry` model + `IAuditRepository`; tracks login, user CRUD; admin-only GET `/api/auth/audit`.
 - **Dashboard customization** — `DashboardLayout` model + `IDashboardLayoutRepository`; per-user saved layouts with JSON config; `DashboardController` CRUD.

@@ -14,6 +14,7 @@ public class ManipulationService(
     JavaScriptEngine jsEngine,
     ReplayService replayService,
     FuzzerService fuzzerService,
+    IApiSpecService apiSpecService,
     IServiceScopeFactory scopeFactory,
     ILogger<ManipulationService> logger) : IManipulationService
 {
@@ -34,7 +35,14 @@ public class ManipulationService(
             if (rulesModified) modified = true;
         }
 
-        // 2. Apply scripted breakpoints
+        // 2. Apply API spec content replacement (response phase only)
+        if (phase == ManipulationPhase.Response)
+        {
+            var specModified = await apiSpecService.ApplyMockAsync(message, phase, ct);
+            if (specModified) modified = true;
+        }
+
+        // 3. Apply scripted breakpoints
         var bpRepo = scope.ServiceProvider.GetRequiredService<IBreakpointRepository>();
         var breakpoints = await bpRepo.GetEnabledAsync(ct);
 
