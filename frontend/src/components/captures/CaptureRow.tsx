@@ -5,6 +5,7 @@ import '../../styles/capture-list.css'
 interface Props {
   capture: CapturedRequestSummary
   selected: boolean
+  isNew?: boolean
   onSelect: (id: string) => void
 }
 
@@ -25,6 +26,12 @@ function statusBadgeClass(code: number): string {
   if (code < 400) return 'status-badge status-badge--3xx'
   if (code < 500) return 'status-badge status-badge--4xx'
   return 'status-badge status-badge--5xx'
+}
+
+function rowStatusClass(code: number): string {
+  if (code >= 500) return ' capture-row--status-5xx'
+  if (code >= 400) return ' capture-row--status-4xx'
+  return ''
 }
 
 function formatDuration(ms: number): string {
@@ -61,14 +68,14 @@ function protocolLabel(protocol: string, isTls: boolean): string | null {
   }
 }
 
-export default memo(function CaptureRow({ capture, selected, onSelect }: Props) {
+export default memo(function CaptureRow({ capture, selected, isNew, onSelect }: Props) {
   const { id, method, host, path, statusCode, durationMs, isTls, requestBodySize, protocol, timestamp } = capture
   const displayPath = path || '/'
   const proto = protocolLabel(protocol, isTls)
 
   return (
     <div
-      className={`capture-row${selected ? ' capture-row--selected' : ''}${isTls ? ' capture-row--tls' : ''}`}
+      className={`capture-row${selected ? ' capture-row--selected' : ''}${isTls ? ' capture-row--tls' : ''}${rowStatusClass(statusCode)}${isNew ? ' capture-row--new' : ''}`}
       onClick={() => onSelect(id)}
       role="row"
       aria-selected={selected}

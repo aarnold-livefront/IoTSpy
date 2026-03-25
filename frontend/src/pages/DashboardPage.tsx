@@ -118,7 +118,7 @@ export default function DashboardPage() {
       )}
 
       {viewMode === 'manipulation' && (
-        <ManipulationPanel captures={captures} />
+        <ManipulationPanel />
       )}
     </AppShell>
   )
