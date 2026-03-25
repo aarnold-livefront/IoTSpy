@@ -28,7 +28,7 @@ public class CapturesControllerTests
         repo.CountAsync(Arg.Any<CaptureFilter>(), Arg.Any<CancellationToken>()).Returns(2);
 
         var controller = new CapturesController(repo);
-        var result = await controller.List(null, null, null, null, null, null, null) as OkObjectResult;
+        var result = await controller.List(null, null, null, null, null, null, null, null) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = System.Text.Json.JsonSerializer.Serialize(result.Value);
