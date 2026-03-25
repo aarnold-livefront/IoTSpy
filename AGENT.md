@@ -49,7 +49,7 @@ src/
   IoTSpy.Storage/              EF Core DbContext + repositories (SQLite/Postgres)
   IoTSpy.Protocols/            MQTT, DNS, CoAP, WebSocket, gRPC, Modbus, OpenRTB, telemetry decoders
   IoTSpy.Scanner/              Port scan, service fingerprinting, CVE lookup, packet capture
-  IoTSpy.Manipulation/         Rules engine, scripted breakpoints, replay, fuzzer, AI mock, OpenRTB PII
+  IoTSpy.Manipulation/         Rules engine, scripted breakpoints, replay, fuzzer, AI mock, OpenRTB PII, API spec generation, content replacement
   IoTSpy.*.Tests/              Unit + integration tests (NSubstitute mocks, EF Core in-memory)
   IoTSpy.Api.IntegrationTests/ WebApplicationFactory integration tests
 frontend/                      Vite + React + TypeScript dashboard
@@ -119,7 +119,7 @@ SignalR hubs:
 
 ## Testing guidance
 
-- Run `dotnet test` before committing; all 300+ backend tests must pass.
+- Run `dotnet test` before committing; all 350+ backend tests must pass.
 - New backend code needs corresponding tests. Prefer unit tests with NSubstitute mocks; use EF Core SQLite in-memory for repository tests.
 - Frontend tests use Vitest + React Testing Library (`npm test` inside `frontend/`).
 - CI runs on every push/PR via `.github/workflows/ci.yml`.

@@ -60,6 +60,14 @@ IoT network security platform: transparent MITM proxy, protocol analyzer, pen-te
 - **Mutation fuzzer** — Random, Boundary, and BitFlip strategies with anomaly detection
 - **AI mock engine** — schema learning + LLM-generated responses (Claude, OpenAI, Ollama)
 
+### API spec generation & content-aware mocking
+- **OpenAPI spec from traffic** — generate OpenAPI 3.0 specs from captured traffic with path normalization (GUID/numeric/hex → `{id}`) and recursive JSON schema inference
+- **Import/export** — share API spec `.json` files across environments
+- **Passthrough-first mocking** — observe real traffic payloads, then mock responses based on observed data; dual-layer in-memory + DB cache
+- **LLM-enhanced refinement** — use Claude/OpenAI/Ollama to improve spec descriptions and infer semantic types
+- **Content replacement** — replace response content by type (e.g. `image/*`, `video/*`), JsonPath, header value, or body regex; swap images/video/audio with custom assets
+- **Asset management** — upload and manage replacement files (images, video, audio) via API; 50MB upload limit
+
 ### Packet capture & analysis
 - **Live packet capture** — SharpPcap with ring buffer (10k packets), protocol-aware parsing
 - **Protocol distribution** — statistical breakdown of captured traffic by protocol
@@ -382,6 +390,28 @@ All endpoints (except `/api/auth/*`, `/api/certificates/root-ca/download`, `/hea
 | PUT | `/api/scheduled-scans/{id}` | Update (enable/disable, change cron) |
 | DELETE | `/api/scheduled-scans/{id}` | Delete a scheduled scan |
 
+### API Spec
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/apispec` | List all API specs |
+| GET | `/api/apispec/{id}` | Get a specific API spec |
+| POST | `/api/apispec/generate` | Generate OpenAPI spec from captured traffic |
+| POST | `/api/apispec/import` | Import an API spec from JSON |
+| GET | `/api/apispec/{id}/export` | Export an API spec as JSON |
+| PUT | `/api/apispec/{id}` | Update spec metadata |
+| PATCH | `/api/apispec/{id}/activate` | Activate spec (enable mocking) |
+| PATCH | `/api/apispec/{id}/deactivate` | Deactivate spec |
+| POST | `/api/apispec/{id}/refine` | Refine spec with LLM analysis |
+| DELETE | `/api/apispec/{id}` | Delete an API spec |
+| GET | `/api/apispec/{id}/rules` | List content replacement rules |
+| POST | `/api/apispec/{id}/rules` | Create a replacement rule |
+| PUT | `/api/apispec/rules/{ruleId}` | Update a replacement rule |
+| DELETE | `/api/apispec/rules/{ruleId}` | Delete a replacement rule |
+| POST | `/api/apispec/assets` | Upload a replacement asset (50MB limit) |
+| GET | `/api/apispec/assets` | List uploaded assets |
+| DELETE | `/api/apispec/assets/{filename}` | Delete an asset |
+
 ### Protocol Proxies
 
 | Method | Path | Description |
@@ -436,9 +466,9 @@ src/
   IoTSpy.Proxy/         # Explicit + transparent proxy, TLS MITM, ARP spoof, resilience
   IoTSpy.Protocols/     # Protocol decoders (MQTT, DNS, CoAP, OpenRTB, telemetry)
   IoTSpy.Scanner/       # Port scan, fingerprinting, CVE lookup, packet capture
-  IoTSpy.Manipulation/  # Rules engine, replay, fuzzer, AI mock, OpenRTB PII, packet analysis
+  IoTSpy.Manipulation/  # Rules engine, replay, fuzzer, AI mock, OpenRTB PII, packet analysis, API spec generation, content replacement
   IoTSpy.Storage/       # EF Core DbContext, repositories, migrations
-  IoTSpy.Api/           # ASP.NET Core host, 12 controllers, 2 SignalR hubs
+  IoTSpy.Api/           # ASP.NET Core host, 14 controllers, 2 SignalR hubs
 frontend/               # Vite 6 + React 19 + TypeScript dashboard
 docs/
   architecture.md       # Full architecture spec
@@ -488,7 +518,8 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full implementation plan, identified 
 | 9 | Export, reporting, alerting & scheduled scans | **Complete** |
 | 10 | Protocol expansion (WebSocket, MQTT proxy, gRPC, Modbus) | **Complete** |
 | — | TLS passthrough & SSL stripping (no-CA-install HTTPS visibility) | **Complete** |
-| 11 | UX polish & multi-user support | **Planned** |
+| 11 | UX polish & multi-user support | **Complete** |
+| — | API spec generation & content-aware mocking | **Complete** |
 
 ---
 

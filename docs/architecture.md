@@ -4,7 +4,7 @@
 
 IoTSpy is a .NET 10 / C# solution that acts as a transparent MITM proxy, multi-protocol decoder, statistical anomaly detector, and lightweight pen-test suite for IoT network research. A REST + SignalR API exposes all functionality; the frontend is a Vite 6 + React 19 + TypeScript single-page application.
 
-All phases (1–11) plus OpenRTB inspection and TLS passthrough/SSL stripping are complete.
+All phases (1–11) plus OpenRTB inspection, TLS passthrough/SSL stripping, and API Spec Generation & Content-Aware Mocking are complete.
 
 ---
 
@@ -17,7 +17,7 @@ src/
   IoTSpy.Proxy/          — TCP listeners, TLS MITM, TLS passthrough + JA3, SSL stripping, Polly resilience
   IoTSpy.Protocols/      — protocol decoders + anomaly detection
   IoTSpy.Scanner/        — pen-test suite (port scan, CVE lookup, config audit)
-  IoTSpy.Manipulation/   — rules engine, scripted breakpoints, replay, fuzzer, AI mock
+  IoTSpy.Manipulation/   — rules engine, scripted breakpoints, replay, fuzzer, AI mock, API spec generation, content replacement
   IoTSpy.Storage/        — EF Core DbContext + repositories (SQLite / PostgreSQL)
   IoTSpy.Api/            — ASP.NET Core host (REST + SignalR)
   IoTSpy.Protocols.Tests/
@@ -99,11 +99,15 @@ Domain models live in `IoTSpy.Core/Models/`; DTOs and result types are co-locate
 | `SuspiciousActivity` | Detection result: category, severity, evidence list |
 | `NetworkDeviceStatistics` | Live capture stats: PPS, BPS, drop rate |
 
-### Interfaces (30)
+### Interfaces (32+)
 
-`ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`, `IAnomalyAlertPublisher`, `IPacketCaptureService`, `IPacketCaptureAnalyzer`, `IPacketCapturePublisher`, `IOpenRtbEventRepository`, `IOpenRtbPiiPolicyRepository`, `IOpenRtbService`, `IPiiStrippingLogRepository`, `ICaptureDeviceRepository`, `IAlertingService`, `IReportService`, `IScheduledScanRepository`, `IMqttBrokerProxy`, `ICoapProxy`, `IUserRepository`, `IAuditRepository`, `IDashboardLayoutRepository`
+`ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`, `IAnomalyAlertPublisher`, `IPacketCaptureService`, `IPacketCaptureAnalyzer`, `IPacketCapturePublisher`, `IOpenRtbEventRepository`, `IOpenRtbPiiPolicyRepository`, `IOpenRtbService`, `IPiiStrippingLogRepository`, `ICaptureDeviceRepository`, `IAlertingService`, `IReportService`, `IScheduledScanRepository`, `IMqttBrokerProxy`, `ICoapProxy`, `IUserRepository`, `IAuditRepository`, `IDashboardLayoutRepository`, `IApiSpecRepository`, `IApiSpecService`
 
-### Enums (13)
+| `ApiSpecDocument` | API spec entity: name, host, version, OpenAPI JSON, status (Draft/Active/Archived), mock/passthrough/LLM flags, timestamps; nav property to `ContentReplacementRule` list |
+| `ContentReplacementRule` | Content replacement rule: match type (ContentType/JsonPath/HeaderValue/BodyRegex), action (ReplaceWithFile/ReplaceWithUrl/ReplaceWithValue/Redact), priority, host/path scope patterns; FK → ApiSpecDocument |
+| `ApiSpecGenerationRequest` | DTO for spec generation: host, path pattern, method, date range, LLM flag, name |
+
+### Enums (16)
 
 | Enum | Values |
 |---|---|
@@ -121,6 +125,9 @@ Domain models live in `IoTSpy.Core/Models/`; DTOs and result types are co-locate
 | `WebSocketOpcode` | Continuation, Text, Binary, Close, Ping, Pong |
 | `OpenRtbMessageType` | BidRequest, BidResponse |
 | `PiiRedactionStrategy` | Redact, Hash, Mask, Remove |
+| `ApiSpecStatus` | Draft, Active, Archived |
+| `ContentMatchType` | ContentType, JsonPath, HeaderValue, BodyRegex |
+| `ContentReplacementAction` | ReplaceWithFile, ReplaceWithUrl, ReplaceWithValue, Redact |
 
 ---
 
@@ -353,6 +360,17 @@ Implements `IPacketCaptureAnalyzer` — freeze frame, protocol distribution, pat
 
 Thread-safe with lock-based synchronization. Freeze/unfreeze toggles snapshot mode.
 
+### API spec generation (`ApiSpec/`)
+
+Generate OpenAPI 3.0 specs from captured traffic, mock API responses, and replace content in responses.
+
+| Class | Responsibility |
+|---|---|
+| `ApiSpecGenerator` | Analyzes captured traffic to produce OpenAPI 3.0 JSON; path normalization (GUID/numeric/hex → `{id}`); recursive JSON schema inference with format detection (uuid, date-time, email, uri) |
+| `ApiSpecMockService` | Implements `IApiSpecService`; passthrough-first mocking with dual-layer cache (ConcurrentDictionary + Timer-based background DB flush); called from proxy pipeline between rules engine and breakpoints |
+| `ContentReplacer` | Content replacement engine: matches by ContentType (wildcards), JsonPath, HeaderValue, BodyRegex; actions: ReplaceWithFile, ReplaceWithUrl, ReplaceWithValue, Redact; file cache with invalidation |
+| `ApiSpecLlmEnhancer` | Uses `IAiProvider` to refine specs; truncates to 12k chars for LLM context; validates response structure before accepting |
+
 Registered via `ManipulationExtensions.AddIoTSpyManipulation(aiConfig)`.
 
 ---
@@ -385,16 +403,18 @@ EF Core 10 data access layer; supports SQLite (default) and PostgreSQL.
 | `Users` | `User` | Multi-user RBAC identities (Phase 11) |
 | `AuditEntries` | `AuditEntry` | Immutable audit log (Phase 11) |
 | `DashboardLayouts` | `DashboardLayout` | Per-user saved dashboard configurations (Phase 11) |
+| `ApiSpecDocuments` | `ApiSpecDocument` | API spec entities with OpenAPI JSON, status, mock/passthrough flags |
+| `ContentReplacementRules` | `ContentReplacementRule` | Content replacement rules with match type, action, priority; FK → ApiSpecDocument |
 
 `DateTimeOffset` columns are stored as Unix milliseconds (`long`) via a `ValueConverter` — required for SQLite `ORDER BY` compatibility.
 
 ### Repositories (12+)
 
-`CaptureRepository`, `DeviceRepository`, `CertificateRepository`, `ProxySettingsRepository`, `ScanJobRepository`, `ManipulationRuleRepository`, `BreakpointRepository`, `ReplaySessionRepository`, `FuzzerJobRepository`, `OpenRtbEventRepository`, `OpenRtbPiiPolicyRepository`, `PiiStrippingLogRepository`, `CaptureDeviceRepository`, `ScheduledScanRepository`, `UserRepository`, `AuditRepository`, `DashboardLayoutRepository`
+`CaptureRepository`, `DeviceRepository`, `CertificateRepository`, `ProxySettingsRepository`, `ScanJobRepository`, `ManipulationRuleRepository`, `BreakpointRepository`, `ReplaySessionRepository`, `FuzzerJobRepository`, `OpenRtbEventRepository`, `OpenRtbPiiPolicyRepository`, `PiiStrippingLogRepository`, `CaptureDeviceRepository`, `ScheduledScanRepository`, `UserRepository`, `AuditRepository`, `DashboardLayoutRepository`, `ApiSpecRepository`
 
 All repositories are **scoped** (one per HTTP request / DI scope) because they depend on the scoped EF Core `DbContext`.
 
-### Migrations (11)
+### Migrations (12)
 
 | Migration | Contents |
 |---|---|
@@ -409,6 +429,7 @@ All repositories are **scoped** (one per HTTP request / DI scope) because they d
 | `AddBodyCaptureDefaults` | Body capture default column values |
 | `AddTlsPassthroughAndSslStrip` | `TlsMetadataJson` (TEXT) on Captures, `SslStrip` (BOOLEAN) on ProxySettings |
 | `AddPhase11MultiUserAndAudit` | `Users`, `AuditEntries`, `DashboardLayouts` tables |
+| `AddApiSpecAndContentReplacement` | `ApiSpecDocuments`, `ContentReplacementRules` tables with indexes and FK cascade delete |
 
 ---
 
@@ -418,13 +439,13 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 
 ### Service lifetimes
 
-- **Singleton**: `ExplicitProxyServer`, `TransparentProxyServer`, `CertificateAuthority`, `ProxyService`, `SslStripService`, `ArpSpoofEngine`, `IptablesHelper`, `SignalRCapturePublisher`, `SignalRAnomalyPublisher`, `PortScanner`, `ServiceFingerprinter`, `CredentialTester`, `ConfigAuditor`, `ScannerService`, `MqttBrokerProxy`, `CoapProxy`
+- **Singleton**: `ExplicitProxyServer`, `TransparentProxyServer`, `CertificateAuthority`, `ProxyService`, `SslStripService`, `ArpSpoofEngine`, `IptablesHelper`, `SignalRCapturePublisher`, `SignalRAnomalyPublisher`, `PortScanner`, `ServiceFingerprinter`, `CredentialTester`, `ConfigAuditor`, `ScannerService`, `MqttBrokerProxy`, `CoapProxy`, `ApiSpecGenerator`, `ContentReplacer`, `ApiSpecMockService`, `ApiSpecLlmEnhancer`
   *(TCP listeners and other long-lived services that must not be re-created per request)*
 - **Hosted services**: `ProxyService` (via `AddHostedService(sp => sp.GetRequiredService<ProxyService>())`), `DataRetentionService` (background cleanup; disabled by default)
 - **Scoped**: All EF Core repositories, `DbContext`
 - `ProxyService` is registered once as `IProxyService` and once as `IHostedService` via `AddHostedService(sp => sp.GetRequiredService<ProxyService>())` to prevent double instantiation.
 
-### Controllers (13)
+### Controllers (14)
 
 | Controller | Endpoints |
 |---|---|
@@ -441,6 +462,7 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 | `ReportController` | `GET /api/reports/devices/{id}/html`, `GET /api/reports/devices/{id}/pdf` — scan report generation |
 | `ScheduledScanController` | CRUD `GET/POST/PUT/DELETE /api/scheduled-scans` — cron-based recurring scan jobs |
 | `DashboardController` | Per-user dashboard layout CRUD (`GET/POST/PUT/DELETE /api/dashboard/layouts`) |
+| `ApiSpecController` | API spec CRUD, generate from traffic, import/export, LLM refine, activate/deactivate, replacement rules CRUD, asset upload/list/delete (20+ endpoints at `/api/apispec`) |
 
 ### SignalR
 
@@ -515,7 +537,7 @@ JWT stored in `localStorage['iotspy_token']`; passed as `?access_token=` for Sig
 | Captures | Split-pane list + detail (request / response / TLS tabs); `CaptureFilterBar` |
 | Devices | Device list with timeline swimlane view per device |
 | Scanner | `ScannerPanel` → `ScanJobList` + `ScanFindingsView` |
-| Manipulation | `ManipulationPanel` → `RulesEditor`, `BreakpointsEditor`, `ReplayPanel`, `FuzzerPanel` |
+| Manipulation | `ManipulationPanel` → `RulesEditor`, `BreakpointsEditor`, `ReplayPanel`, `FuzzerPanel`, `ApiSpecPanel` |
 | Packet Capture | `PanelPacketCapture` (tabbed: Packets / Protocols / Patterns / Suspicious) → `PacketListFilterable`, `PacketInspector` (Details / Hex Dump / Layers), `ProtocolDistributionView`, `PatternExplorer`, `SuspiciousActivityPanel` |
 | Live stream | `useTrafficStream` via SignalR; new captures prepended in real time |
 
@@ -553,13 +575,13 @@ frontend/src/
 
 ## Test projects
 
-300+ backend tests + 11 frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI.
+350+ backend tests + 11 frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI.
 
 | Project | Test classes | Coverage |
 |---|---|---|
 | `IoTSpy.Core.Tests` | `ModelDefaultTests`, `EnumCoverageTests`, `UserModelTests`, `AuditEntryTests` | Model defaults/enum coverage; User/AuditEntry/DashboardLayout validation |
 | `IoTSpy.Protocols.Tests` | `MqttDecoderTests`, `DnsDecoderTests`, `TelemetryDecoderTests`, `AnomalyDetectorTests`, `WebSocketDecoderTests`, `GrpcDecoderTests`, `ModbusDecoderTests`, `CoapDecoderTests`, `MqttTopicMatchTests` | MQTT 3.1.1/5.0; DNS/mDNS; all four telemetry decoders; anomaly detection; WebSocket RFC 6455 frames; gRPC LPM; Modbus TCP; CoAP RFC 7252; MQTT topic wildcard matching |
-| `IoTSpy.Manipulation.Tests` | `RulesEngineTests`, `FuzzerServiceTests`, `OpenRtbPiiServiceTests` | Rule matching + all actions; fuzzer mutation strategies; OpenRTB PII detection + redaction |
+| `IoTSpy.Manipulation.Tests` | `RulesEngineTests`, `FuzzerServiceTests`, `OpenRtbPiiServiceTests`, `ApiSpecGeneratorTests`, `ContentReplacerTests` | Rule matching + all actions; fuzzer mutation strategies; OpenRTB PII detection + redaction; API spec path normalization + JSON schema inference; content replacement match types + actions |
 | `IoTSpy.Scanner.Tests` | `PortScannerTests`, `PacketCaptureServiceTests` | Concurrency limiting, timeout handling; ring buffer, PCAP export |
 | `IoTSpy.Api.Tests` | `AuthControllerTests`, `ProxyControllerTests`, `CapturesControllerTests`, `DevicesControllerTests`, `ScannerControllerTests`, `AuthServiceTests` | Controller unit tests with NSubstitute mocks; multi-user + legacy auth; `AuthService` PBKDF2/JWT logic |
 | `IoTSpy.Proxy.Tests` | `ProxyServiceTests`, `ResilienceOptionsTests`, `GracefulShutdownTests`, `TlsClientHelloParserTests`, `TlsServerHelloParserTests`, `SslStripServiceTests` | ProxyService state machine; resilience defaults; graceful shutdown; TLS handshake parsing (JA3/JA3S/SNI); SSL strip redirect/HSTS/rewrite |

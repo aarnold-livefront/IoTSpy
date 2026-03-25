@@ -35,7 +35,7 @@ IoTSpy.Proxy        TLS MITM/passthrough, SSL stripping, WebSocket/MQTT/CoAP pro
 IoTSpy.Storage      EF Core DbContext + repositories (SQLite/Postgres)
 IoTSpy.Protocols    MQTT, DNS, CoAP, WebSocket, gRPC, Modbus, OpenRTB, telemetry decoders
 IoTSpy.Scanner      Port scan, fingerprinting, CVE lookup, packet capture
-IoTSpy.Manipulation Rules engine, scripted breakpoints, replay, fuzzer, AI mock, OpenRTB PII
+IoTSpy.Manipulation Rules engine, scripted breakpoints, replay, fuzzer, AI mock, OpenRTB PII, API spec generation, content replacement
 IoTSpy.*.Tests      Unit + integration tests
 frontend/           Vite 6 + React 19 + TypeScript dashboard
 docs/               architecture.md, PLAN.md
@@ -70,10 +70,10 @@ See `.dev/claude-skills/README.md` for full details.
 
 ## Current state
 
-All phases 1–11 plus OpenRTB inspection and TLS passthrough/SSL stripping are complete:
-- 300+ backend tests across 8 test projects; 11+ frontend component tests
-- 13 REST controllers, 60+ endpoints
-- 11 EF Core migrations up through `AddPhase11MultiUserAndAudit`
+All phases 1–11 plus OpenRTB inspection, TLS passthrough/SSL stripping, and API Spec Generation & Content-Aware Mocking are complete:
+- 350+ backend tests across 8 test projects; 11+ frontend component tests
+- 14 REST controllers, 80+ endpoints
+- 12 EF Core migrations up through `AddApiSpecAndContentReplacement`
 - GitHub Actions CI at `.github/workflows/ci.yml`
 
 See `docs/PLAN.md` for the full phased task list, per-phase details, and roadmap.
