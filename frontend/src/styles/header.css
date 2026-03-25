@@ -80,8 +80,8 @@
 }
 
 .header__btn--start:hover {
-  background-color: #27ae60;
-  border-color: #27ae60;
+  background-color: var(--color-success-hover);
+  border-color: var(--color-success-hover);
 }
 
 .header__btn--stop {

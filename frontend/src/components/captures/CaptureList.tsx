@@ -37,10 +37,17 @@ export default function CaptureList({
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const prevFirstIdRef = useRef<string | null>(null)
+  const seededRef = useRef(false)
   const [newId, setNewId] = useState<string | null>(null)
 
   useEffect(() => {
     const currentFirstId = captures[0]?.id ?? null
+    if (!seededRef.current) {
+      // Seed on first non-empty load — don't flash, it's not a live arrival
+      if (currentFirstId) seededRef.current = true
+      prevFirstIdRef.current = currentFirstId
+      return
+    }
     if (currentFirstId && currentFirstId !== prevFirstIdRef.current) {
       prevFirstIdRef.current = currentFirstId
       setNewId(currentFirstId)
