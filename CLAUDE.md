@@ -101,7 +101,7 @@ All resilience defaults are configurable under the `Resilience` section in `apps
 
 ### Authentication
 
-Single-user model. BCrypt password hash stored in the single `ProxySettings` row (Id=1). JWT issuer and audience are both `"iotspy"`. SignalR accepts the token via `?access_token=` query param. `Auth:JwtSecret` must be ≥ 32 characters; the app throws on startup if absent.
+Multi-user RBAC model (Phase 11). `User` table with `UserRole` enum (Admin, Operator, Viewer). PBKDF2-SHA256 password hashing. JWT claims include `NameIdentifier` (user ID), `Name` (username), and `Role`. Backward-compatible with legacy single-user auth via `ProxySettings.PasswordHash`. Admin-only endpoints for user CRUD and audit log. SignalR accepts the token via `?access_token=` query param. `Auth:JwtSecret` must be ≥ 32 characters; the app throws on startup if absent.
 
 ### Storage
 
@@ -114,7 +114,7 @@ Single-user model. BCrypt password hash stored in the single `ProxySettings` row
 
 ## Current status
 
-All phases (1–10) plus OpenRTB inspection and TLS passthrough/SSL stripping are complete. Seven test projects (Protocols.Tests, Manipulation.Tests, Scanner.Tests + Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests) with 14+ test classes. Twelve REST controllers (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy, Report, ScheduledScan) with 50+ endpoints. EF Core migrations (10): `InitialCreate` + `AddPhase2ProxySettings` + `AddPhase3Scanner` + `AddPhase4ManipulationFix` + `AddOpenRtbInspection` + `AddPacketCapture` + `AddMissingPhase7Changes` + `AddPhase9ScheduledScans` + `AddBodyCaptureDefaults` + `AddTlsPassthroughAndSslStrip`. GitHub Actions CI at `.github/workflows/ci.yml`.
+All phases (1–11) plus OpenRTB inspection and TLS passthrough/SSL stripping are complete. Eight test projects (Core.Tests, Protocols.Tests, Manipulation.Tests, Scanner.Tests, Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests) with 300+ tests. Thirteen REST controllers (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy, Report, ScheduledScan, Dashboard) with 60+ endpoints. EF Core migrations (11): `InitialCreate` + `AddPhase2ProxySettings` + `AddPhase3Scanner` + `AddPhase4ManipulationFix` + `AddOpenRtbInspection` + `AddPacketCapture` + `AddMissingPhase7Changes` + `AddPhase9ScheduledScans` + `AddBodyCaptureDefaults` + `AddTlsPassthroughAndSslStrip` + `AddPhase11MultiUserAndAudit`. GitHub Actions CI at `.github/workflows/ci.yml`.
 
 **Phase 3 additions:**
 - `IoTSpy.Scanner` — `PortScanner` (TCP connect scan, configurable concurrency/port ranges), `ServiceFingerprinter` (banner grab, CPE extraction via regex), `CredentialTester` (FTP/Telnet/MQTT default credential checks), `CveLookupService` (OSV.dev API), `ConfigAuditor` (Telnet, UPnP, anon MQTT, exposed DB, HTTP admin detection)
@@ -220,6 +220,23 @@ All phases (1–10) plus OpenRTB inspection and TLS passthrough/SSL stripping ar
 - `IoTSpy.Storage` — `AddTlsPassthroughAndSslStrip` migration (adds `TlsMetadataJson` to Captures, `SslStrip` to ProxySettings)
 - Structured logging with `DnsCorrelationKey={ClientIp}→{SniHostname}` on all TLS passthrough events for DNS-to-TLS correlation
 
-All phases (1–10) plus OpenRTB and TLS passthrough/SSL stripping are complete. See `docs/PLAN.md` for the full plan, identified gaps, and forward-looking roadmap.
+**Phase 11 additions (complete):**
+- `IoTSpy.Core` — `User` model with `UserRole` enum (Admin/Operator/Viewer); `AuditEntry` model for action tracking; `DashboardLayout` model for per-user saved layouts
+- `IoTSpy.Core` — `IUserRepository`, `IAuditRepository`, `IDashboardLayoutRepository` interfaces
+- `IoTSpy.Storage` — `Users`, `AuditEntries`, `DashboardLayouts` DbSets + repositories + `AddPhase11MultiUserAndAudit` migration
+- `IoTSpy.Api` — `AuthController` updated: multi-user login/setup, user CRUD (admin-only), audit log endpoint; backward-compatible with legacy single-user auth
+- `IoTSpy.Api` — `AuthService` updated: `GenerateToken(User)` with role claims, `VerifyPassword` made public
+- `IoTSpy.Api` — `DashboardController` (CRUD layouts per user, 4 endpoints)
+- Frontend: Dark/light theme via CSS custom properties (`[data-theme]`), `useTheme` hook, localStorage persistence, toggle in header
+- Frontend: `responsive.css` with mobile breakpoints (480px, 768px, 1024px), stacked split panes, scrollable view toggles
+- Frontend: `OnboardingWizard` component (5-step guided first-run flow), localStorage dismissal
+- Frontend: TypeScript types for `UserInfo`, `AuditEntry`, `DashboardLayout`, `UserRole`
+- Tests: `IoTSpy.Core.Tests` project (30+ model default/enum tests)
+- Tests: `TlsClientHelloParserTests` (13 tests — SNI, ciphers, extensions, JA3, GREASE, edge cases)
+- Tests: `TlsServerHelloParserTests` (11 tests — cipher suite, version, JA3S, TLS 1.3, edge cases)
+- Tests: `SslStripServiceTests` (14 tests — redirect detection, HSTS, URL rewriting, body rewriting)
+- Tests: `AuthControllerTests` updated (10 tests — multi-user + legacy + disabled user)
+
+All phases (1–11) plus OpenRTB and TLS passthrough/SSL stripping are complete. See `docs/PLAN.md` for the full plan, identified gaps, and forward-looking roadmap.
 
 See `docs/architecture.md` for full architecture spec and `docs/PLAN.md` for the phased task list.

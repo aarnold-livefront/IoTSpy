@@ -28,6 +28,11 @@ public DbSet<OpenRtbEvent> OpenRtbEvents => Set<OpenRtbEvent>();
     // Phase 9
     public DbSet<ScheduledScan> ScheduledScans => Set<ScheduledScan>();
 
+    // Phase 11 — Multi-user & audit
+    public DbSet<User> Users => Set<User>();
+    public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
+    public DbSet<DashboardLayout> DashboardLayouts => Set<DashboardLayout>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Device>(e =>
@@ -167,6 +172,35 @@ modelBuilder.Entity<OpenRtbPiiPolicy>(e =>
              .WithMany()
              .HasForeignKey(s => s.DeviceId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Phase 11 — Multi-user & audit
+        modelBuilder.Entity<User>(e =>
+        {
+            e.HasKey(u => u.Id);
+            e.HasIndex(u => u.Username).IsUnique();
+            e.Property(u => u.Username).IsRequired().HasMaxLength(100);
+            e.Property(u => u.PasswordHash).IsRequired();
+            e.Property(u => u.DisplayName).HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<AuditEntry>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasIndex(a => a.Timestamp);
+            e.HasIndex(a => a.UserId);
+            e.HasIndex(a => a.Action);
+            e.Property(a => a.Action).IsRequired().HasMaxLength(100);
+            e.Property(a => a.EntityType).HasMaxLength(100);
+            e.Property(a => a.EntityId).HasMaxLength(100);
+            e.Property(a => a.IpAddress).HasMaxLength(45);
+        });
+
+        modelBuilder.Entity<DashboardLayout>(e =>
+        {
+            e.HasKey(d => d.Id);
+            e.HasIndex(d => d.UserId);
+            e.Property(d => d.Name).IsRequired().HasMaxLength(100);
         });
 
         modelBuilder.Entity<CaptureDevice>(e =>

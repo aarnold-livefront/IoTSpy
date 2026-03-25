@@ -1,0 +1,115 @@
+/* ── Responsive breakpoints ──────────────────────────────────── */
+
+/* Tablet: 768px–1024px */
+@media (max-width: 1024px) {
+  .header__actions .header__btn:not(.header__btn--start):not(.header__btn--stop):not(.header__btn--icon) {
+    font-size: var(--font-size-xs);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .split-pane {
+    flex-direction: column;
+  }
+
+  .split-pane__divider {
+    cursor: row-resize;
+    width: 100%;
+    height: var(--split-divider-width);
+  }
+
+  .view-toggle {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Mobile: <768px */
+@media (max-width: 768px) {
+  .header {
+    padding: 0 var(--space-2);
+    gap: var(--space-2);
+  }
+
+  .header__logo span,
+  .header__logo-text {
+    display: none;
+  }
+
+  .proxy-status-badge {
+    font-size: var(--font-size-xs);
+    padding: 2px var(--space-1);
+  }
+
+  .header__actions {
+    gap: var(--space-1);
+  }
+
+  .header__btn {
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-xs);
+  }
+
+  /* Stack split pane vertically on mobile */
+  .split-pane {
+    flex-direction: column;
+  }
+
+  .split-pane__panel {
+    min-height: 200px;
+  }
+
+  .split-pane__divider {
+    cursor: row-resize;
+    width: 100%;
+    height: var(--split-divider-width);
+  }
+
+  /* Capture list */
+  .capture-list__table {
+    font-size: var(--font-size-xs);
+  }
+
+  .capture-row__method {
+    min-width: 40px;
+  }
+
+  /* View toggle scrollable on mobile */
+  .view-toggle {
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .view-toggle button {
+    flex-shrink: 0;
+  }
+
+  /* Auth pages */
+  .auth-card {
+    padding: var(--space-4);
+    margin: var(--space-2);
+  }
+
+  /* Modals full-width on mobile */
+  .modal-content {
+    width: 95vw;
+    max-height: 90vh;
+  }
+}
+
+/* Small mobile: <480px */
+@media (max-width: 480px) {
+  .header {
+    height: 40px;
+  }
+
+  .header__logo-icon {
+    width: 24px;
+    height: 24px;
+    font-size: var(--font-size-xs);
+  }
+
+  .proxy-status-badge__label {
+    display: none;
+  }
+}

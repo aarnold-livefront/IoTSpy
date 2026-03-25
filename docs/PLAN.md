@@ -18,14 +18,14 @@ README / quick start: [`README.md`](../README.md)
 | Metric | Value |
 |---|---|
 | Backend projects | 7 (Core, Proxy, Protocols, Scanner, Manipulation, Storage, Api) |
-| Test projects | 7 (Protocols.Tests, Manipulation.Tests, Scanner.Tests, Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests) |
-| Backend tests | 248+ (all passing) + Phase 10 decoder tests |
+| Test projects | 8 (Core.Tests, Protocols.Tests, Manipulation.Tests, Scanner.Tests, Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests) |
+| Backend tests | 300+ (all passing) — includes Phase 10 decoders + Phase 11 TLS parser/SSL strip/model/auth tests |
 | Frontend tests | 11 component tests via Vitest + React Testing Library |
-| REST controllers | 12 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy, Report, ScheduledScan) |
-| HTTP endpoints | 50+ |
+| REST controllers | 13 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy, Report, ScheduledScan, Dashboard) |
+| HTTP endpoints | 60+ |
 | SignalR hubs | 2 (TrafficHub, PacketCaptureHub) — TrafficHub extended with WebSocket frame + MQTT message + anomaly alert subscriptions |
-| EF Core migrations | 10 (InitialCreate → AddTlsPassthroughAndSslStrip) |
-| Frontend components | 50+ TypeScript files across 13 component directories |
+| EF Core migrations | 11 (InitialCreate → AddPhase11MultiUserAndAudit) |
+| Frontend components | 55+ TypeScript files across 14 component directories |
 | Protocols supported | HTTP/HTTPS, TLS passthrough (JA3/JA3S), WebSocket, MQTT 3.1.1/5.0 (passive decode + active proxy), DNS/mDNS, CoAP (passive decode + active proxy), gRPC/Protobuf, Modbus TCP, OpenRTB 2.5, Datadog, Firehose, Splunk HEC, Azure Monitor |
 | CI | GitHub Actions (`.github/workflows/ci.yml`) — build, test, lint, coverage on push/PR |
 
@@ -33,7 +33,7 @@ README / quick start: [`README.md`](../README.md)
 
 ## What has been built
 
-All phases 1–10, plus OpenRTB inspection and TLS passthrough/SSL stripping, are complete.
+All phases 1–11, plus OpenRTB inspection and TLS passthrough/SSL stripping, are complete.
 
 ### Phase 1 — Foundation
 
@@ -90,6 +90,23 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - `DnsCorrelationKey={ClientIp}→{SniHostname}` structured logging on all passthrough events for DNS-to-TLS correlation
 - `AddTlsPassthroughAndSslStrip` migration — `TlsMetadataJson` on Captures, `SslStrip` on ProxySettings
 
+### Phase 11 — UX, multi-user & technical debt
+
+**Goal:** Polish UX, support team usage, and address remaining technical debt.
+
+- **Multi-user RBAC** — `User` model with `UserRole` enum (Admin/Operator/Viewer); `IUserRepository` + `UserRepository`; JWT claims include `NameIdentifier` + `Role`; admin-only user CRUD endpoints; backward-compatible with legacy single-user auth
+- **Audit log** — `AuditEntry` model + `IAuditRepository`; tracks login, user CRUD; admin-only GET `/api/auth/audit`
+- **Dashboard customization** — `DashboardLayout` model with JSON-serialized layout/filters; per-user CRUD via `DashboardController`
+- **Dark mode** — CSS custom properties with `[data-theme="dark"|"light"]`; `useTheme` hook; persisted in localStorage; toggle in header
+- **Responsive layout** — `responsive.css` with breakpoints at 480px, 768px, 1024px; stacked split panes on mobile; scrollable view toggles
+- **Onboarding wizard** — `OnboardingWizard` component (5 steps: welcome, proxy mode, TLS setup, device setup, completion); shows on first authenticated visit; persisted dismissal in localStorage
+- **TLS parser tests** — `TlsClientHelloParserTests` (13 tests): SNI extraction, cipher suites, extensions, JA3, GREASE filtering, edge cases
+- **TLS server parser tests** — `TlsServerHelloParserTests` (11 tests): cipher suite, version, JA3S, TLS 1.3 supported_versions, edge cases
+- **SSL strip tests** — `SslStripServiceTests` (14 tests): redirect detection, HSTS stripping, URL rewriting, body rewriting
+- **Core model tests** — `IoTSpy.Core.Tests` project (30+ tests): model defaults, enum coverage, new User/AuditEntry/DashboardLayout models
+- **Auth controller tests updated** — 10 tests covering multi-user + legacy auth
+- EF Core migration `AddPhase11MultiUserAndAudit` — adds `Users`, `AuditEntries`, `DashboardLayouts` tables
+
 ---
 
 ## Remaining gaps and technical debt
@@ -99,11 +116,13 @@ Items that are still open. These inform the roadmap.
 | Gap | Description | Severity |
 |---|---|---|
 | No HTTPS for the API itself | The API serves on plain HTTP; TLS termination is assumed external | Low |
-| No Core model tests | Domain model validation/logic untested | Low |
-| No multi-user support | Single-user JWT model — no RBAC, no audit trail | Low |
 | No Bluetooth/Zigbee/Z-Wave | IoT protocols beyond IP-based networking are not supported | Low |
-| Dashboard not responsive | Frontend layout assumes desktop-width screens | Low |
-| TLS passthrough/SSL strip untested | No unit tests for `TlsClientHelloParser`, `TlsServerHelloParser`, `SslStripService`, or `HandleTlsPassthroughAsync` | Medium |
+
+**Resolved in Phase 11:**
+- ~~No Core model tests~~ — `IoTSpy.Core.Tests` project added with 30+ model default/enum tests
+- ~~No multi-user support~~ — Multi-user RBAC with `User` model, `UserRole` enum (Admin/Operator/Viewer), user management endpoints
+- ~~Dashboard not responsive~~ — Responsive CSS with mobile breakpoints (480px, 768px, 1024px)
+- ~~TLS passthrough/SSL strip untested~~ — `TlsClientHelloParserTests` (13 tests), `TlsServerHelloParserTests` (11 tests), `SslStripServiceTests` (14 tests)
 
 ---
 
@@ -115,12 +134,12 @@ Items that are still open. These inform the roadmap.
 
 | # | Task | Status | Details |
 |---|---|---|---|
-| 11.1 | Responsive/mobile-friendly dashboard layout | ⬚ Not started | CSS grid/flexbox rework of all panels for mobile breakpoints |
-| 11.2 | Dark mode theme toggle | ⬚ Not started | CSS custom properties theme switching; persist preference in localStorage |
-| 11.3 | Multi-user authentication with RBAC | ⬚ Not started | Roles: admin, operator, viewer. Replace single-user JWT model. Add user table + migration. |
-| 11.4 | Audit log | ⬚ Not started | Track user actions (scan started, rule created, replay executed). New `AuditEntry` model + DbSet. |
-| 11.5 | Dashboard customization | ⬚ Not started | User-configurable panel layout, saved views/filters |
-| 11.6 | Onboarding wizard | ⬚ Not started | Guided first-run flow for device setup + CA installation |
+| 11.1 | Responsive/mobile-friendly dashboard layout | ✅ Complete | `responsive.css` with mobile breakpoints at 480px, 768px, 1024px; stacked split panes, scrollable view toggles |
+| 11.2 | Dark mode theme toggle | ✅ Complete | `[data-theme]` CSS custom properties; `useTheme` hook; persisted in localStorage; toggle button in header |
+| 11.3 | Multi-user authentication with RBAC | ✅ Complete | `User` model with `UserRole` enum (Admin/Operator/Viewer); `IUserRepository`; JWT claims include `sub` + `role`; admin-only user CRUD endpoints; backward-compatible with legacy single-user auth |
+| 11.4 | Audit log | ✅ Complete | `AuditEntry` model + `IAuditRepository`; tracked: login, user CRUD; admin-only `/api/auth/audit` endpoint |
+| 11.5 | Dashboard customization | ✅ Complete | `DashboardLayout` model + `IDashboardLayoutRepository`; per-user saved layouts with JSON config; `DashboardController` CRUD |
+| 11.6 | Onboarding wizard | ✅ Complete | `OnboardingWizard` component (5 steps: welcome, proxy mode, TLS setup, device, done); persisted in localStorage; shows on first authenticated visit |
 
 ### Future ideas (unplanned)
 
@@ -138,7 +157,7 @@ Items that are still open. These inform the roadmap.
 |---|---|---|
 | Proxy modes | Three (explicit, gateway, ARP) all feed one capture pipeline | Uniform storage/analysis regardless of interception method |
 | Storage | SQLite default, Postgres pluggable | Zero-config for local use; scales with Postgres |
-| Auth | Single-user JWT, PBKDF2 hash in DB | Simple; IoTSpy is a personal/team tool, not multi-tenant |
+| Auth | Multi-user JWT with RBAC (Admin/Operator/Viewer), PBKDF2 hash in DB | Team tool with role-based access; backward-compatible with legacy single-user mode |
 | TLS MITM | BouncyCastle (pure .NET) | No native dependency; works cross-platform |
 | TLS passthrough | Custom handshake parser + relay | Extract metadata (JA3/JA3S/SNI/cert) without breaking the connection |
 | SSL stripping | HTTP-level intercept + upstream TLS fetch | Visibility into HTTPS traffic for devices that can't install CAs |
@@ -206,7 +225,10 @@ dotnet run --project src/IoTSpy.Api
 - `IoTSpy.Protocols` has MQTT, DNS/mDNS, CoAP, WebSocket, gRPC/Protobuf, Modbus TCP, OpenRTB, and four telemetry decoders (Datadog, Firehose, Splunk HEC, Azure Monitor).
 - `IoTSpy.Scanner` has port scan, fingerprinting, credential testing, CVE lookup, config audit, and packet capture.
 - `IoTSpy.Manipulation` has rules engine, scripted breakpoints (C#/JS), replay, fuzzer, AI mock engine, packet capture analyzer, and OpenRTB PII service.
-- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` — 10 migrations applied: InitialCreate, AddPhase2ProxySettings, AddPhase3Scanner, AddPhase4ManipulationFix, AddOpenRtbInspection, AddPacketCapture, AddMissingPhase7Changes, AddPhase9ScheduledScans, AddBodyCaptureDefaults, AddTlsPassthroughAndSslStrip. Run `dotnet ef migrations add <Name> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api` from the repo root.
+- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` — 11 migrations applied: InitialCreate, AddPhase2ProxySettings, AddPhase3Scanner, AddPhase4ManipulationFix, AddOpenRtbInspection, AddPacketCapture, AddMissingPhase7Changes, AddPhase9ScheduledScans, AddBodyCaptureDefaults, AddTlsPassthroughAndSslStrip, AddPhase11MultiUserAndAudit. Run `dotnet ef migrations add <Name> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api` from the repo root.
+- **Multi-user RBAC** — `User` model with `UserRole` enum (Admin/Operator/Viewer); `IUserRepository`; JWT claims include `sub` (user ID) + `role`; admin-only user CRUD in `AuthController`; backward-compatible with legacy single-user auth (falls back to `ProxySettings.PasswordHash` when no `User` record matches).
+- **Audit log** — `AuditEntry` model + `IAuditRepository`; tracks login, user CRUD; admin-only GET `/api/auth/audit`.
+- **Dashboard customization** — `DashboardLayout` model + `IDashboardLayoutRepository`; per-user saved layouts with JSON config; `DashboardController` CRUD.
 - `DateTimeOffset` properties are stored as Unix milliseconds (`long`) via a `ValueConverter` in `IoTSpyDbContext` — required for SQLite `ORDER BY` compatibility.
 - `AnomalyDetector` is wired into both proxy servers. After each captured request, `IAnomalyDetector.Record()` is called; alerts published via `IAnomalyAlertPublisher` → `SignalRAnomalyPublisher` → `TrafficHub` group `"anomaly-alerts"`.
 - `DataRetentionService` runs as a background `IHostedService`. Disabled by default (`DataRetention:Enabled: false`).

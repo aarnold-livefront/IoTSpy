@@ -50,6 +50,11 @@ services.AddScoped<IOpenRtbEventRepository, OpenRtbEventRepository>();
         // Phase 9
         services.AddScoped<IScheduledScanRepository, ScheduledScanRepository>();
 
+        // Phase 11 — Multi-user & audit
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IAuditRepository, AuditRepository>();
+        services.AddScoped<IDashboardLayoutRepository, DashboardLayoutRepository>();
+
         return services;
     }
 

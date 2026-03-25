@@ -3,6 +3,7 @@ import ProxyStatusBadge from '../proxy/ProxyStatusBadge'
 import SettingsModal from '../proxy/SettingsModal'
 import { useLogout } from '../../hooks/useAuth'
 import type { ProxySettings, ProxySettingsUpdate } from '../../types/api'
+import type { Theme } from '../../hooks/useTheme'
 import '../../styles/header.css'
 
 interface Props {
@@ -11,9 +12,11 @@ interface Props {
   settings: ProxySettings | null
   signalRConnected: boolean
   loading: boolean
+  theme: Theme
   onStart: () => void
   onStop: () => void
   onSaveSettings: (update: ProxySettingsUpdate) => Promise<ProxySettings | null>
+  onToggleTheme: () => void
 }
 
 export default function Header({
@@ -22,9 +25,11 @@ export default function Header({
   settings,
   signalRConnected,
   loading,
+  theme,
   onStart,
   onStop,
   onSaveSettings,
+  onToggleTheme,
 }: Props) {
   const logout = useLogout()
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -34,7 +39,7 @@ export default function Header({
       <header className="header">
         <a className="header__logo" href="/">
           <div className="header__logo-icon">I</div>
-          IoTSpy
+          <span className="header__logo-text">IoTSpy</span>
         </a>
 
         <ProxyStatusBadge
@@ -53,7 +58,7 @@ export default function Header({
               disabled={loading}
               title="Stop proxy"
             >
-              ■ Stop
+              Stop
             </button>
           ) : (
             <button
@@ -62,7 +67,7 @@ export default function Header({
               disabled={loading}
               title="Start proxy"
             >
-              ▶ Start
+              Start
             </button>
           )}
 
@@ -72,8 +77,17 @@ export default function Header({
             download
             title="Download root CA certificate"
           >
-            ⬇ CA
+            CA
           </a>
+
+          <button
+            className="header__btn header__btn--icon"
+            onClick={onToggleTheme}
+            title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? '\u2600' : '\u263E'}
+          </button>
 
           <button
             className="header__btn header__btn--icon"
@@ -81,7 +95,7 @@ export default function Header({
             title="Proxy settings"
             aria-label="Proxy settings"
           >
-            ⚙
+            &#x2699;
           </button>
 
           <button

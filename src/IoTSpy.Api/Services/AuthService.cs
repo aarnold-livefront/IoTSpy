@@ -2,17 +2,42 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using IoTSpy.Core.Enums;
+using IoTSpy.Core.Models;
 using Microsoft.IdentityModel.Tokens;
 
 namespace IoTSpy.Api.Services;
 
 public class AuthService(IConfiguration config)
 {
-    private const string AdminUser = "admin";
+    /// <summary>
+    /// Generates a JWT for an authenticated user with role claims.
+    /// </summary>
+    public string GenerateToken(User user)
+    {
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(GetJwtSecret()));
+        var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        var token = new JwtSecurityToken(
+            issuer: "iotspy",
+            audience: "iotspy",
+            claims:
+            [
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.Role, user.Role.ToString().ToLowerInvariant())
+            ],
+            expires: DateTime.UtcNow.AddDays(30),
+            signingCredentials: creds);
 
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    /// <summary>
+    /// Legacy single-user token generation for backward compatibility during migration.
+    /// </summary>
     public string? GenerateToken(string username, string password, string storedHash)
     {
-        if (username != AdminUser || !VerifyPassword(password, storedHash))
+        if (username != "admin" || !VerifyPassword(password, storedHash))
             return null;
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(GetJwtSecret()));
@@ -20,7 +45,11 @@ public class AuthService(IConfiguration config)
         var token = new JwtSecurityToken(
             issuer: "iotspy",
             audience: "iotspy",
-            claims: [new Claim(ClaimTypes.Name, AdminUser), new Claim(ClaimTypes.Role, "admin")],
+            claims:
+            [
+                new Claim(ClaimTypes.Name, "admin"),
+                new Claim(ClaimTypes.Role, "admin")
+            ],
             expires: DateTime.UtcNow.AddDays(30),
             signingCredentials: creds);
 
@@ -37,7 +66,7 @@ public class AuthService(IConfiguration config)
         return $"{Convert.ToBase64String(salt)}:{Convert.ToBase64String(hash)}";
     }
 
-    private static bool VerifyPassword(string password, string storedHash)
+    public bool VerifyPassword(string password, string storedHash)
     {
         if (string.IsNullOrEmpty(storedHash)) return false;
         var parts = storedHash.Split(':');
