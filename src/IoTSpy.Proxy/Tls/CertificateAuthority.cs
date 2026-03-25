@@ -25,6 +25,7 @@ public class CertificateAuthority(
     private AsymmetricCipherKeyPair? _cachedRootKeyPair;
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, CertificateEntry> _hostCertCache = new();
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> _hostLocks = new();
 
     public async Task<CertificateEntry> GetOrCreateRootCaAsync(CancellationToken ct = default)
     {
@@ -70,24 +71,39 @@ public class CertificateAuthority(
             && (cached.NotAfter - cached.NotBefore).TotalDays <= MaxLeafValidityDays)
             return cached;
 
-        using var scope = scopeFactory.CreateScope();
-        var repository = scope.ServiceProvider.GetRequiredService<ICertificateRepository>();
-
-        var existing = await repository.GetByHostnameAsync(hostname, ct);
-        // Reject cached certs that exceed Apple's 398-day limit — they were generated
-        // before the validity was corrected and will be silently rejected by iOS/macOS.
-        if (existing is not null && existing.NotAfter > expiry
-            && (existing.NotAfter - existing.NotBefore).TotalDays <= MaxLeafValidityDays)
+        var hostLock = _hostLocks.GetOrAdd(hostname, _ => new SemaphoreSlim(1, 1));
+        await hostLock.WaitAsync(ct);
+        try
         {
-            _hostCertCache[hostname] = existing;
-            return existing;
-        }
+            // Re-check cache inside the lock — another caller may have generated it already.
+            if (_hostCertCache.TryGetValue(hostname, out cached)
+                && cached.NotAfter > expiry
+                && (cached.NotAfter - cached.NotBefore).TotalDays <= MaxLeafValidityDays)
+                return cached;
 
-        var rootCa = await GetOrCreateRootCaAsync(ct);
-        var entry = GenerateHostCertificate(hostname, rootCa);
-        var saved = await repository.SaveAsync(entry, ct);
-        _hostCertCache[hostname] = saved;
-        return saved;
+            using var scope = scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<ICertificateRepository>();
+
+            var existing = await repository.GetByHostnameAsync(hostname, ct);
+            // Reject cached certs that exceed Apple's 398-day limit — they were generated
+            // before the validity was corrected and will be silently rejected by iOS/macOS.
+            if (existing is not null && existing.NotAfter > expiry
+                && (existing.NotAfter - existing.NotBefore).TotalDays <= MaxLeafValidityDays)
+            {
+                _hostCertCache[hostname] = existing;
+                return existing;
+            }
+
+            var rootCa = await GetOrCreateRootCaAsync(ct);
+            var entry = GenerateHostCertificate(hostname, rootCa);
+            var saved = await repository.SaveAsync(entry, ct);
+            _hostCertCache[hostname] = saved;
+            return saved;
+        }
+        finally
+        {
+            hostLock.Release();
+        }
     }
 
     public async Task<byte[]> ExportRootCaDerAsync(CancellationToken ct = default)

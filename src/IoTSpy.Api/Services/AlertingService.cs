@@ -80,7 +80,7 @@ public sealed class AlertingService : IAlertingService
             using var smtp = new SmtpClient(opts.SmtpHost, opts.SmtpPort);
             if (opts.Username is { Length: > 0 })
                 smtp.Credentials = new System.Net.NetworkCredential(opts.Username, opts.Password);
-            smtp.EnableSsl = opts.SmtpPort != 25;
+            smtp.EnableSsl = opts.UseSsl;
 
             var mail = new MailMessage(opts.From ?? "iotspy@localhost", opts.To ?? "admin@localhost")
             {

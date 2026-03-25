@@ -40,7 +40,7 @@ public class ExplicitProxyServer(
     private TcpListener? _listener;
     private CancellationTokenSource? _cts;
     private int _activeConnections;
-    private readonly TaskCompletionSource _drainTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private TaskCompletionSource _drainTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public bool IsRunning => _listener is not null;
     public int ActiveConnections => _activeConnections;
@@ -48,6 +48,7 @@ public class ExplicitProxyServer(
     public async Task StartAsync(int port, string listenAddress, CancellationToken ct = default)
     {
         if (IsRunning) return;
+        _drainTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var ip = listenAddress is "0.0.0.0" or "*"
             ? IPAddress.Any
@@ -438,7 +439,7 @@ public class ExplicitProxyServer(
                 {
                     logger.LogDebug("Anomaly detected on {Host}: {Type} (deviation={Factor:F1}σ)",
                         alert.Host, alert.AlertType, alert.DeviationFactor);
-                    _ = anomalyPublisher.PublishAsync(alert, ct);
+                    await anomalyPublisher.PublishAsync(alert, ct);
                 }
             }
 

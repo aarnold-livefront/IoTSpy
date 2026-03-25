@@ -71,10 +71,8 @@ public class ScannerService(
                 job.TargetIp, job.PortRange, job.MaxConcurrency, job.TimeoutMs, ct);
 
             foreach (var finding in openPorts)
-            {
                 finding.ScanJobId = jobId;
-                await repo.AddFindingAsync(finding, ct);
-            }
+            await repo.AddFindingsAsync(openPorts, ct);
 
             // 3.2 — Service fingerprinting
             List<ScanFinding> fingerprints = [];
@@ -84,10 +82,8 @@ public class ScannerService(
                     job.TargetIp, openPorts, job.TimeoutMs, ct);
 
                 foreach (var finding in fingerprints)
-                {
                     finding.ScanJobId = jobId;
-                    await repo.AddFindingAsync(finding, ct);
-                }
+                await repo.AddFindingsAsync(fingerprints, ct);
             }
 
             // 3.3 — Default credential testing
@@ -97,10 +93,8 @@ public class ScannerService(
                     job.TargetIp, openPorts, job.TimeoutMs, ct);
 
                 foreach (var finding in credFindings)
-                {
                     finding.ScanJobId = jobId;
-                    await repo.AddFindingAsync(finding, ct);
-                }
+                await repo.AddFindingsAsync(credFindings, ct);
             }
 
             // 3.4 — CVE lookup
@@ -108,10 +102,8 @@ public class ScannerService(
             {
                 var cveFindings = await cveLookup.LookupAsync(fingerprints, ct);
                 foreach (var finding in cveFindings)
-                {
                     finding.ScanJobId = jobId;
-                    await repo.AddFindingAsync(finding, ct);
-                }
+                await repo.AddFindingsAsync(cveFindings, ct);
             }
 
             // 3.5 — Config audit
@@ -121,10 +113,8 @@ public class ScannerService(
                     job.TargetIp, openPorts, job.TimeoutMs, ct);
 
                 foreach (var finding in configFindings)
-                {
                     finding.ScanJobId = jobId;
-                    await repo.AddFindingAsync(finding, ct);
-                }
+                await repo.AddFindingsAsync(configFindings, ct);
             }
 
             // Complete the job

@@ -37,6 +37,8 @@ builder.Services.AddIoTSpyStorage(connString, dbProvider, dbMaxPool, dbMinPool);
 // ── Authentication ───────────────────────────────────────────────────────────
 var jwtSecret = builder.Configuration["Auth:JwtSecret"]
     ?? throw new InvalidOperationException("Auth:JwtSecret must be set in configuration.");
+if (jwtSecret.Length < 32)
+    throw new InvalidOperationException("Auth:JwtSecret must be at least 32 characters (256 bits) for HS256.");
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opts =>

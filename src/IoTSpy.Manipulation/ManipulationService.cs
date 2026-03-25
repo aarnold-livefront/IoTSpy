@@ -231,9 +231,9 @@ public class ManipulationService(
 
     private static bool MatchesBreakpoint(Breakpoint bp, HttpMessage message)
     {
-        if (bp.HostPattern is not null && !Regex.IsMatch(message.Host, bp.HostPattern, RegexOptions.IgnoreCase))
+        if (bp.HostPattern is not null && !RulesEngine.GetRegex(bp.HostPattern, RegexOptions.IgnoreCase).IsMatch(message.Host))
             return false;
-        if (bp.PathPattern is not null && !Regex.IsMatch(message.Path, bp.PathPattern, RegexOptions.IgnoreCase))
+        if (bp.PathPattern is not null && !RulesEngine.GetRegex(bp.PathPattern, RegexOptions.IgnoreCase).IsMatch(message.Path))
             return false;
         return true;
     }

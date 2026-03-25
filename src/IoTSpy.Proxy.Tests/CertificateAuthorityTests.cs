@@ -91,7 +91,7 @@ public class CertificateAuthorityTests
         repo.GetRootCaAsync(Arg.Any<CancellationToken>())
             .Returns(_ => savedRoot);
 
-        var leafEntry = await ca.GetOrCreateHostCertificateAsync("example.com");
+        var leafEntry = await ca.GetOrCreateHostCertificateAsync("example.com", TestContext.Current.CancellationToken);
         var cert = PemToX509(leafEntry.CertificatePem);
 
         Assert.NotNull(cert.Extensions[OidAuthorityKeyId]);
@@ -112,7 +112,7 @@ public class CertificateAuthorityTests
         repo.GetRootCaAsync(Arg.Any<CancellationToken>())
             .Returns(_ => savedRoot);
 
-        var leafEntry = await ca.GetOrCreateHostCertificateAsync("example.com");
+        var leafEntry = await ca.GetOrCreateHostCertificateAsync("example.com", TestContext.Current.CancellationToken);
         var cert = PemToX509(leafEntry.CertificatePem);
 
         Assert.NotNull(cert.Extensions[OidSubjectAltName]);
@@ -133,7 +133,7 @@ public class CertificateAuthorityTests
         repo.GetRootCaAsync(Arg.Any<CancellationToken>())
             .Returns(_ => savedRoot);
 
-        var leafEntry = await ca.GetOrCreateHostCertificateAsync("example.com");
+        var leafEntry = await ca.GetOrCreateHostCertificateAsync("example.com", TestContext.Current.CancellationToken);
         var cert = PemToX509(leafEntry.CertificatePem);
 
         var eku = cert.Extensions[OidExtendedKeyUsage] as X509EnhancedKeyUsageExtension;
@@ -157,7 +157,7 @@ public class CertificateAuthorityTests
         repo.GetRootCaAsync(Arg.Any<CancellationToken>())
             .Returns(_ => savedRoot);
 
-        var leafEntry = await ca.GetOrCreateHostCertificateAsync("example.com");
+        var leafEntry = await ca.GetOrCreateHostCertificateAsync("example.com", TestContext.Current.CancellationToken);
         var days = (leafEntry.NotAfter - leafEntry.NotBefore).TotalDays;
 
         // notBefore is backdated 1 day + notAfter is 397 days forward = 398 days total.

@@ -645,7 +645,7 @@ public class TransparentProxyServer(
                 {
                     logger.LogDebug("Anomaly detected on {Host}: {Type} (deviation={Factor:F1}σ)",
                         alert.Host, alert.AlertType, alert.DeviationFactor);
-                    _ = anomalyPublisher.PublishAsync(alert, ct);
+                    await anomalyPublisher.PublishAsync(alert, ct);
                 }
             }
 
