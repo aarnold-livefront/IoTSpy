@@ -10,6 +10,7 @@ export function listCaptures(filters: CaptureFilters = {}): Promise<CaptureListR
   if (filters.from) params.set('from', filters.from)
   if (filters.to) params.set('to', filters.to)
   if (filters.q) params.set('q', filters.q)
+  if (filters.clientIp) params.set('clientIp', filters.clientIp)
   if (filters.page != null) params.set('page', String(filters.page))
   if (filters.pageSize != null) params.set('pageSize', String(filters.pageSize))
   const qs = params.toString()

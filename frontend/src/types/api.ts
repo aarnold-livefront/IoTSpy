@@ -236,6 +236,7 @@ export interface CaptureFilters {
   from?: string
   to?: string
   q?: string
+  clientIp?: string
   page?: number
   pageSize?: number
 }

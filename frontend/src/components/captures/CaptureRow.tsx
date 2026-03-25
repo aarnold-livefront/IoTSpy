@@ -37,9 +37,33 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}M`
 }
 
+function formatTime(timestamp: string): string {
+  const d = new Date(timestamp)
+  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+function protocolLabel(protocol: string, isTls: boolean): string | null {
+  switch (protocol) {
+    case 'Https': return null // TLS lock covers this
+    case 'Http': return null
+    case 'Mqtt':
+    case 'MqttTls': return 'MQTT'
+    case 'CoAP': return 'CoAP'
+    case 'Dns':
+    case 'MDns': return 'DNS'
+    case 'WebSocket':
+    case 'WebSocketTls': return 'WS'
+    case 'Grpc': return 'gRPC'
+    case 'Modbus': return 'Modbus'
+    case 'TlsPassthrough': return 'TLS'
+    default: return isTls ? null : protocol !== 'Other' ? protocol : null
+  }
+}
+
 export default function CaptureRow({ capture, selected, onSelect }: Props) {
-  const { id, method, host, path, statusCode, durationMs, isTls, requestBodySize } = capture
+  const { id, method, host, path, statusCode, durationMs, isTls, requestBodySize, protocol, timestamp } = capture
   const displayPath = path || '/'
+  const proto = protocolLabel(protocol, isTls)
 
   return (
     <div
@@ -56,15 +80,21 @@ export default function CaptureRow({ capture, selected, onSelect }: Props) {
         <span className="capture-row__host">{host}</span>
         <span className="capture-row__path">{displayPath}</span>
       </span>
-      <span className="capture-row__duration">
+      <span className="capture-row__timing">
         {durationMs > 0 ? formatDuration(durationMs) : ''}
         {requestBodySize > 0 && (
           <span className="capture-row__body-size" title="Request body size">
-            {' '}&#8593; {formatBytes(requestBodySize)}
+            {' '}&uarr; {formatBytes(requestBodySize)}
           </span>
         )}
       </span>
-      <span className="capture-row__tls-indicator">{isTls ? '🔒' : ''}</span>
+      <span className="capture-row__indicators">
+        {isTls && <span className="capture-row__tls-lock" title="TLS encrypted">&#x1F512;</span>}
+        {proto && <span className="capture-row__protocol-tag" title={`Protocol: ${protocol}`}>{proto}</span>}
+      </span>
+      <span className="capture-row__timestamp" title={new Date(timestamp).toLocaleString()}>
+        {formatTime(timestamp)}
+      </span>
     </div>
   )
 }
