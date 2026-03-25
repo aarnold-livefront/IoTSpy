@@ -20,5 +20,6 @@ public record CaptureFilter(
     int? StatusCode = null,
     DateTimeOffset? From = null,
     DateTimeOffset? To = null,
-    string? BodySearch = null
+    string? BodySearch = null,
+    string? ClientIp = null
 );

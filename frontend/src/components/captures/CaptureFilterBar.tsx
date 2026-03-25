@@ -34,14 +34,16 @@ export default function CaptureFilterBar({ devices, filters, onChange }: Props) 
     onChange({ page: 1, pageSize: 50 })
   }
 
-  const hasFilters = !!(filters.deviceId || filters.host || filters.method || filters.statusCode || filters.q)
+  const hasFilters = !!(filters.deviceId || filters.clientIp || filters.host || filters.method || filters.statusCode || filters.q)
 
   return (
     <div className="capture-filter-bar">
       <DeviceFilter
         devices={devices}
         value={filters.deviceId ?? ''}
-        onChange={(v) => update({ deviceId: v || undefined })}
+        clientIp={filters.clientIp ?? ''}
+        onDeviceChange={(v) => update({ deviceId: v || undefined })}
+        onClientIpChange={(v) => update({ clientIp: v || undefined, deviceId: undefined })}
       />
 
       <select

@@ -66,7 +66,13 @@ export default function CaptureList({
         {loading ? (
           <LoadingSpinner />
         ) : captures.length === 0 ? (
-          <div className="capture-list__empty">No captures yet</div>
+          <div className="capture-list__empty">
+            <div className="capture-list__empty-icon">&#x1F50D;</div>
+            <div>No captures yet</div>
+            <div className="capture-list__empty-hint">
+              Configure your device to use the proxy, then traffic will appear here in real time.
+            </div>
+          </div>
         ) : (
           <>
             {captures.map((c) => (
