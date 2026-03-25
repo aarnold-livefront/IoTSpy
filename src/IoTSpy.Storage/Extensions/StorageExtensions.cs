@@ -50,6 +50,9 @@ services.AddScoped<IOpenRtbEventRepository, OpenRtbEventRepository>();
         // Phase 9
         services.AddScoped<IScheduledScanRepository, ScheduledScanRepository>();
 
+        // API Spec & Content Replacement
+        services.AddScoped<IApiSpecRepository, ApiSpecRepository>();
+
         // Phase 11 — Multi-user & audit
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IAuditRepository, AuditRepository>();

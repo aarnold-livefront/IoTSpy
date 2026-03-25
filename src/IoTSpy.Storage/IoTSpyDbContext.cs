@@ -28,6 +28,10 @@ public DbSet<OpenRtbEvent> OpenRtbEvents => Set<OpenRtbEvent>();
     // Phase 9
     public DbSet<ScheduledScan> ScheduledScans => Set<ScheduledScan>();
 
+    // API Spec & Content Replacement
+    public DbSet<ApiSpecDocument> ApiSpecDocuments => Set<ApiSpecDocument>();
+    public DbSet<ContentReplacementRule> ContentReplacementRules => Set<ContentReplacementRule>();
+
     // Phase 11 — Multi-user & audit
     public DbSet<User> Users => Set<User>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
@@ -229,6 +233,25 @@ modelBuilder.Entity<OpenRtbPiiPolicy>(e =>
             e.HasIndex(p => p.Protocol);
             e.HasIndex(p => p.SourceIp);
             e.HasIndex(p => p.DestinationIp);
+        });
+
+        // API Spec & Content Replacement
+        modelBuilder.Entity<ApiSpecDocument>(e =>
+        {
+            e.HasKey(d => d.Id);
+            e.HasIndex(d => d.Host);
+            e.HasIndex(d => d.Status);
+        });
+
+        modelBuilder.Entity<ContentReplacementRule>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.HasIndex(r => r.ApiSpecDocumentId);
+            e.HasIndex(r => r.Priority);
+            e.HasOne(r => r.ApiSpecDocument)
+             .WithMany(d => d.ReplacementRules)
+             .HasForeignKey(r => r.ApiSpecDocumentId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         // SQLite cannot ORDER BY DateTimeOffset columns; store all as Unix ms (long) so

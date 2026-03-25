@@ -21,6 +21,11 @@ public static class ManipulationExtensions
         services.AddSingleton<IManipulationService, ManipulationService>();
         services.AddSingleton<IPacketCaptureAnalyzer, PacketCaptureAnalyzer>();
 
+        // ── API Spec Generation & Content Replacement ───────────────────────
+        services.AddSingleton<ApiSpec.ApiSpecGenerator>();
+        services.AddSingleton<ApiSpec.ContentReplacer>();
+        services.AddSingleton<IApiSpecService, ApiSpec.ApiSpecMockService>();
+
         // ── OpenRTB PII Stripping ────────────────────────────────────────────
         services.AddSingleton<OpenRtbDecoder>();
         services.AddSingleton<IOpenRtbService, OpenRtbPiiService>();
@@ -64,6 +69,7 @@ public static class ManipulationExtensions
             });
 
             services.AddSingleton<IAiMockService, AiMockService>();
+            services.AddSingleton<ApiSpec.ApiSpecLlmEnhancer>();
         }
 
         return services;

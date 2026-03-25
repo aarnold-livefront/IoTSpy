@@ -537,6 +537,115 @@ export interface PagedResult<T> {
   pageSize: number
 }
 
+// ── API Spec enums ──────────────────────────────────────────────────────────
+
+export type ApiSpecStatus = 'Draft' | 'Active' | 'Archived'
+
+export type ContentMatchType = 'ContentType' | 'JsonPath' | 'HeaderValue' | 'BodyRegex'
+
+export type ContentReplacementAction =
+  | 'ReplaceWithFile'
+  | 'ReplaceWithUrl'
+  | 'ReplaceWithValue'
+  | 'Redact'
+
+// ── API Spec models ─────────────────────────────────────────────────────────
+
+export interface ApiSpecDocument {
+  id: string
+  name: string
+  description: string
+  host: string
+  version: string
+  openApiJson: string
+  status: ApiSpecStatus
+  mockEnabled: boolean
+  passthroughFirst: boolean
+  useLlmAnalysis: boolean
+  createdAt: string
+  updatedAt: string
+  replacementRules: ContentReplacementRule[]
+}
+
+export interface ContentReplacementRule {
+  id: string
+  apiSpecDocumentId: string
+  name: string
+  enabled: boolean
+  matchType: ContentMatchType
+  matchPattern: string
+  action: ContentReplacementAction
+  replacementValue?: string
+  replacementFilePath?: string
+  replacementContentType?: string
+  hostPattern?: string
+  pathPattern?: string
+  priority: number
+  createdAt: string
+}
+
+export interface AssetInfo {
+  filePath: string
+  fileName: string
+  size: number
+  lastModified: string
+}
+
+// ── API Spec request DTOs ───────────────────────────────────────────────────
+
+export interface GenerateSpecRequest {
+  host: string
+  pathPattern?: string
+  method?: string
+  from?: string
+  to?: string
+  useLlmAnalysis?: boolean
+  name?: string
+}
+
+export interface ImportSpecRequest {
+  openApiJson: string
+  name?: string
+}
+
+export interface UpdateSpecRequest {
+  name?: string
+  description?: string
+  host?: string
+  version?: string
+  mockEnabled?: boolean
+  passthroughFirst?: boolean
+  status?: ApiSpecStatus
+}
+
+export interface CreateReplacementRuleRequest {
+  name: string
+  matchType: ContentMatchType
+  matchPattern: string
+  action: ContentReplacementAction
+  enabled?: boolean
+  replacementValue?: string
+  replacementFilePath?: string
+  replacementContentType?: string
+  hostPattern?: string
+  pathPattern?: string
+  priority?: number
+}
+
+export interface UpdateReplacementRuleRequest {
+  name?: string
+  enabled?: boolean
+  matchType?: ContentMatchType
+  matchPattern?: string
+  action?: ContentReplacementAction
+  replacementValue?: string
+  replacementFilePath?: string
+  replacementContentType?: string
+  hostPattern?: string
+  pathPattern?: string
+  priority?: number
+}
+
 // ── SignalR DTOs ──────────────────────────────────────────────────────────────
 
 /** Trimmed capture event pushed via SignalR — no body content */

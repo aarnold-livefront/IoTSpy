@@ -5,9 +5,10 @@ import RulesEditor from './RulesEditor'
 import BreakpointsEditor from './BreakpointsEditor'
 import ReplayPanel from './ReplayPanel'
 import FuzzerPanel from './FuzzerPanel'
+import ApiSpecPanel from '../apispec/ApiSpecPanel'
 import '../../styles/manipulation.css'
 
-type ManipTab = 'rules' | 'breakpoints' | 'replay' | 'fuzzer'
+type ManipTab = 'rules' | 'breakpoints' | 'replay' | 'fuzzer' | 'apispec'
 
 export default function ManipulationPanel() {
   const [activeTab, setActiveTab] = useState<ManipTab>('rules')
@@ -20,6 +21,7 @@ export default function ManipulationPanel() {
     { key: 'breakpoints', label: 'Breakpoints' },
     { key: 'replay', label: 'Replay' },
     { key: 'fuzzer', label: 'Fuzzer' },
+    { key: 'apispec', label: 'API Spec' },
   ]
 
   return (
@@ -80,6 +82,7 @@ export default function ManipulationPanel() {
             onDelete={manip.removeFuzzer}
           />
         )}
+        {activeTab === 'apispec' && <ApiSpecPanel />}
       </div>
     </div>
   )
