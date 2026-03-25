@@ -259,6 +259,22 @@ Backend: `IoTSpy.Core` — `InvestigationSession`, `CaptureAnnotation` models; `
 
 ---
 
+### Phase 18 — Frontend React Performance & Correctness
+
+**Goal:** Fix 7 high-confidence issues identified by React best-practices audit on 2026-03-25.
+
+| # | Task | Severity | File | Details |
+|---|---|---|---|---|
+| 18.1 | Fix duplicate `useCaptures` in `ManipulationPanel` | CRITICAL | `ManipulationPanel.tsx:17` | Remove `useCaptures` call from `ManipulationPanel`; accept captures as a prop from `DashboardPage` so SignalR live-updates are not missed |
+| 18.2 | Add `analysis` to `useEffect` dependency array | CRITICAL | `PanelPacketCapture.tsx:25` | `analysis` object is used inside the effect but missing from the dep array — stale closure risk |
+| 18.3 | Remove needless arrow-function wrappers around stable callbacks | HIGH | `OpenRtbPanel.tsx:47, 73` | `onRefresh={() => rtb.refreshEvents()}` wraps an already-stable `useCallback` ref; pass `rtb.refreshEvents` directly to prevent defeating `React.memo` and dep-array stability |
+| 18.4 | Replace raw `fetch` in `usePacketCapture` with shared API client | HIGH | `usePacketCapture.ts:29, 74, 92` | Raw `fetch` calls bypass auth error handling, base URL config, and token-expiry logic in `api/client` |
+| 18.5 | Wrap `CaptureRow` in `React.memo` | MEDIUM | `CaptureRow.tsx` | Pure presentational component re-renders on every SignalR event because the parent array is replaced; `React.memo` will short-circuit unchanged rows |
+| 18.6 | Replace index keys with stable keys for timeline ticks | MEDIUM | `TimelineSwimlaneView.tsx:171, 179` | Use `tick.position` as key instead of array index to avoid reconciliation artifacts on zoom changes |
+| 18.7 | Hoist `statusBadge` colors map to module scope | MEDIUM | `ApiSpecPanel.tsx:17` | The `colors` Record is recreated on every render; move to module-level constant |
+
+---
+
 ## Key design decisions
 
 | Decision | Choice | Rationale |
