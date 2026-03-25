@@ -167,16 +167,16 @@ export default function TimelineSwimlaneView({ captures, devices, selectedId, on
           <div className="timeline-canvas" ref={canvasRef} style={{ width: canvasWidth }}>
             {/* Time axis */}
             <div className="timeline-axis">
-              {ticks.map((tick, i) => (
-                <span key={i} className="timeline-axis-tick" style={{ left: tick.position }}>
+              {ticks.map((tick) => (
+                <span key={tick.position} className="timeline-axis-tick" style={{ left: tick.position }}>
                   {tick.label}
                 </span>
               ))}
             </div>
 
             {/* Grid lines */}
-            {ticks.map((tick, i) => (
-              <div key={i} className="timeline-gridline" style={{ left: tick.position }} />
+            {ticks.map((tick) => (
+              <div key={tick.position} className="timeline-gridline" style={{ left: tick.position }} />
             ))}
 
             {/* Swimlane rows */}

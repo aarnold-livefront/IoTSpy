@@ -6,6 +6,12 @@ import ReplacementRulesEditor from './ReplacementRulesEditor'
 import ImportExportControls from './ImportExportControls'
 import type { ApiSpecDocument } from '../../types/api'
 
+const STATUS_COLORS: Record<string, string> = {
+  Draft: '#888',
+  Active: '#4caf50',
+  Archived: '#ff9800',
+}
+
 export default function ApiSpecPanel() {
   const apiSpec = useApiSpec()
   const [showGenerate, setShowGenerate] = useState(false)
@@ -15,11 +21,6 @@ export default function ApiSpecPanel() {
   }
 
   const statusBadge = (spec: ApiSpecDocument) => {
-    const colors: Record<string, string> = {
-      Draft: '#888',
-      Active: '#4caf50',
-      Archived: '#ff9800',
-    }
     return (
       <span
         style={{
@@ -27,7 +28,7 @@ export default function ApiSpecPanel() {
           padding: '2px 8px',
           borderRadius: 4,
           fontSize: 11,
-          background: colors[spec.status] ?? '#888',
+          background: STATUS_COLORS[spec.status] ?? '#888',
           color: '#fff',
         }}
       >

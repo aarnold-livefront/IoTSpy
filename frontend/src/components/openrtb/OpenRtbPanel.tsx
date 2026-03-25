@@ -44,7 +44,7 @@ export default function OpenRtbPanel() {
                 error={rtb.eventsError}
                 selectedId={selectedEventId}
                 onSelect={setSelectedEventId}
-                onRefresh={() => rtb.refreshEvents()}
+                onRefresh={rtb.refreshEvents}
               />
             </div>
             <div style={{ flex: '1', overflow: 'auto' }}>
@@ -70,7 +70,7 @@ export default function OpenRtbPanel() {
             stats={rtb.auditStats}
             loading={rtb.auditLoading}
             error={rtb.auditError}
-            onRefresh={() => rtb.refreshAuditLog()}
+            onRefresh={rtb.refreshAuditLog}
           />
         )}
       </div>

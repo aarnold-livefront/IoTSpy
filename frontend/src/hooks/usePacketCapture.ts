@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import * as signalR from '@microsoft/signalr'
-import { getToken } from '../api/client'
+import { getToken, apiFetch } from '../api/client'
 import type { CapturedPacket } from '../types/api'
 
 export interface CaptureDevice {
@@ -25,12 +25,7 @@ export function usePacketCapture() {
 
   const loadDevices = async () => {
     try {
-      const token = getToken()
-      const response = await fetch('/api/packet-capture/devices', {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      })
-      if (!response.ok) throw new Error('Failed to load capture devices')
-      const data: CaptureDevice[] = await response.json()
+      const data = await apiFetch<CaptureDevice[]>('/api/packet-capture/devices')
       setDevices(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
@@ -70,16 +65,10 @@ export function usePacketCapture() {
   const startCapture = useCallback(async (deviceId: string) => {
     try {
       setError(null)
-      const token = getToken()
-      const response = await fetch('/api/packet-capture/start', {
+      await apiFetch<void>('/api/packet-capture/start', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify({ deviceId })
+        body: JSON.stringify({ deviceId }),
       })
-      if (!response.ok) throw new Error('Failed to start capture')
       setIsCapturing(true)
       setPackets([])
     } catch (err) {
@@ -89,12 +78,7 @@ export function usePacketCapture() {
 
   const stopCapture = useCallback(async () => {
     try {
-      const token = getToken()
-      const response = await fetch('/api/packet-capture/stop', {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      })
-      if (!response.ok) throw new Error('Failed to stop capture')
+      await apiFetch<void>('/api/packet-capture/stop', { method: 'POST' })
       setIsCapturing(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error')
