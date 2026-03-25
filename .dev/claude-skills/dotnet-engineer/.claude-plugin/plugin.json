@@ -1,0 +1,9 @@
+{
+  "name": "dotnet-engineer",
+  "description": "Senior .NET engineering guidance — ASP.NET Core, EF Core, SignalR, Polly, xUnit/NSubstitute",
+  "version": "1.0.0",
+  "author": {
+    "name": "IoTSpy"
+  },
+  "license": "MIT"
+}

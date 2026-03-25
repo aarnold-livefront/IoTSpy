@@ -17,12 +17,14 @@ Each skill is a directory containing a `SKILL.md` with YAML frontmatter and mark
 Run the following from the repo root to install all skills into your local Claude Code:
 
 ```bash
-claude skills install .dev/claude-skills/dotnet-engineer
-claude skills install .dev/claude-skills/security-code-review
-claude skills install .dev/claude-skills/threat-modeling
-```
+# 1. Register the local marketplace (absolute path required)
+claude plugin marketplace add "$(pwd)/.dev/claude-skills" --scope project
 
-Or install them individually as needed.
+# 2. Install each skill
+claude plugin install dotnet-engineer@iotspy-skills --scope project
+claude plugin install security-code-review@iotspy-skills --scope project
+claude plugin install threat-modeling@iotspy-skills --scope project
+```
 
 ## Usage
 
@@ -34,8 +36,4 @@ Once installed, skills activate automatically when Claude detects relevant conte
 
 ## Updating skills
 
-Edit the `SKILL.md` file in the relevant skill directory directly. Re-install after editing:
-
-```bash
-claude skills install .dev/claude-skills/dotnet-engineer
-```
+Edit the `SKILL.md` file in the relevant skill directory directly (both the top-level copy and `skills/<name>/SKILL.md`). Skills are loaded from disk, so changes take effect in the next session without reinstalling.

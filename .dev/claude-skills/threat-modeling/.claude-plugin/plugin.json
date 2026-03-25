@@ -1,0 +1,9 @@
+{
+  "name": "threat-modeling",
+  "description": "Structured threat modeling for systems, features, and architecture changes",
+  "version": "1.0.0",
+  "author": {
+    "name": "IoTSpy"
+  },
+  "license": "MIT"
+}

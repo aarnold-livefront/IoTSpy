@@ -1,0 +1,9 @@
+{
+  "name": "security-code-review",
+  "description": "Systematic security code review — OWASP Top 10, auth, injection vulnerability analysis",
+  "version": "1.0.0",
+  "author": {
+    "name": "IoTSpy"
+  },
+  "license": "MIT"
+}

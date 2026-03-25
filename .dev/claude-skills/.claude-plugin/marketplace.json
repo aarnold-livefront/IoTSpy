@@ -1,0 +1,36 @@
+{
+  "name": "iotspy-skills",
+  "description": "Project-specific Claude Code skills for IoTSpy",
+  "owner": {
+    "name": "IoTSpy"
+  },
+  "plugins": [
+    {
+      "name": "dotnet-engineer",
+      "description": "Senior .NET engineering guidance — ASP.NET Core, EF Core, SignalR, Polly, xUnit/NSubstitute",
+      "version": "1.0.0",
+      "source": "./dotnet-engineer",
+      "author": {
+        "name": "IoTSpy"
+      }
+    },
+    {
+      "name": "security-code-review",
+      "description": "Systematic security code review — OWASP Top 10, auth, injection vulnerability analysis",
+      "version": "1.0.0",
+      "source": "./security-code-review",
+      "author": {
+        "name": "IoTSpy"
+      }
+    },
+    {
+      "name": "threat-modeling",
+      "description": "Structured threat modeling for systems, features, and architecture changes",
+      "version": "1.0.0",
+      "source": "./threat-modeling",
+      "author": {
+        "name": "IoTSpy"
+      }
+    }
+  ]
+}

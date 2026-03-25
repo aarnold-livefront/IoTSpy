@@ -46,9 +46,13 @@ docs/               architecture.md, PLAN.md
 Project-specific Claude Code skills live in `.dev/claude-skills/`. Install them once from the repo root:
 
 ```bash
-claude skills install .dev/claude-skills/dotnet-engineer
-claude skills install .dev/claude-skills/security-code-review
-claude skills install .dev/claude-skills/threat-modeling
+# 1. Register the local marketplace (absolute path required)
+claude plugin marketplace add "$(pwd)/.dev/claude-skills" --scope project
+
+# 2. Install each skill
+claude plugin install dotnet-engineer@iotspy-skills --scope project
+claude plugin install security-code-review@iotspy-skills --scope project
+claude plugin install threat-modeling@iotspy-skills --scope project
 ```
 
 | Skill | When to use |
