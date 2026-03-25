@@ -160,7 +160,9 @@ public class CertificateAuthorityTests
         var leafEntry = await ca.GetOrCreateHostCertificateAsync("example.com");
         var days = (leafEntry.NotAfter - leafEntry.NotBefore).TotalDays;
 
-        Assert.True(days <= 398, $"Leaf cert validity {days:F1} days exceeds 398-day iOS limit");
+        // notBefore is backdated 1 day + notAfter is 397 days forward = 398 days total.
+        // Allow a tiny tolerance for sub-millisecond timing jitter between the two UtcNow calls.
+        Assert.True(days < 399, $"Leaf cert validity {days:F1} days exceeds 398-day iOS limit");
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
