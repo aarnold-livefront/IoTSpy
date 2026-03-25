@@ -58,7 +58,15 @@ export default function CaptureDetail({ captureId }: Props) {
   if (!captureId) {
     return (
       <div className="capture-detail-pane">
-        <div className="capture-detail-placeholder">Select a capture to inspect</div>
+        <div className="capture-detail-placeholder">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true" className="capture-detail-placeholder__icon">
+            <rect x="7" y="11" width="34" height="26" rx="3" stroke="currentColor" strokeWidth="2"/>
+            <line x1="7" y1="19" x2="41" y2="19" stroke="currentColor" strokeWidth="1.5"/>
+            <line x1="14" y1="27" x2="30" y2="27" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.6"/>
+            <line x1="14" y1="32" x2="23" y2="32" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.4"/>
+          </svg>
+          <span>Select a capture to inspect</span>
+        </div>
       </div>
     )
   }

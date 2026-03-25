@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react'
+import { useRef, useCallback, useEffect, useState } from 'react'
 import CaptureFilterBar from './CaptureFilterBar'
 import CaptureRow from './CaptureRow'
 import LoadingSpinner from '../common/LoadingSpinner'
@@ -36,6 +36,20 @@ export default function CaptureList({
   onLoadMore,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const prevFirstIdRef = useRef<string | null>(null)
+  const [newId, setNewId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const currentFirstId = captures[0]?.id ?? null
+    if (currentFirstId && currentFirstId !== prevFirstIdRef.current) {
+      prevFirstIdRef.current = currentFirstId
+      setNewId(currentFirstId)
+      const timer = setTimeout(() => setNewId(null), 1400)
+      return () => clearTimeout(timer)
+    } else {
+      prevFirstIdRef.current = currentFirstId
+    }
+  }, [captures])
 
   const handleScroll = useCallback(() => {
     const el = scrollRef.current
@@ -67,7 +81,12 @@ export default function CaptureList({
           <LoadingSpinner />
         ) : captures.length === 0 ? (
           <div className="capture-list__empty">
-            <div className="capture-list__empty-icon">&#x1F50D;</div>
+            <svg className="capture-list__empty-icon" width="48" height="48" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+              <circle cx="20" cy="21" r="11" stroke="currentColor" strokeWidth="2"/>
+              <line x1="28.5" y1="29.5" x2="41" y2="42" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              <circle cx="20" cy="21" r="4.5" stroke="currentColor" strokeWidth="1.5" opacity="0.4"/>
+              <circle cx="20" cy="21" r="1.5" fill="currentColor" opacity="0.5"/>
+            </svg>
             <div>No captures yet</div>
             <div className="capture-list__empty-hint">
               Configure your device to use the proxy, then traffic will appear here in real time.
@@ -80,6 +99,7 @@ export default function CaptureList({
                 key={c.id}
                 capture={c}
                 selected={c.id === selectedId}
+                isNew={c.id === newId}
                 onSelect={onSelect}
               />
             ))}

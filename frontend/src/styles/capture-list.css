@@ -191,8 +191,11 @@
 }
 
 .capture-list__empty-icon {
-  font-size: 32px;
-  opacity: 0.4;
+  width: 48px;
+  height: 48px;
+  color: var(--color-text-faint);
+  opacity: 0.5;
+  flex-shrink: 0;
 }
 
 .capture-list__empty-hint {
@@ -238,10 +241,19 @@
   gap: var(--space-2);
   padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--color-border);
+  border-left: 2px solid transparent;
   cursor: pointer;
   transition: background-color 0.1s;
   font-size: var(--font-size-sm);
-  min-height: 36px;
+  min-height: 40px;
+}
+
+.capture-row:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.018);
+}
+
+[data-theme="light"] .capture-row:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.018);
 }
 
 .capture-row:hover {
@@ -249,39 +261,65 @@
 }
 
 .capture-row--selected {
-  background-color: var(--color-surface-2);
-  border-left: 2px solid var(--color-primary);
+  background-color: var(--color-surface-2) !important;
+  border-left-color: var(--color-primary) !important;
+}
+
+.capture-row--status-4xx {
+  border-left-color: rgba(243, 156, 18, 0.5);
+}
+
+.capture-row--status-5xx {
+  border-left-color: rgba(231, 76, 60, 0.65);
+}
+
+/* New capture flash animation */
+@keyframes capture-flash {
+  0% {
+    background-color: rgba(0, 201, 177, 0.12);
+    box-shadow: inset 2px 0 0 var(--color-primary);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: none;
+  }
+}
+
+.capture-row--new {
+  animation: capture-flash 1.4s ease-out forwards;
 }
 
 .capture-row--tls {
-  /* subtle visual hint */
+  /* TLS state handled by lock icon */
 }
 
 .method-badge {
   display: inline-block;
-  padding: 1px var(--space-1);
+  padding: 2px 5px;
   border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
   font-weight: 600;
   font-family: var(--font-mono);
   text-align: center;
+  letter-spacing: 0.02em;
 }
 
 .method-badge--GET    { background-color: rgba(46, 204, 113, 0.2); color: var(--color-method-get); }
 .method-badge--POST   { background-color: rgba(52, 152, 219, 0.2); color: var(--color-method-post); }
 .method-badge--PUT    { background-color: rgba(243, 156, 18, 0.2); color: var(--color-method-put); }
-.method-badge--DELETE { background-color: rgba(231, 76, 60, 0.2); color: var(--color-method-delete); }
+.method-badge--DELETE { background-color: var(--color-method-delete); color: #fff; }
 .method-badge--PATCH  { background-color: rgba(155, 89, 182, 0.2); color: var(--color-method-patch); }
 .method-badge--OTHER  { background-color: rgba(139, 147, 176, 0.15); color: var(--color-method-other); }
 
 .status-badge {
   display: inline-block;
-  padding: 1px var(--space-1);
+  padding: 2px 5px;
   border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
   font-weight: 600;
   font-family: var(--font-mono);
   text-align: center;
+  letter-spacing: 0.02em;
 }
 
 .status-badge--2xx { background-color: rgba(46, 204, 113, 0.2); color: var(--color-status-2xx); }
