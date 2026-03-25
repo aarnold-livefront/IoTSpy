@@ -15,17 +15,20 @@ public class ScanJobRepository(IoTSpyDbContext db) : IScanJobRepository
 
     public Task<ScanJob?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         db.ScanJobs
+            .AsNoTracking()
             .Include(j => j.Findings)
             .FirstOrDefaultAsync(j => j.Id == id, ct);
 
     public Task<List<ScanJob>> GetByDeviceIdAsync(Guid deviceId, CancellationToken ct = default) =>
         db.ScanJobs
+            .AsNoTracking()
             .Where(j => j.DeviceId == deviceId)
             .OrderByDescending(j => j.CreatedAt)
             .ToListAsync(ct);
 
     public Task<List<ScanJob>> GetAllAsync(int page = 1, int pageSize = 20, CancellationToken ct = default) =>
         db.ScanJobs
+            .AsNoTracking()
             .OrderByDescending(j => j.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -54,8 +57,15 @@ public class ScanJobRepository(IoTSpyDbContext db) : IScanJobRepository
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task AddFindingsAsync(IEnumerable<ScanFinding> findings, CancellationToken ct = default)
+    {
+        db.ScanFindings.AddRange(findings);
+        await db.SaveChangesAsync(ct);
+    }
+
     public Task<List<ScanFinding>> GetFindingsAsync(Guid scanJobId, CancellationToken ct = default) =>
         db.ScanFindings
+            .AsNoTracking()
             .Where(f => f.ScanJobId == scanJobId)
             .OrderBy(f => f.FoundAt)
             .ToListAsync(ct);

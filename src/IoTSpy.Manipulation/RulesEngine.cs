@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 using IoTSpy.Core.Enums;
 using IoTSpy.Core.Models;
@@ -11,6 +12,11 @@ namespace IoTSpy.Manipulation;
 /// </summary>
 public class RulesEngine(ILogger<RulesEngine> logger)
 {
+    private static readonly ConcurrentDictionary<(string Pattern, RegexOptions Options), Regex> RegexCache = new();
+
+    internal static Regex GetRegex(string pattern, RegexOptions options) =>
+        RegexCache.GetOrAdd((pattern, options), k => new Regex(k.Pattern, k.Options | RegexOptions.Compiled, TimeSpan.FromSeconds(1)));
+
     /// <summary>
     /// Apply all matching rules in priority order. Returns true if any rule modified the message.
     /// </summary>
@@ -38,13 +44,13 @@ public class RulesEngine(ILogger<RulesEngine> logger)
 
     private static bool Matches(ManipulationRule rule, HttpMessage message)
     {
-        if (rule.HostPattern is not null && !Regex.IsMatch(message.Host, rule.HostPattern, RegexOptions.IgnoreCase))
+        if (rule.HostPattern is not null && !GetRegex(rule.HostPattern, RegexOptions.IgnoreCase).IsMatch(message.Host))
             return false;
 
-        if (rule.PathPattern is not null && !Regex.IsMatch(message.Path, rule.PathPattern, RegexOptions.IgnoreCase))
+        if (rule.PathPattern is not null && !GetRegex(rule.PathPattern, RegexOptions.IgnoreCase).IsMatch(message.Path))
             return false;
 
-        if (rule.MethodPattern is not null && !Regex.IsMatch(message.Method, rule.MethodPattern, RegexOptions.IgnoreCase))
+        if (rule.MethodPattern is not null && !GetRegex(rule.MethodPattern, RegexOptions.IgnoreCase).IsMatch(message.Method))
             return false;
 
         return true;
@@ -139,7 +145,7 @@ public class RulesEngine(ILogger<RulesEngine> logger)
             ? message.RequestBody
             : message.ResponseBody;
 
-        var newBody = Regex.Replace(body, rule.BodyReplace, rule.BodyReplaceWith ?? string.Empty);
+        var newBody = GetRegex(rule.BodyReplace, RegexOptions.None).Replace(body, rule.BodyReplaceWith ?? string.Empty);
         if (newBody == body) return false;
 
         if (phase == ManipulationPhase.Request)

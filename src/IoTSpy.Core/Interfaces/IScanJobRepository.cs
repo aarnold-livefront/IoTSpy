@@ -11,5 +11,6 @@ public interface IScanJobRepository
     Task<ScanJob> UpdateAsync(ScanJob job, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
     Task AddFindingAsync(ScanFinding finding, CancellationToken ct = default);
+    Task AddFindingsAsync(IEnumerable<ScanFinding> findings, CancellationToken ct = default);
     Task<List<ScanFinding>> GetFindingsAsync(Guid scanJobId, CancellationToken ct = default);
 }

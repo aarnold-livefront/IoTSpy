@@ -14,13 +14,13 @@ public class BreakpointRepository(IoTSpyDbContext db) : IBreakpointRepository
     }
 
     public Task<Breakpoint?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
-        db.Breakpoints.FirstOrDefaultAsync(b => b.Id == id, ct);
+        db.Breakpoints.AsNoTracking().FirstOrDefaultAsync(b => b.Id == id, ct);
 
     public Task<List<Breakpoint>> GetAllAsync(CancellationToken ct = default) =>
-        db.Breakpoints.OrderBy(b => b.CreatedAt).ToListAsync(ct);
+        db.Breakpoints.AsNoTracking().OrderBy(b => b.CreatedAt).ToListAsync(ct);
 
     public Task<List<Breakpoint>> GetEnabledAsync(CancellationToken ct = default) =>
-        db.Breakpoints.Where(b => b.Enabled).OrderBy(b => b.CreatedAt).ToListAsync(ct);
+        db.Breakpoints.AsNoTracking().Where(b => b.Enabled).OrderBy(b => b.CreatedAt).ToListAsync(ct);
 
     public async Task<Breakpoint> UpdateAsync(Breakpoint breakpoint, CancellationToken ct = default)
     {

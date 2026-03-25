@@ -14,16 +14,18 @@ public class ManipulationRuleRepository(IoTSpyDbContext db) : IManipulationRuleR
     }
 
     public Task<ManipulationRule?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
-        db.ManipulationRules.FirstOrDefaultAsync(r => r.Id == id, ct);
+        db.ManipulationRules.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id, ct);
 
     public Task<List<ManipulationRule>> GetAllAsync(CancellationToken ct = default) =>
         db.ManipulationRules
+            .AsNoTracking()
             .OrderBy(r => r.Priority)
             .ThenBy(r => r.CreatedAt)
             .ToListAsync(ct);
 
     public Task<List<ManipulationRule>> GetEnabledAsync(CancellationToken ct = default) =>
         db.ManipulationRules
+            .AsNoTracking()
             .Where(r => r.Enabled)
             .OrderBy(r => r.Priority)
             .ThenBy(r => r.CreatedAt)

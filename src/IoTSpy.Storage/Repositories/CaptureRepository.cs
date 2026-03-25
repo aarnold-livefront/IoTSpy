@@ -26,7 +26,7 @@ public class CaptureRepository(IoTSpyDbContext db) : ICaptureRepository
         ApplyFilter(filter).CountAsync(ct);
 
     public Task<CapturedRequest?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
-        db.Captures.FirstOrDefaultAsync(c => c.Id == id, ct);
+        db.Captures.AsNoTracking().FirstOrDefaultAsync(c => c.Id == id, ct);
 
     public async Task UpdateAsync(CapturedRequest capture, CancellationToken ct = default)
     {
@@ -55,7 +55,7 @@ public class CaptureRepository(IoTSpyDbContext db) : ICaptureRepository
 
     private IQueryable<CapturedRequest> ApplyFilter(CaptureFilter filter)
     {
-        var q = db.Captures.AsQueryable();
+        var q = db.Captures.AsNoTracking();
         if (filter.DeviceId.HasValue)
             q = q.Where(c => c.DeviceId == filter.DeviceId);
         if (!string.IsNullOrEmpty(filter.HostContains))

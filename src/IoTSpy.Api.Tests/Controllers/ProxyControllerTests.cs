@@ -78,8 +78,8 @@ public class ProxyControllerTests
         proxy.UpdateSettingsAsync(Arg.Any<ProxySettings>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
         var controller = new ProxyController(proxy);
 
-        var newSettings = new ProxySettings { ProxyPort = 9999 };
-        var result = await controller.UpdateSettings(newSettings) as OkObjectResult;
+        var dto = new UpdateProxySettingsDto(ProxyPort: 9999);
+        var result = await controller.UpdateSettings(dto, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         await proxy.Received(1).UpdateSettingsAsync(Arg.Any<ProxySettings>(), Arg.Any<CancellationToken>());

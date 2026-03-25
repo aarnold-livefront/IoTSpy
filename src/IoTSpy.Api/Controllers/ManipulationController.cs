@@ -102,6 +102,7 @@ public class ManipulationController(
     }
 
     [HttpPost("breakpoints")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> CreateBreakpoint([FromBody] CreateBreakpointDto dto)
     {
         var bp = new Breakpoint
@@ -120,6 +121,7 @@ public class ManipulationController(
     }
 
     [HttpPut("breakpoints/{id:guid}")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> UpdateBreakpoint(Guid id, [FromBody] UpdateBreakpointDto dto)
     {
         var bp = await breakpoints.GetByIdAsync(id);
@@ -138,6 +140,7 @@ public class ManipulationController(
     }
 
     [HttpDelete("breakpoints/{id:guid}")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> DeleteBreakpoint(Guid id)
     {
         await breakpoints.DeleteAsync(id);

@@ -15,11 +15,13 @@ public class FuzzerJobRepository(IoTSpyDbContext db) : IFuzzerJobRepository
 
     public Task<FuzzerJob?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         db.FuzzerJobs
+            .AsNoTracking()
             .Include(j => j.Results)
             .FirstOrDefaultAsync(j => j.Id == id, ct);
 
     public Task<List<FuzzerJob>> GetAllAsync(int page = 1, int pageSize = 20, CancellationToken ct = default) =>
         db.FuzzerJobs
+            .AsNoTracking()
             .OrderByDescending(j => j.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -50,6 +52,7 @@ public class FuzzerJobRepository(IoTSpyDbContext db) : IFuzzerJobRepository
 
     public Task<List<FuzzerResult>> GetResultsAsync(Guid jobId, CancellationToken ct = default) =>
         db.FuzzerResults
+            .AsNoTracking()
             .Where(r => r.FuzzerJobId == jobId)
             .OrderBy(r => r.MutationIndex)
             .ToListAsync(ct);

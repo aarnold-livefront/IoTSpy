@@ -1,3 +1,4 @@
+using IoTSpy.Core.Enums;
 using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -33,9 +34,37 @@ public class ProxyController(IProxyService proxy) : ControllerBase
     }
 
     [HttpPut("settings")]
-    public async Task<IActionResult> UpdateSettings([FromBody] ProxySettings settings)
+    public async Task<IActionResult> UpdateSettings([FromBody] UpdateProxySettingsDto dto, CancellationToken ct)
     {
-        await proxy.UpdateSettingsAsync(settings);
+        var settings = proxy.GetSettings();
+        settings.ProxyPort = dto.ProxyPort ?? settings.ProxyPort;
+        settings.Mode = dto.Mode ?? settings.Mode;
+        settings.CaptureTls = dto.CaptureTls ?? settings.CaptureTls;
+        settings.CaptureRequestBodies = dto.CaptureRequestBodies ?? settings.CaptureRequestBodies;
+        settings.CaptureResponseBodies = dto.CaptureResponseBodies ?? settings.CaptureResponseBodies;
+        settings.MaxBodySizeKb = dto.MaxBodySizeKb ?? settings.MaxBodySizeKb;
+        settings.ListenAddress = dto.ListenAddress ?? settings.ListenAddress;
+        settings.TransparentProxyPort = dto.TransparentProxyPort ?? settings.TransparentProxyPort;
+        settings.TargetDeviceIp = dto.TargetDeviceIp ?? settings.TargetDeviceIp;
+        settings.GatewayIp = dto.GatewayIp ?? settings.GatewayIp;
+        settings.NetworkInterface = dto.NetworkInterface ?? settings.NetworkInterface;
+        settings.SslStrip = dto.SslStrip ?? settings.SslStrip;
+        await proxy.UpdateSettingsAsync(settings, ct);
         return Ok(proxy.GetSettings());
     }
 }
+
+public record UpdateProxySettingsDto(
+    int? ProxyPort = null,
+    ProxyMode? Mode = null,
+    bool? CaptureTls = null,
+    bool? CaptureRequestBodies = null,
+    bool? CaptureResponseBodies = null,
+    int? MaxBodySizeKb = null,
+    string? ListenAddress = null,
+    int? TransparentProxyPort = null,
+    string? TargetDeviceIp = null,
+    string? GatewayIp = null,
+    string? NetworkInterface = null,
+    bool? SslStrip = null
+);

@@ -19,6 +19,7 @@ public class EmailOptions
 {
     public string? SmtpHost { get; set; }
     public int SmtpPort { get; set; } = 587;
+    public bool UseSsl { get; set; } = true;
     public string? From { get; set; }
     public string? To { get; set; }
     public string? Username { get; set; }

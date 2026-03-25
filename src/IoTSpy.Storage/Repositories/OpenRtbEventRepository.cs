@@ -14,7 +14,7 @@ public class OpenRtbEventRepository(IoTSpyDbContext db) : IOpenRtbEventRepositor
     }
 
     public Task<OpenRtbEvent?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
-        db.OpenRtbEvents.FirstOrDefaultAsync(e => e.Id == id, ct);
+        db.OpenRtbEvents.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id, ct);
 
     public Task<List<OpenRtbEvent>> GetPagedAsync(
         OpenRtbEventFilter filter, int page, int pageSize, CancellationToken ct = default)
@@ -41,7 +41,7 @@ public class OpenRtbEventRepository(IoTSpyDbContext db) : IOpenRtbEventRepositor
 
     private IQueryable<OpenRtbEvent> ApplyFilter(OpenRtbEventFilter filter)
     {
-        var q = db.OpenRtbEvents.AsQueryable();
+        var q = db.OpenRtbEvents.AsNoTracking();
 
         if (!string.IsNullOrEmpty(filter.HostContains))
             q = q.Where(e => e.Exchange.Contains(filter.HostContains));

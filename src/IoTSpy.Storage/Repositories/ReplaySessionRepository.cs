@@ -15,17 +15,20 @@ public class ReplaySessionRepository(IoTSpyDbContext db) : IReplaySessionReposit
 
     public Task<ReplaySession?> GetByIdAsync(Guid id, CancellationToken ct = default) =>
         db.ReplaySessions
+            .AsNoTracking()
             .Include(r => r.OriginalCapture)
             .FirstOrDefaultAsync(r => r.Id == id, ct);
 
     public Task<List<ReplaySession>> GetByCaptureIdAsync(Guid captureId, CancellationToken ct = default) =>
         db.ReplaySessions
+            .AsNoTracking()
             .Where(r => r.OriginalCaptureId == captureId)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync(ct);
 
     public Task<List<ReplaySession>> GetAllAsync(int page = 1, int pageSize = 20, CancellationToken ct = default) =>
         db.ReplaySessions
+            .AsNoTracking()
             .OrderByDescending(r => r.CreatedAt)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)

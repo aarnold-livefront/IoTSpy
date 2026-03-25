@@ -183,7 +183,7 @@ public sealed class ScheduledScanService : BackgroundService
         }
     }
 
-    private static DateTimeOffset? ComputeNextRun(string cronExpression, DateTimeOffset from)
+    private DateTimeOffset? ComputeNextRun(string cronExpression, DateTimeOffset from)
     {
         try
         {
@@ -191,8 +191,9 @@ public sealed class ScheduledScanService : BackgroundService
             var next = cron.GetNextOccurrence(from.UtcDateTime, TimeZoneInfo.Utc);
             return next.HasValue ? new DateTimeOffset(next.Value, TimeSpan.Zero) : null;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Invalid cron expression '{Cron}' — schedule will not fire", cronExpression);
             return null;
         }
     }
