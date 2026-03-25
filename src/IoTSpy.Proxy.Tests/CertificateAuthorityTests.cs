@@ -4,6 +4,7 @@ using IoTSpy.Proxy.Tls;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Xunit;
 
@@ -137,7 +138,8 @@ public class CertificateAuthorityTests
 
         var eku = cert.Extensions[OidExtendedKeyUsage] as X509EnhancedKeyUsageExtension;
         Assert.NotNull(eku);
-        Assert.Contains(eku.EnhancedKeyUsages, o => o.Value == "1.3.6.1.5.5.7.3.1"); // id-kp-serverAuth
+        // OidCollection is non-generic; cast to use LINQ with a lambda predicate.
+        Assert.Contains(eku.EnhancedKeyUsages.Cast<Oid>(), o => o.Value == "1.3.6.1.5.5.7.3.1"); // id-kp-serverAuth
     }
 
     [Fact]
@@ -203,6 +205,6 @@ public class CertificateAuthorityTests
             .Replace("-----BEGIN CERTIFICATE-----", "")
             .Replace("-----END CERTIFICATE-----", "")
             .Replace("\n", "").Replace("\r", "").Trim();
-        return new X509Certificate2(Convert.FromBase64String(b64));
+        return X509CertificateLoader.LoadCertificate(Convert.FromBase64String(b64));
     }
 }
