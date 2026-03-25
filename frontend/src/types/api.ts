@@ -142,6 +142,42 @@ export interface ProxyStatus {
 
 export interface AuthStatusResponse {
   passwordSet: boolean
+  multiUser?: boolean
+}
+
+export type UserRole = 'admin' | 'operator' | 'viewer'
+
+export interface UserInfo {
+  id: string
+  username: string
+  displayName: string
+  role: UserRole
+  isEnabled: boolean
+  createdAt: string
+  lastLoginAt?: string
+}
+
+export interface AuditEntry {
+  id: string
+  userId?: string
+  username: string
+  action: string
+  entityType: string
+  entityId?: string
+  details?: string
+  ipAddress: string
+  timestamp: string
+}
+
+export interface DashboardLayout {
+  id: string
+  userId: string
+  name: string
+  isDefault: boolean
+  layoutJson: string
+  filtersJson: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface LoginResponse {

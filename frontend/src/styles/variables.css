@@ -1,4 +1,5 @@
-:root {
+/* ── Dark theme (default) ──────────────────────────────────────── */
+:root, [data-theme="dark"] {
   /* Colors */
   --color-bg: #0f1117;
   --color-surface: #1a1d27;
@@ -66,4 +67,44 @@
   /* Layout */
   --header-height: 48px;
   --split-divider-width: 4px;
+}
+
+/* ── Light theme ──────────────────────────────────────────────── */
+[data-theme="light"] {
+  --color-bg: #f5f6fa;
+  --color-surface: #ffffff;
+  --color-surface-2: #f0f1f5;
+  --color-surface-3: #e4e6ed;
+  --color-border: #d1d5e0;
+  --color-border-focus: #4e7aff;
+
+  --color-text: #1a1d27;
+  --color-text-muted: #5a6178;
+  --color-text-faint: #8b93b0;
+
+  --color-primary: #4e7aff;
+  --color-primary-hover: #3a64e0;
+  --color-primary-active: #2d50b5;
+
+  --color-success: #27ae60;
+  --color-warning: #e67e22;
+  --color-danger: #c0392b;
+  --color-danger-hover: #a93226;
+  --color-info: #2980b9;
+
+  --color-method-get: #27ae60;
+  --color-method-post: #2980b9;
+  --color-method-put: #e67e22;
+  --color-method-delete: #c0392b;
+  --color-method-patch: #8e44ad;
+  --color-method-other: #5a6178;
+
+  --color-status-2xx: #27ae60;
+  --color-status-3xx: #2980b9;
+  --color-status-4xx: #e67e22;
+  --color-status-5xx: #c0392b;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.12);
 }
