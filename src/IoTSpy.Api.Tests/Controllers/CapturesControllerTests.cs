@@ -96,7 +96,7 @@ public class CapturesControllerTests
         repo.CountAsync(Arg.Any<CaptureFilter>(), Arg.Any<CancellationToken>()).Returns(0);
 
         var controller = new CapturesController(repo);
-        await controller.List(null, null, null, null, null, null, null, pageSize: 9999);
+        await controller.List(null, null, null, null, null, null, null, null, pageSize: 9999);
 
         await repo.Received(1).GetPagedAsync(Arg.Any<CaptureFilter>(), 1, 200, Arg.Any<CancellationToken>());
     }
