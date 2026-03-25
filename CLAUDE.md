@@ -41,6 +41,24 @@ frontend/           Vite 6 + React 19 + TypeScript dashboard
 docs/               architecture.md, PLAN.md
 ```
 
+## Available skills
+
+Project-specific Claude Code skills live in `.dev/claude-skills/`. Install them once from the repo root:
+
+```bash
+claude skills install .dev/claude-skills/dotnet-engineer.skill
+claude skills install .dev/claude-skills/security-code-review.skill
+claude skills install .dev/claude-skills/threat-modeling.skill
+```
+
+| Skill | When to use |
+|---|---|
+| `/dotnet-engineer` | ASP.NET Core, EF Core, SignalR, Polly, xUnit/NSubstitute architecture guidance |
+| `/security-code-review` | OWASP Top 10 + auth/injection vulnerability review before merging |
+| `/threat-modeling` | Structured threat analysis for new features or design changes |
+
+See `.dev/claude-skills/README.md` for full details.
+
 ## Workflow rules
 
 - **Always run `dotnet test` before committing.** All 300+ backend tests must stay green.

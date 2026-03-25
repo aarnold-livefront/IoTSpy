@@ -135,6 +135,24 @@ SignalR hubs:
 | `DataRetention:Enabled` | Background TTL cleanup (default: false) |
 | `Serilog` | Log sinks and minimum level |
 
+## Available Claude Code skills
+
+Project-specific skills live in `.dev/claude-skills/`. If you are running as Claude Code, install them once from the repo root:
+
+```bash
+claude skills install .dev/claude-skills/dotnet-engineer.skill
+claude skills install .dev/claude-skills/security-code-review.skill
+claude skills install .dev/claude-skills/threat-modeling.skill
+```
+
+| Skill | When to use |
+|---|---|
+| `/dotnet-engineer` | ASP.NET Core, EF Core, SignalR, Polly, xUnit/NSubstitute architecture guidance |
+| `/security-code-review` | OWASP Top 10 + auth/injection vulnerability review before merging |
+| `/threat-modeling` | Structured threat analysis for new features or design changes |
+
+See `.dev/claude-skills/README.md` for full details.
+
 ## What to avoid
 
 - Do not add infrastructure dependencies to `IoTSpy.Core`.
