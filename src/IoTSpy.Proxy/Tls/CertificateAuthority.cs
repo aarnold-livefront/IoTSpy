@@ -115,8 +115,18 @@ public class CertificateAuthority(
         gen.AddExtension(X509Extensions.BasicConstraints, true, new BasicConstraints(true));
         gen.AddExtension(X509Extensions.KeyUsage, true,
             new KeyUsage(KeyUsage.KeyCertSign | KeyUsage.CrlSign));
-        gen.AddExtension(X509Extensions.SubjectKeyIdentifier, false,
-            X509ExtensionUtilities.CreateSubjectKeyIdentifier(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keyPair.Public)));
+
+        // SubjectKeyIdentifier — required to link AKI on leaf certs back to this root.
+        var ski = X509ExtensionUtilities.CreateSubjectKeyIdentifier(
+            SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keyPair.Public));
+        gen.AddExtension(X509Extensions.SubjectKeyIdentifier, false, ski);
+
+        // AuthorityKeyIdentifier (self-referential) — iOS requires AKI on every cert in the
+        // chain, including the root CA itself, to build the trust path to the trust anchor.
+        // Proxyman and mitmproxy both include this; omitting it causes silent chain-build
+        // failures in iOS even after the user enables full trust in Certificate Trust Settings.
+        gen.AddExtension(X509Extensions.AuthorityKeyIdentifier, false,
+            new AuthorityKeyIdentifierStructure(keyPair.Public));
 
         var signer = new Asn1SignatureFactory("SHA256WithRSA", keyPair.Private, SecureRandom);
         var cert = gen.Generate(signer);
