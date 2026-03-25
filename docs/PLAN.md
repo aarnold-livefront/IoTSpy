@@ -128,9 +128,7 @@ Items that are still open. These inform the roadmap.
 
 ## Roadmap — what comes next
 
-### Phase 11 — UX & multi-user
-
-**Goal:** Polish the user experience and support team usage.
+### Phase 11 — UX & multi-user ✅ Complete
 
 | # | Task | Status | Details |
 |---|---|---|---|
@@ -141,13 +139,105 @@ Items that are still open. These inform the roadmap.
 | 11.5 | Dashboard customization | ✅ Complete | `DashboardLayout` model + `IDashboardLayoutRepository`; per-user saved layouts with JSON config; `DashboardController` CRUD |
 | 11.6 | Onboarding wizard | ✅ Complete | `OnboardingWizard` component (5 steps: welcome, proxy mode, TLS setup, device, done); persisted in localStorage; shows on first authenticated visit |
 
-### Future ideas (unplanned)
+---
 
-- Bluetooth/Zigbee/Z-Wave protocol support
-- HTTPS for the API itself (Kestrel HTTPS endpoint)
-- PCAP import (analyze previously captured traffic)
-- Plugin system for custom protocol decoders
-- Collaborative session sharing (multiple users watching the same proxy in real time)
+### Phase 12 — Threat Intelligence & Advanced Detection
+
+**Goal:** Enrich scan findings and traffic analysis with external threat intelligence and improve automated detection capabilities.
+
+| # | Task | Priority | Details |
+|---|---|---|---|
+| 12.1 | Shodan integration | High | Query Shodan for open ports/vulnerabilities on scanned device IPs; surface results as `ScanFinding` entries with `ScanFindingType.Shodan` |
+| 12.2 | VirusTotal URL/IP lookup | High | Check captured hostnames/IPs against VirusTotal API; flag malicious destinations in the captures list |
+| 12.3 | Local CVE database cache | Medium | Download NVD/OSV CVE data on a schedule so CVE lookups work offline and reduce API rate-limit exposure |
+| 12.4 | MISP threat feed ingestion | Medium | Pull IOCs (IPs, domains, hashes) from a configured MISP instance; auto-tag matching captures |
+| 12.5 | Passive OS fingerprinting | Medium | Derive OS/device type from TCP/IP stack behaviour (TTL, window size, options) in packet captures; enrich `Device` records |
+| 12.6 | DGA domain detection | High | ML/heuristic model to classify captured DNS names as likely DGA (entropy, n-gram analysis); emit `AnomalyAlert` on match |
+| 12.7 | Threat intelligence frontend panel | High | New "Threat Intel" tab: per-device IOC matches, VirusTotal reports, CVE timeline, flagged captures |
+
+Backend: `IoTSpy.Core` — `ThreatIntelMatch`, `IOC`, `OsFingerprint` models; `IThreatIntelService`, `IOsFingerprinter` interfaces. `IoTSpy.Scanner` — `ThreatIntelService`, `OsFingerprinter`. `IoTSpy.Storage` — `ThreatIntelMatches` DbSet + migration.
+
+---
+
+### Phase 13 — PCAP Import & Offline Analysis
+
+**Goal:** Allow users to upload and analyze existing PCAP files, not just live captures.
+
+| # | Task | Priority | Details |
+|---|---|---|---|
+| 13.1 | PCAP file upload endpoint | High | `POST /api/packet-capture/import` — multipart upload; parse with SharpPcap `OfflinePcapDevice`; insert packets into DB with `Source=Import` tag |
+| 13.2 | Import progress streaming | Medium | Stream import progress via SignalR `PacketCaptureHub` so the frontend can show a live progress bar |
+| 13.3 | PCAP import frontend | High | Drag-and-drop upload zone in `PanelPacketCapture`; shows import job status + packet count |
+| 13.4 | pcapng support | Medium | Extend the importer to handle pcapng (next-generation PCAP) via SharpPcap's built-in support |
+| 13.5 | Session reconstruction | Medium | TCP stream reassembly on imported PCAP data to extract HTTP/MQTT/CoAP payloads; store as `CapturedRequest` entries for manipulation analysis |
+| 13.6 | Diff view for imported vs. live | Low | Side-by-side comparison of an imported PCAP session against a live capture of the same device |
+
+Backend: `IoTSpy.Scanner` — `PcapImportService`; `IoTSpy.Core` — `PcapImportJob`, `IPcapImportService`.
+
+---
+
+### Phase 14 — API Key Management & Service Accounts
+
+**Goal:** Enable programmatic/CI access to IoTSpy without sharing user credentials.
+
+| # | Task | Priority | Details |
+|---|---|---|---|
+| 14.1 | `ApiKey` model & repository | High | `ApiKey` entity: name, hashed secret, scopes, expiry, last-used timestamp, owner user ID; `IApiKeyRepository` |
+| 14.2 | API key issuance endpoint | High | `POST /api/auth/api-keys` (admin/operator) — generates a random 32-byte key, returns it once in plaintext, stores PBKDF2 hash |
+| 14.3 | API key authentication middleware | High | `ApiKeyAuthenticationHandler` — accepts `X-Api-Key` header; resolves key → user principal with role claims |
+| 14.4 | Scope enforcement | Medium | Fine-grained scope strings (`captures:read`, `scanner:write`, etc.) validated per endpoint via policy attribute |
+| 14.5 | Key rotation & revocation | Medium | `DELETE /api/auth/api-keys/{id}`, `POST /api/auth/api-keys/{id}/rotate`; rotation issues replacement and revokes old key |
+| 14.6 | API key frontend management | Medium | Admin panel for listing/creating/revoking keys; copy-to-clipboard on creation |
+| 14.7 | EF Core migration | High | `AddApiKeyManagement` migration — `ApiKeys` table |
+
+---
+
+### Phase 15 — Collaboration & Real-time Sharing
+
+**Goal:** Support multiple operators monitoring the same device/proxy session simultaneously with role-aware views.
+
+| # | Task | Priority | Details |
+|---|---|---|---|
+| 15.1 | Shared capture sessions | High | Named "investigation sessions" that multiple users can join; all captures within a session visible to all participants in real time |
+| 15.2 | In-session annotations | Medium | Users can annotate individual captures with notes/tags; annotations stored in DB, broadcast via SignalR |
+| 15.3 | Viewer role restrictions | High | Viewer role enforced at SignalR hub level: read-only groups, no rule/script application |
+| 15.4 | Presence indicators | Low | Show which users are currently active on which device/panel in the dashboard header |
+| 15.5 | Activity feed | Medium | Per-session activity log (user X started scan, user Y added rule) broadcast to all participants |
+| 15.6 | Session export | Medium | Export a complete investigation session (captures + annotations + scan findings + manipulation rules) as a ZIP archive |
+
+Backend: `IoTSpy.Core` — `InvestigationSession`, `CaptureAnnotation` models; `IoTSpy.Storage` — migration.
+
+---
+
+### Phase 16 — Deployment & Operations
+
+**Goal:** Make IoTSpy production-ready for team deployments with proper TLS, container orchestration, and operational tooling.
+
+| # | Task | Priority | Details |
+|---|---|---|---|
+| 16.1 | Kestrel HTTPS for the API | High | Configure Kestrel to serve the REST + SignalR API over TLS; support certificate path + password config or Let's Encrypt via `Certes` |
+| 16.2 | Kubernetes Helm chart | Medium | Helm chart in `deploy/helm/iotspy/`; values for replica count, image tag, DB connection, secret management; Ingress with TLS annotation |
+| 16.3 | Docker Compose improvements | Medium | Add a `docker-compose.prod.yml` with Postgres, pgAdmin, and Traefik reverse proxy; separate from dev compose |
+| 16.4 | Plugin system for protocol decoders | Medium | `IPluginDecoder` interface loaded from a `plugins/` directory via MEF/AssemblyLoadContext; allows community-contributed decoders without rebuilding |
+| 16.5 | LDAP / SAML SSO | Low | External identity provider integration; map LDAP groups to `UserRole`; `ExternalAuthController` |
+| 16.6 | Metrics endpoint (Prometheus) | Medium | `GET /metrics` via `prometheus-net.AspNetCore`; expose proxy request counts, scan durations, anomaly alert rates, capture queue depth |
+| 16.7 | Alerting integrations | Medium | Webhook targets for Slack, Teams, and PagerDuty; triggered on high-severity scan findings and anomaly alerts |
+| 16.8 | Distributed mode (multi-node) | Low | Redis-backed SignalR backplane; shared Postgres; multiple IoTSpy nodes behind a load balancer covering different network segments |
+
+---
+
+### Phase 17 — Protocol Expansion (Non-IP IoT)
+
+**Goal:** Extend coverage to wireless IoT protocols beyond TCP/IP networking.
+
+| # | Task | Priority | Details |
+|---|---|---|---|
+| 17.1 | AMQP 1.0 decoder | Medium | Decode AMQP frames captured via transparent proxy or PCAP import; surface messages alongside MQTT |
+| 17.2 | RTSP/RTP for IP cameras | Medium | Detect RTSP `DESCRIBE`/`SETUP`/`PLAY` sequences; capture SDP metadata; flag unauthenticated streams |
+| 17.3 | Matter/Thread protocol support | Low | Passive decode of Matter commissioning and cluster messages; Thread network topology mapping (requires USB border router) |
+| 17.4 | Zigbee passive capture | Low | USB Zigbee sniffer integration (e.g. RZUSBSTICK / CC2531) via `libusb`; decode ZDP/ZCL frames |
+| 17.5 | Bluetooth LE advertisement decode | Low | HCI socket or BlueZ integration; decode BLE advertisements from IoT beacons; map to known vendor profiles (Eddystone, iBeacon, Tile) |
+| 17.6 | Z-Wave frame decode | Low | Serial port integration with a Z-Wave controller; decode Z-Wave frames and map to device/command class |
 
 ---
 

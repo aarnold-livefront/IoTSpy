@@ -4,7 +4,7 @@
 
 IoTSpy is a .NET 10 / C# solution that acts as a transparent MITM proxy, multi-protocol decoder, statistical anomaly detector, and lightweight pen-test suite for IoT network research. A REST + SignalR API exposes all functionality; the frontend is a Vite 6 + React 19 + TypeScript single-page application.
 
-All phases (1–10) plus OpenRTB inspection and TLS passthrough/SSL stripping are complete. Phase 11 (UX & multi-user) is next.
+All phases (1–11) plus OpenRTB inspection and TLS passthrough/SSL stripping are complete.
 
 ---
 
@@ -63,6 +63,9 @@ Domain models live in `IoTSpy.Core/Models/`; DTOs and result types are co-locate
 | `Device` | IoT device record: IP, MAC, hostname, vendor, label, `SecurityScore` |
 | `ProxySettings` | Singleton config row (Id=1): ports, mode, TLS/body capture flags, PBKDF2 password hash, `SslStrip` toggle |
 | `TlsMetadata` | All metadata extracted from TLS handshake during passthrough mode: SNI, JA3/JA3S, cipher suites, server cert details, byte counts (serialized as JSON in `CapturedRequest.TlsMetadataJson`) |
+| `User` | Multi-user RBAC identity: username, PBKDF2 password hash, `UserRole` (Admin/Operator/Viewer), `IsEnabled`, timestamps |
+| `AuditEntry` | Immutable audit trail entry: actor user ID, action name, target, details JSON, timestamp |
+| `DashboardLayout` | Per-user saved dashboard configuration: JSON-serialized panel layout and filter state |
 | `CertificateEntry` | PEM-encoded root CA or per-host leaf cert with validity range |
 | `ResilienceOptions` | Typed options for Polly pipeline configuration |
 | `ScanJob` | A scanner run: target IP, port range, which checks to run, status, result counts |
@@ -98,13 +101,14 @@ Domain models live in `IoTSpy.Core/Models/`; DTOs and result types are co-locate
 
 ### Interfaces (30)
 
-`ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`, `IAnomalyAlertPublisher`, `IPacketCaptureService`, `IPacketCaptureAnalyzer`, `IPacketCapturePublisher`, `IOpenRtbEventRepository`, `IOpenRtbPiiPolicyRepository`, `IOpenRtbService`, `IPiiStrippingLogRepository`, `ICaptureDeviceRepository`, `IAlertingService`, `IReportService`, `IScheduledScanRepository`, `IMqttBrokerProxy`, `ICoapProxy`
+`ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`, `IAnomalyAlertPublisher`, `IPacketCaptureService`, `IPacketCaptureAnalyzer`, `IPacketCapturePublisher`, `IOpenRtbEventRepository`, `IOpenRtbPiiPolicyRepository`, `IOpenRtbService`, `IPiiStrippingLogRepository`, `ICaptureDeviceRepository`, `IAlertingService`, `IReportService`, `IScheduledScanRepository`, `IMqttBrokerProxy`, `ICoapProxy`, `IUserRepository`, `IAuditRepository`, `IDashboardLayoutRepository`
 
 ### Enums (13)
 
 | Enum | Values |
 |---|---|
 | `ProxyMode` | ExplicitProxy, ArpSpoof, GatewayRedirect |
+| `UserRole` | Admin, Operator, Viewer |
 | `InterceptionProtocol` | Http, Https, Mqtt, MqttTls, CoAP, Dns, MDns, WebSocket, WebSocketTls, Grpc, Modbus, TlsPassthrough, Other |
 | `ScanStatus` | Pending, Running, Completed, Failed, Cancelled |
 | `ScanFindingType` | OpenPort, ServiceBanner, DefaultCredential, Cve, ConfigIssue |
@@ -378,16 +382,19 @@ EF Core 10 data access layer; supports SQLite (default) and PostgreSQL.
 | `CaptureDevices` | `CaptureDevice` | Indexed on IpAddress, MacAddress |
 | `Packets` | `CapturedPacket` | FK → CaptureDevice; indexed on Timestamp, DeviceId, Protocol, SourceIp, DestinationIp |
 | `ScheduledScans` | `ScheduledScan` | Cron-based recurring scan jobs (Phase 9) |
+| `Users` | `User` | Multi-user RBAC identities (Phase 11) |
+| `AuditEntries` | `AuditEntry` | Immutable audit log (Phase 11) |
+| `DashboardLayouts` | `DashboardLayout` | Per-user saved dashboard configurations (Phase 11) |
 
 `DateTimeOffset` columns are stored as Unix milliseconds (`long`) via a `ValueConverter` — required for SQLite `ORDER BY` compatibility.
 
 ### Repositories (12+)
 
-`CaptureRepository`, `DeviceRepository`, `CertificateRepository`, `ProxySettingsRepository`, `ScanJobRepository`, `ManipulationRuleRepository`, `BreakpointRepository`, `ReplaySessionRepository`, `FuzzerJobRepository`, `OpenRtbEventRepository`, `OpenRtbPiiPolicyRepository`, `PiiStrippingLogRepository`, `CaptureDeviceRepository`, `ScheduledScanRepository`
+`CaptureRepository`, `DeviceRepository`, `CertificateRepository`, `ProxySettingsRepository`, `ScanJobRepository`, `ManipulationRuleRepository`, `BreakpointRepository`, `ReplaySessionRepository`, `FuzzerJobRepository`, `OpenRtbEventRepository`, `OpenRtbPiiPolicyRepository`, `PiiStrippingLogRepository`, `CaptureDeviceRepository`, `ScheduledScanRepository`, `UserRepository`, `AuditRepository`, `DashboardLayoutRepository`
 
 All repositories are **scoped** (one per HTTP request / DI scope) because they depend on the scoped EF Core `DbContext`.
 
-### Migrations (10)
+### Migrations (11)
 
 | Migration | Contents |
 |---|---|
@@ -401,6 +408,7 @@ All repositories are **scoped** (one per HTTP request / DI scope) because they d
 | `AddPhase9ScheduledScans` | ScheduledScans table |
 | `AddBodyCaptureDefaults` | Body capture default column values |
 | `AddTlsPassthroughAndSslStrip` | `TlsMetadataJson` (TEXT) on Captures, `SslStrip` (BOOLEAN) on ProxySettings |
+| `AddPhase11MultiUserAndAudit` | `Users`, `AuditEntries`, `DashboardLayouts` tables |
 
 ---
 
@@ -416,11 +424,11 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 - **Scoped**: All EF Core repositories, `DbContext`
 - `ProxyService` is registered once as `IProxyService` and once as `IHostedService` via `AddHostedService(sp => sp.GetRequiredService<ProxyService>())` to prevent double instantiation.
 
-### Controllers (12)
+### Controllers (13)
 
 | Controller | Endpoints |
 |---|---|
-| `AuthController` | `POST /api/auth/setup`, `POST /api/auth/login` |
+| `AuthController` | `POST /api/auth/setup`, `POST /api/auth/login`; admin: user CRUD (`GET/POST/PUT/DELETE /api/auth/users`), `GET /api/auth/audit` |
 | `ProxyController` | `GET/PUT /api/proxy/settings`, `POST /api/proxy/start`, `POST /api/proxy/stop` |
 | `CapturesController` | `GET /api/captures` (paged + filtered), `GET /api/captures/{id}`, `DELETE /api/captures/{id}` |
 | `DevicesController` | `GET /api/devices`, `GET /api/devices/{id}`, `PUT /api/devices/{id}`, `DELETE /api/devices/{id}` |
@@ -432,6 +440,7 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 | `ProtocolProxyController` | MQTT start/stop/status, CoAP start/stop/status |
 | `ReportController` | `GET /api/reports/devices/{id}/html`, `GET /api/reports/devices/{id}/pdf` — scan report generation |
 | `ScheduledScanController` | CRUD `GET/POST/PUT/DELETE /api/scheduled-scans` — cron-based recurring scan jobs |
+| `DashboardController` | Per-user dashboard layout CRUD (`GET/POST/PUT/DELETE /api/dashboard/layouts`) |
 
 ### SignalR
 
@@ -456,7 +465,9 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 
 ### Authentication
 
-- Single-user model; PBKDF2 (`Rfc2898DeriveBytes.Pbkdf2`) password hash stored in `ProxySettings.PasswordHash`
+- Multi-user RBAC model (Phase 11): `User` table with `UserRole` enum (Admin/Operator/Viewer); PBKDF2-SHA256 password hashing; JWT claims include `NameIdentifier` (user ID), `Name` (username), and `Role`
+- Backward-compatible with legacy single-user auth via `ProxySettings.PasswordHash` (used when no `User` record matches)
+- Admin-only endpoints: user CRUD and audit log in `AuthController`; SignalR accepts token via `?access_token=` query param
 - JWT issuer and audience: `"iotspy"`
 - `Auth:JwtSecret` must be ≥ 32 characters; app throws on startup if absent
 - OpenAPI (Scalar) at `/scalar` in Development mode only
@@ -542,15 +553,16 @@ frontend/src/
 
 ## Test projects
 
-248 backend tests + 11 frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI.
+300+ backend tests + 11 frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI.
 
 | Project | Test classes | Coverage |
 |---|---|---|
-| `IoTSpy.Protocols.Tests` | `MqttDecoderTests`, `DnsDecoderTests`, `TelemetryDecoderTests`, `AnomalyDetectorTests` | MQTT 3.1.1/5.0 packet types; DNS/mDNS; all four telemetry decoders; anomaly detection (warm-up, per-type alerts, convergence, Reset, independent hosts) |
+| `IoTSpy.Core.Tests` | `ModelDefaultTests`, `EnumCoverageTests`, `UserModelTests`, `AuditEntryTests` | Model defaults/enum coverage; User/AuditEntry/DashboardLayout validation |
+| `IoTSpy.Protocols.Tests` | `MqttDecoderTests`, `DnsDecoderTests`, `TelemetryDecoderTests`, `AnomalyDetectorTests`, `WebSocketDecoderTests`, `GrpcDecoderTests`, `ModbusDecoderTests`, `CoapDecoderTests`, `MqttTopicMatchTests` | MQTT 3.1.1/5.0; DNS/mDNS; all four telemetry decoders; anomaly detection; WebSocket RFC 6455 frames; gRPC LPM; Modbus TCP; CoAP RFC 7252; MQTT topic wildcard matching |
 | `IoTSpy.Manipulation.Tests` | `RulesEngineTests`, `FuzzerServiceTests`, `OpenRtbPiiServiceTests` | Rule matching + all actions; fuzzer mutation strategies; OpenRTB PII detection + redaction |
 | `IoTSpy.Scanner.Tests` | `PortScannerTests`, `PacketCaptureServiceTests` | Concurrency limiting, timeout handling; ring buffer, PCAP export |
-| `IoTSpy.Api.Tests` | `AuthControllerTests`, `ProxyControllerTests`, `CapturesControllerTests`, `DevicesControllerTests`, `ScannerControllerTests`, `AuthServiceTests` | Controller unit tests with NSubstitute mocks; `AuthService` BCrypt/JWT logic |
-| `IoTSpy.Proxy.Tests` | `ProxyServiceTests`, `ResilienceOptionsTests`, `GracefulShutdownTests` | ProxyService state machine; resilience defaults; graceful shutdown drain |
+| `IoTSpy.Api.Tests` | `AuthControllerTests`, `ProxyControllerTests`, `CapturesControllerTests`, `DevicesControllerTests`, `ScannerControllerTests`, `AuthServiceTests` | Controller unit tests with NSubstitute mocks; multi-user + legacy auth; `AuthService` PBKDF2/JWT logic |
+| `IoTSpy.Proxy.Tests` | `ProxyServiceTests`, `ResilienceOptionsTests`, `GracefulShutdownTests`, `TlsClientHelloParserTests`, `TlsServerHelloParserTests`, `SslStripServiceTests` | ProxyService state machine; resilience defaults; graceful shutdown; TLS handshake parsing (JA3/JA3S/SNI); SSL strip redirect/HSTS/rewrite |
 | `IoTSpy.Storage.Tests` | `DeviceRepositoryTests`, `CaptureRepositoryTests`, `ProxySettingsRepositoryTests`, `DataRetentionServiceTests` | EF Core in-memory SQLite integration tests; data retention service cleanup |
 | `IoTSpy.Api.IntegrationTests` | `AuthIntegrationTests`, `DevicesIntegrationTests`, `HealthCheckEndpointTests` | `WebApplicationFactory` with NSubstitute fakes; full HTTP auth flow; health check endpoint contract |
 
