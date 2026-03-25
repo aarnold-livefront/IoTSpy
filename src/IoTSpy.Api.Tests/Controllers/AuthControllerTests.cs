@@ -2,6 +2,7 @@ using IoTSpy.Api.Controllers;
 using IoTSpy.Api.Services;
 using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using NSubstitute;
@@ -39,6 +40,10 @@ public class AuthControllerTests
         var auditRepo = Substitute.For<IAuditRepository>();
 
         var controller = new AuthController(auth, settingsRepo, userRepo, auditRepo);
+        controller.ControllerContext = new ControllerContext
+        {
+            HttpContext = new DefaultHttpContext()
+        };
         return (controller, settingsRepo, userRepo, auditRepo);
     }
 
