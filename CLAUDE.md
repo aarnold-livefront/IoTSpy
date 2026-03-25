@@ -46,9 +46,9 @@ docs/               architecture.md, PLAN.md
 Project-specific Claude Code skills live in `.dev/claude-skills/`. Install them once from the repo root:
 
 ```bash
-claude skills install .dev/claude-skills/dotnet-engineer.skill
-claude skills install .dev/claude-skills/security-code-review.skill
-claude skills install .dev/claude-skills/threat-modeling.skill
+claude skills install .dev/claude-skills/dotnet-engineer
+claude skills install .dev/claude-skills/security-code-review
+claude skills install .dev/claude-skills/threat-modeling
 ```
 
 | Skill | When to use |
