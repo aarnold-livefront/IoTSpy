@@ -228,16 +228,16 @@ public sealed class ContentReplacer(ILogger<ContentReplacer> logger)
         if (pattern.Equals(contentType, StringComparison.OrdinalIgnoreCase))
             return true;
 
+        // Wildcard: "*/*" matches everything (check before EndsWith("/*") which also matches)
+        if (pattern == "*/*")
+            return true;
+
         // Wildcard: "image/*" matches "image/jpeg"
         if (pattern.EndsWith("/*"))
         {
             var prefix = pattern[..^2]; // "image"
             return contentType.StartsWith(prefix + "/", StringComparison.OrdinalIgnoreCase);
         }
-
-        // Wildcard: "*/*" matches everything
-        if (pattern == "*/*")
-            return true;
 
         return false;
     }
