@@ -142,7 +142,8 @@ public class CertificateAuthority(
         // Proxyman and mitmproxy both include this; omitting it causes silent chain-build
         // failures in iOS even after the user enables full trust in Certificate Trust Settings.
         gen.AddExtension(X509Extensions.AuthorityKeyIdentifier, false,
-            new AuthorityKeyIdentifierStructure(keyPair.Public));
+            X509ExtensionUtilities.CreateAuthorityKeyIdentifier(
+                SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keyPair.Public)));
 
         var signer = new Asn1SignatureFactory("SHA256WithRSA", keyPair.Private, SecureRandom);
         var cert = gen.Generate(signer);
@@ -197,9 +198,12 @@ public class CertificateAuthority(
         }
         gen.AddExtension(X509Extensions.SubjectAlternativeName, false, new GeneralNames(san));
 
-        // Authority Key Identifier — required by iOS to build the trust chain to the root CA
+        // Authority Key Identifier — keyid-only form. iOS 16+ (and especially 26) rejects
+        // the full AKI form (keyId + DirName + serial) that CreateAuthorityKeyIdentifier(cert)
+        // emits. Major MITM proxies (mitmproxy, Charles, Proxyman) all use keyid-only.
         gen.AddExtension(X509Extensions.AuthorityKeyIdentifier, false,
-            X509ExtensionUtilities.CreateAuthorityKeyIdentifier(caCert));
+            X509ExtensionUtilities.CreateAuthorityKeyIdentifier(
+                SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(caKeyPair.Public)));
 
         gen.AddExtension(X509Extensions.SubjectKeyIdentifier, false,
             X509ExtensionUtilities.CreateSubjectKeyIdentifier(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(keyPair.Public)));

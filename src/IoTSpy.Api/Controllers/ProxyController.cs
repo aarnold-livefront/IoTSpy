@@ -49,6 +49,7 @@ public class ProxyController(IProxyService proxy) : ControllerBase
         settings.GatewayIp = dto.GatewayIp ?? settings.GatewayIp;
         settings.NetworkInterface = dto.NetworkInterface ?? settings.NetworkInterface;
         settings.SslStrip = dto.SslStrip ?? settings.SslStrip;
+        settings.AutoStart = dto.AutoStart ?? settings.AutoStart;
         await proxy.UpdateSettingsAsync(settings, ct);
         return Ok(proxy.GetSettings());
     }
@@ -66,5 +67,6 @@ public record UpdateProxySettingsDto(
     string? TargetDeviceIp = null,
     string? GatewayIp = null,
     string? NetworkInterface = null,
-    bool? SslStrip = null
+    bool? SslStrip = null,
+    bool? AutoStart = null
 );

@@ -904,6 +904,9 @@ namespace IoTSpy.Storage.Migrations
                     b.Property<bool>("SslStrip")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("AutoStart")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("TargetDeviceIp")
                         .IsRequired()
                         .HasColumnType("TEXT");

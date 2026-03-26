@@ -7,6 +7,7 @@ import CaptureDetail from '../components/captures/CaptureDetail'
 import TimelineSwimlaneView from '../components/timeline/TimelineSwimlaneView'
 import PanelPacketCapture from '../components/panels/PanelPacketCapture'
 import ManipulationPanel from '../components/manipulation/ManipulationPanel'
+import ErrorBoundary from '../components/common/ErrorBoundary'
 import { useProxy } from '../hooks/useProxy'
 import { useCaptures } from '../hooks/useCaptures'
 import { useDevices } from '../hooks/useDevices'
@@ -72,53 +73,61 @@ export default function DashboardPage() {
       </div>
 
       {viewMode === 'list' && (
-        <SplitPane
-          left={
-            <CaptureList
-              captures={captures}
-              total={total}
-              loading={loading}
-              loadingMore={loadingMore}
-              error={error}
-              hasMore={hasMore}
-              filters={filters}
-              devices={devices}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              onFiltersChange={setFilters}
-              onLoadMore={loadMore}
-            />
-          }
-          right={<CaptureDetail captureId={selectedId} />}
-          initialLeftPercent={40}
-          minLeftPx={260}
-          minRightPx={260}
-        />
+        <ErrorBoundary>
+          <SplitPane
+            left={
+              <CaptureList
+                captures={captures}
+                total={total}
+                loading={loading}
+                loadingMore={loadingMore}
+                error={error}
+                hasMore={hasMore}
+                filters={filters}
+                devices={devices}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                onFiltersChange={setFilters}
+                onLoadMore={loadMore}
+              />
+            }
+            right={<CaptureDetail captureId={selectedId} />}
+            initialLeftPercent={40}
+            minLeftPx={260}
+            minRightPx={260}
+          />
+        </ErrorBoundary>
       )}
 
       {viewMode === 'timeline' && (
-        <SplitPane
-          left={
-            <TimelineSwimlaneView
-              captures={captures}
-              devices={devices}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-            />
-          }
-          right={<CaptureDetail captureId={selectedId} />}
-          initialLeftPercent={65}
-          minLeftPx={400}
-          minRightPx={260}
-        />
+        <ErrorBoundary>
+          <SplitPane
+            left={
+              <TimelineSwimlaneView
+                captures={captures}
+                devices={devices}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+              />
+            }
+            right={<CaptureDetail captureId={selectedId} />}
+            initialLeftPercent={65}
+            minLeftPx={400}
+            minRightPx={260}
+          />
+        </ErrorBoundary>
       )}
 
       {viewMode === 'packet-capture' && (
-        <PanelPacketCapture />
+        <ErrorBoundary>
+          <PanelPacketCapture />
+        </ErrorBoundary>
       )}
 
       {viewMode === 'manipulation' && (
-        <ManipulationPanel />
+        <ErrorBoundary>
+          <ManipulationPanel />
+        </ErrorBoundary>
       )}
     </AppShell>
   )

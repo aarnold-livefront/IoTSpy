@@ -64,7 +64,7 @@ public class ProxyService(
         using var scope = scopeFactory.CreateScope();
         var settingsRepo = scope.ServiceProvider.GetRequiredService<IProxySettingsRepository>();
         _settings = await settingsRepo.GetAsync(ct);
-        if (_settings.IsRunning)
+        if (_settings.AutoStart || _settings.IsRunning)
         {
             await StartByModeAsync(_settings, ct);
             logger.LogInformation("ProxyService auto-started in {Mode} mode", _settings.Mode);

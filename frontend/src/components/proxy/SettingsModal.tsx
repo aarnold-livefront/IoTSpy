@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { ProxySettings, ProxySettingsUpdate } from '../../types/api'
+import type { ProxyMode, ProxySettings, ProxySettingsUpdate } from '../../types/api'
+import OnboardingWizard from '../onboarding/OnboardingWizard'
 import '../../styles/modal.css'
 
 interface Props {
@@ -11,12 +12,19 @@ interface Props {
 export default function SettingsModal({ settings, onSave, onClose }: Props) {
   const [proxyPort, setProxyPort] = useState(String(settings.proxyPort))
   const [listenAddress, setListenAddress] = useState(settings.listenAddress)
+  const [mode, setMode] = useState<ProxyMode>(settings.mode)
   const [captureTls, setCaptureTls] = useState(settings.captureTls)
   const [captureRequestBodies, setCaptureRequestBodies] = useState(settings.captureRequestBodies)
   const [captureResponseBodies, setCaptureResponseBodies] = useState(settings.captureResponseBodies)
   const [maxBodySizeKb, setMaxBodySizeKb] = useState(String(settings.maxBodySizeKb))
+  const [autoStart, setAutoStart] = useState(settings.autoStart)
+  const [transparentProxyPort, setTransparentProxyPort] = useState(String(settings.transparentProxyPort))
+  const [targetDeviceIp, setTargetDeviceIp] = useState(settings.targetDeviceIp)
+  const [gatewayIp, setGatewayIp] = useState(settings.gatewayIp)
+  const [networkInterface, setNetworkInterface] = useState(settings.networkInterface)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showWizard, setShowWizard] = useState(false)
 
   // Close on Escape
   useEffect(() => {
@@ -44,22 +52,42 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
       setError('Max body size must be at least 1 KB.')
       return
     }
+    if (mode === 'ArpSpoof' && (!targetDeviceIp || !gatewayIp || !networkInterface)) {
+      setError('ARP Spoof mode requires Target Device IP, Gateway IP, and Network Interface.')
+      return
+    }
     setSaving(true)
     setError(null)
-    const result = await onSave({
+    const update: ProxySettingsUpdate = {
       proxyPort: port,
       listenAddress,
+      mode,
       captureTls,
       captureRequestBodies,
       captureResponseBodies,
       maxBodySizeKb: bodyKb,
-    })
+      autoStart,
+    }
+    if (mode === 'GatewayRedirect') {
+      update.transparentProxyPort = Number(transparentProxyPort) || settings.transparentProxyPort
+    }
+    if (mode === 'ArpSpoof') {
+      update.transparentProxyPort = Number(transparentProxyPort) || settings.transparentProxyPort
+      update.targetDeviceIp = targetDeviceIp
+      update.gatewayIp = gatewayIp
+      update.networkInterface = networkInterface
+    }
+    const result = await onSave(update)
     setSaving(false)
     if (result) {
       onClose()
     } else {
       setError('Failed to save settings. Check the console for details.')
     }
+  }
+
+  if (showWizard) {
+    return <OnboardingWizard onComplete={() => { setShowWizard(false) }} />
   }
 
   return (
@@ -103,10 +131,82 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
                 type="text"
                 value={listenAddress}
                 onChange={(e) => setListenAddress(e.target.value)}
-                placeholder="127.0.0.1"
+                placeholder="0.0.0.0"
               />
             </div>
           </div>
+
+          <div className="settings-section-title">Mode</div>
+
+          <div className="settings-field">
+            <label className="settings-label" htmlFor="proxy-mode">Proxy Mode</label>
+            <select
+              id="proxy-mode"
+              className="settings-select"
+              value={mode}
+              onChange={(e) => setMode(e.target.value as ProxyMode)}
+            >
+              <option value="ExplicitProxy">Explicit Proxy</option>
+              <option value="GatewayRedirect">Gateway Redirect</option>
+              <option value="ArpSpoof">ARP Spoof</option>
+            </select>
+          </div>
+
+          {(mode === 'GatewayRedirect' || mode === 'ArpSpoof') && (
+            <div className="settings-field" style={{ maxWidth: 180 }}>
+              <label className="settings-label" htmlFor="transparent-port">Transparent Proxy Port</label>
+              <input
+                id="transparent-port"
+                className="settings-input"
+                type="number"
+                min={1}
+                max={65535}
+                value={transparentProxyPort}
+                onChange={(e) => setTransparentProxyPort(e.target.value)}
+              />
+            </div>
+          )}
+
+          {mode === 'ArpSpoof' && (
+            <div className="settings-row">
+              <div className="settings-field">
+                <label className="settings-label" htmlFor="target-ip">Target Device IP</label>
+                <input
+                  id="target-ip"
+                  className="settings-input"
+                  type="text"
+                  value={targetDeviceIp}
+                  onChange={(e) => setTargetDeviceIp(e.target.value)}
+                  placeholder="192.168.1.100"
+                />
+              </div>
+              <div className="settings-field">
+                <label className="settings-label" htmlFor="gateway-ip">Gateway IP</label>
+                <input
+                  id="gateway-ip"
+                  className="settings-input"
+                  type="text"
+                  value={gatewayIp}
+                  onChange={(e) => setGatewayIp(e.target.value)}
+                  placeholder="192.168.1.1"
+                />
+              </div>
+            </div>
+          )}
+
+          {mode === 'ArpSpoof' && (
+            <div className="settings-field">
+              <label className="settings-label" htmlFor="net-iface">Network Interface</label>
+              <input
+                id="net-iface"
+                className="settings-input"
+                type="text"
+                value={networkInterface}
+                onChange={(e) => setNetworkInterface(e.target.value)}
+                placeholder="eth0"
+              />
+            </div>
+          )}
 
           <div className="settings-section-title">Capture</div>
 
@@ -149,22 +249,27 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
             />
           </div>
 
-          <div className="settings-section-title">Mode</div>
+          <div className="settings-section-title">Startup</div>
 
-          <div className="settings-field">
-            <label className="settings-label" htmlFor="proxy-mode">Proxy Mode</label>
-            <select
-              id="proxy-mode"
-              className="settings-select"
-              value="ExplicitProxy"
-              disabled
-              title="ARP Spoof and Gateway Redirect modes are available in Phase 2"
-            >
-              <option value="ExplicitProxy">Explicit Proxy (Phase 1)</option>
-              <option value="ArpSpoof" disabled>ARP Spoof (Phase 2)</option>
-              <option value="GatewayRedirect" disabled>Gateway Redirect (Phase 2)</option>
-            </select>
-          </div>
+          <label className="settings-checkbox-row">
+            <input
+              type="checkbox"
+              checked={autoStart}
+              onChange={(e) => setAutoStart(e.target.checked)}
+            />
+            Auto-start proxy when server launches
+          </label>
+
+          <div className="settings-section-title">Help</div>
+
+          <button
+            type="button"
+            className="btn-modal-cancel"
+            style={{ width: '100%' }}
+            onClick={() => setShowWizard(true)}
+          >
+            Relaunch Welcome Guide
+          </button>
         </div>
 
         <div className="modal__footer">

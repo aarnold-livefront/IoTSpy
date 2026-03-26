@@ -77,8 +77,18 @@ See `.dev/claude-skills/README.md` for full details.
 All phases 1–11 plus OpenRTB inspection, TLS passthrough/SSL stripping, and API Spec Generation & Content-Aware Mocking are complete:
 - 350+ backend tests across 8 test projects; 11+ frontend component tests
 - 14 REST controllers, 80+ endpoints
-- 12 EF Core migrations up through `AddApiSpecAndContentReplacement`
+- 13 EF Core migrations up through `AddProxyAutoStart`
 - GitHub Actions CI at `.github/workflows/ci.yml`
+
+### Operational notes
+
+**Linux packet capture (SharpPcap):** grant `CAP_NET_RAW`/`CAP_NET_ADMIN` to the *real* dotnet binary — `setcap` rejects symlinks:
+```bash
+sudo setcap cap_net_raw,cap_net_admin+eip "$(readlink -f $(which dotnet))"
+```
+Restart the API after running `setcap`. See AGENT.md for full details.
+
+**JSON enum serialization:** `Program.cs` must configure `JsonStringEnumConverter` on *both* `AddControllers().AddJsonOptions(...)` and `AddSignalR().AddJsonProtocol(...)`. Missing the SignalR call causes numeric enum values in live-streamed captures, which crashes the frontend timeline.
 
 See `docs/PLAN.md` for the full phased task list, per-phase details, and roadmap.
 See `docs/architecture.md` for the full architecture spec.

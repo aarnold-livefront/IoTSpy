@@ -69,7 +69,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 // ── SignalR ──────────────────────────────────────────────────────────────────
-builder.Services.AddSignalR();
+builder.Services.AddSignalR()
+    .AddJsonProtocol(opts =>
+        opts.PayloadSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddSingleton<ICapturePublisher, SignalRCapturePublisher>();
 builder.Services.AddSingleton<IPacketCapturePublisher, SignalRPacketPublisher>();
 builder.Services.AddSingleton<IAnomalyAlertPublisher, SignalRAnomalyPublisher>();
@@ -108,7 +110,9 @@ var aiConfig = builder.Configuration
 builder.Services.AddIoTSpyManipulation(aiConfig);
 
 // ── API ──────────────────────────────────────────────────────────────────────
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(opts =>
+        opts.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<AuthService>();
 

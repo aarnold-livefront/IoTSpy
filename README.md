@@ -107,14 +107,29 @@ Live packet capture and ARP spoofing require **Npcap** (the WinPcap successor) t
 2. Run the installer — the defaults are fine; "WinPcap API-compatible Mode" is not required
 3. Restart the IoTSpy API after installation
 
-On Linux, install `libpcap-dev` instead:
+#### Packet capture (Linux)
+
+Install `libpcap-dev` and grant the `dotnet` runtime the required raw-socket capabilities:
 
 ```bash
+# Install libpcap
 sudo apt-get install libpcap-dev   # Debian / Ubuntu
 sudo yum install libpcap-devel     # RHEL / Fedora
+
+# Grant CAP_NET_RAW + CAP_NET_ADMIN to the real dotnet binary.
+# IMPORTANT: target the real binary, not the /usr/bin/dotnet symlink —
+# setcap refuses to operate on symlinks.
+sudo setcap cap_net_raw,cap_net_admin+eip "$(readlink -f $(which dotnet))"
+# e.g. typically: sudo setcap cap_net_raw,cap_net_admin+eip /usr/share/dotnet/dotnet
 ```
 
-On macOS, `libpcap` ships with the OS — no additional install needed.
+> **Note:** `$(which dotnet)` is usually a symlink (e.g. `/usr/bin/dotnet → /usr/share/dotnet/dotnet`). Using `readlink -f` resolves it to the real binary path. Running `setcap` on the symlink itself will fail with *"Invalid file for capability operation"*.
+
+After granting capabilities, restart the IoTSpy API. Network interfaces will appear in the Packet Capture tab.
+
+#### Packet capture (macOS)
+
+`libpcap` ships with the OS. Run the API as root or add your user to the `access_bpf` group — no additional install needed.
 
 ### Run
 
