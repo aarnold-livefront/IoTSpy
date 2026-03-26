@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Security;
 using System.Text.Json;
@@ -324,6 +325,19 @@ public class ExplicitProxyServer(
 
             // Read response from upstream
             var (statusLine, respHeaders, respBody, respBodyBytes) = await ReadHttpMessageAsync(upstreamStream, settings.MaxBodySizeKb, ct);
+
+            // Decode Content-Encoding for storage (the original compressed bytes are still
+            // forwarded to the client below — we only change what gets persisted in the DB)
+            if (respBodyBytes.Length > 0)
+            {
+                var enc = ExtractHeaderValue(respHeaders, "Content-Encoding");
+                if (!string.IsNullOrEmpty(enc))
+                {
+                    var decoded = TryDecompressBody(respBodyBytes, enc);
+                    if (decoded is not null)
+                        respBody = Encoding.UTF8.GetString(decoded);
+                }
+            }
 
             // SSL stripping: intercept HTTPS redirects and follow them transparently
             if (settings.SslStrip && statusLine is not null)
@@ -1006,6 +1020,34 @@ public class ExplicitProxyServer(
                 return line[(headerName.Length + 1)..].Trim();
         }
         return null;
+    }
+
+    /// <summary>
+    /// Attempts to decompress a body byte array according to the given Content-Encoding value.
+    /// Returns null if the encoding is not recognised or decompression fails.
+    /// </summary>
+    private static byte[]? TryDecompressBody(byte[] compressed, string encoding)
+    {
+        try
+        {
+            using var input = new MemoryStream(compressed);
+            using var output = new MemoryStream();
+            Stream decompressor = encoding.Trim().ToLowerInvariant() switch
+            {
+                "gzip" => new GZipStream(input, CompressionMode.Decompress),
+                "deflate" => new DeflateStream(input, CompressionMode.Decompress),
+                "br" => new BrotliStream(input, CompressionMode.Decompress),
+                _ => null!
+            };
+            if (decompressor is null) return null;
+            using (decompressor)
+                decompressor.CopyTo(output);
+            return output.ToArray();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static SslStreamCertificateContext BuildCertContext(CertificateEntry leaf, CertificateEntry rootCa)
