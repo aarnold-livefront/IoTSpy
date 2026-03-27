@@ -109,4 +109,78 @@ public class AdminController(
 
         return Ok(new { deleted });
     }
+
+    // ── Export ───────────────────────────────────────────────────────────────
+
+    [HttpGet("export/logs")]
+    public async Task<IActionResult> ExportLogs([FromQuery] string format = "json", CancellationToken ct = default)
+    {
+        var captures = await db.Captures.AsNoTracking()
+            .Include(c => c.Device)
+            .OrderBy(c => c.Timestamp)
+            .ToListAsync(ct);
+
+        if (format == "csv")
+        {
+            var csv = new System.Text.StringBuilder();
+            csv.AppendLine("Timestamp,Method,Host,Path,StatusCode,RequestSize,ResponseSize,Device");
+            foreach (var c in captures)
+                csv.AppendLine($"{c.Timestamp:O},{Csv(c.Method)},{Csv(c.Host)},{Csv(c.Path)},{c.StatusCode},{c.RequestBodySize},{c.ResponseBodySize},{Csv(c.Device?.Hostname ?? "")}");
+            return File(System.Text.Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", "captures.csv");
+        }
+
+        var json = System.Text.Json.JsonSerializer.Serialize(captures,
+            new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+        return File(System.Text.Encoding.UTF8.GetBytes(json), "application/json", "captures.json");
+    }
+
+    [HttpGet("export/packets")]
+    public async Task<IActionResult> ExportPackets([FromQuery] string format = "json", CancellationToken ct = default)
+    {
+        var packets = await db.Packets.AsNoTracking()
+            .OrderBy(p => p.Timestamp)
+            .ToListAsync(ct);
+
+        if (format == "csv")
+        {
+            var csv = new System.Text.StringBuilder();
+            csv.AppendLine("Timestamp,Protocol,SourceIp,DestinationIp,SourcePort,DestinationPort,Length");
+            foreach (var p in packets)
+                csv.AppendLine($"{p.Timestamp:O},{Csv(p.Protocol)},{Csv(p.SourceIp)},{Csv(p.DestinationIp)},{p.SourcePort},{p.DestinationPort},{p.Length}");
+            return File(System.Text.Encoding.UTF8.GetBytes(csv.ToString()), "text/csv", "packets.csv");
+        }
+
+        var json = System.Text.Json.JsonSerializer.Serialize(packets,
+            new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+        return File(System.Text.Encoding.UTF8.GetBytes(json), "application/json", "packets.json");
+    }
+
+    [HttpGet("export/config")]
+    public async Task<IActionResult> ExportConfig(CancellationToken ct = default)
+    {
+        var config = new
+        {
+            manipulationRules = await db.ManipulationRules.AsNoTracking().ToListAsync(ct),
+            breakpoints = await db.Breakpoints.AsNoTracking().ToListAsync(ct),
+            fuzzerJobs = await db.FuzzerJobs.AsNoTracking().ToListAsync(ct),
+            scheduledScans = await db.ScheduledScans.AsNoTracking().ToListAsync(ct),
+            openRtbPolicies = await db.OpenRtbPiiPolicies.AsNoTracking().ToListAsync(ct),
+            apiSpecDocuments = await db.ApiSpecDocuments.AsNoTracking()
+                .Include(d => d.ReplacementRules)
+                .ToListAsync(ct),
+            exportedAt = DateTimeOffset.UtcNow
+        };
+
+        var json = System.Text.Json.JsonSerializer.Serialize(config,
+            new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
+        return File(System.Text.Encoding.UTF8.GetBytes(json), "application/json", "iotspy-config.json");
+    }
+
+    private static string Csv(string? value)
+    {
+        if (string.IsNullOrEmpty(value)) return "";
+        return value.Contains(',') || value.Contains('"') || value.Contains('\n')
+            ? $"\"{value.Replace("\"", "\"\"")}\""
+            : value;
+    }
 }

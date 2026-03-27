@@ -112,4 +112,54 @@ public class AdminControllerTests
 
         Assert.Equal(HttpStatusCode.Forbidden, resp.StatusCode);
     }
+
+    [Fact]
+    public async Task ExportLogs_Json_ReturnsJsonFile()
+    {
+        var client = await CreateAdminClientAsync();
+
+        var resp = await client.GetAsync("/api/admin/export/logs?format=json");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        Assert.Equal("application/json", resp.Content.Headers.ContentType?.MediaType);
+    }
+
+    [Fact]
+    public async Task ExportLogs_Csv_ReturnsCsvFile()
+    {
+        var client = await CreateAdminClientAsync();
+
+        var resp = await client.GetAsync("/api/admin/export/logs?format=csv");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        Assert.Equal("text/csv", resp.Content.Headers.ContentType?.MediaType);
+        var content = await resp.Content.ReadAsStringAsync();
+        Assert.StartsWith("Timestamp,Method,Host,Path,StatusCode,RequestSize,ResponseSize,Device", content);
+    }
+
+    [Fact]
+    public async Task ExportPackets_Csv_ReturnsCsvFile()
+    {
+        var client = await CreateAdminClientAsync();
+
+        var resp = await client.GetAsync("/api/admin/export/packets?format=csv");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var content = await resp.Content.ReadAsStringAsync();
+        Assert.StartsWith("Timestamp,Protocol,SourceIp,DestinationIp,SourcePort,DestinationPort,Length", content);
+    }
+
+    [Fact]
+    public async Task ExportConfig_ReturnsJsonWithExpectedKeys()
+    {
+        var client = await CreateAdminClientAsync();
+
+        var resp = await client.GetAsync("/api/admin/export/config");
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var content = await resp.Content.ReadAsStringAsync();
+        Assert.Contains("manipulationRules", content);
+        Assert.Contains("scheduledScans", content);
+        Assert.Contains("exportedAt", content);
+    }
 }
