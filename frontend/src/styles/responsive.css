@@ -27,6 +27,63 @@
 
 @media (max-width: 768px) {
 
+  /* ── Single-panel navigation ─────────────────────────────────────────────── */
+
+  /* List and detail each fill the full available height */
+  .capture-list-pane,
+  .capture-detail-pane {
+    height: 100%;
+  }
+
+  /* ── Collapsible filter bar ──────────────────────────────────────────────── */
+
+  /* Higher specificity to beat capture-list.css in the lazy-loaded chunk */
+  .capture-list-pane .capture-filter-bar {
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  /* Show the toggle button */
+  .capture-list-pane .filter-toggle-btn {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-muted);
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    align-self: flex-start;
+  }
+
+  /* Controls are hidden until expanded */
+  .capture-list-pane .capture-filter-bar__controls {
+    display: none;
+    flex-direction: column;
+    gap: var(--space-1);
+    width: 100%;
+  }
+
+  .capture-list-pane .capture-filter-bar--expanded .capture-filter-bar__controls {
+    display: flex;
+  }
+
+  /* All inputs full-width when expanded */
+  .capture-list-pane .capture-filter-bar__controls .filter-input,
+  .capture-list-pane .capture-filter-bar__controls .filter-select,
+  .capture-list-pane .capture-filter-bar__controls .device-filter {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .capture-list-pane .capture-filter-bar__controls .filter-input--search {
+    flex: none;
+  }
+
   /* Header */
   .header {
     padding: 0 var(--space-2);
@@ -70,38 +127,20 @@
 
   /* ── Capture list ────────────────────────────────────────────────────────── */
 
-  /* Drop timing + timestamp columns — 4-column grid that fits on 375px */
-  .capture-row {
-    grid-template-columns: 52px 44px 1fr 52px;
+  /* Extra specificity (.capture-list-pane .capture-row = 0,2,0) beats the
+     base .capture-row rule (0,1,0) in the lazy-loaded DashboardPage CSS chunk */
+
+  /* 3-column grid: method | status | host-path (max space for URL) */
+  .capture-list-pane .capture-row {
+    grid-template-columns: 52px 44px minmax(0, 1fr);
     padding: var(--space-1) var(--space-2);
     gap: var(--space-1);
   }
 
-  .capture-row__timing,
-  .capture-row__timestamp {
+  .capture-list-pane .capture-row__timing,
+  .capture-list-pane .capture-row__timestamp,
+  .capture-list-pane .capture-row__indicators {
     display: none;
-  }
-
-  /* Filter bar: stack search full-width, keep secondary filters on one row */
-  .capture-filter-bar {
-    flex-wrap: wrap;
-    gap: var(--space-1);
-    padding: var(--space-1) var(--space-2);
-  }
-
-  .filter-input--search {
-    flex: 1 0 100%;   /* full-width on its own row */
-    min-width: 0;
-  }
-
-  .device-filter {
-    min-width: 110px;
-    flex: 1;
-  }
-
-  .filter-select {
-    flex: 1;
-    min-width: 80px;
   }
 
   /* Count row */
@@ -238,14 +277,10 @@
     padding: 2px 6px;
   }
 
-  /* Capture row: drop indicators column too — method | status | host-path */
-  .capture-row {
-    grid-template-columns: 48px 40px 1fr;
+  /* Tighten badges slightly at smallest sizes */
+  .capture-list-pane .capture-row {
+    grid-template-columns: 44px 38px minmax(0, 1fr);
     padding: var(--space-1);
-  }
-
-  .capture-row__indicators {
-    display: none;
   }
 
   /* Filter bar: everything stacks */

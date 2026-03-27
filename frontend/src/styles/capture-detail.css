@@ -35,6 +35,28 @@
   font-size: var(--font-size-sm);
 }
 
+/* Back button — only rendered when onBack is provided (mobile only) */
+.capture-detail__back {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.capture-detail__back:hover {
+  background: var(--color-surface-2);
+  color: var(--color-text);
+}
+
 .capture-detail__url {
   flex: 1;
   overflow: hidden;

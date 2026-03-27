@@ -19,9 +19,10 @@ function formatBytes(bytes: number): string {
 
 interface Props {
   captureId: string | null
+  onBack?: () => void
 }
 
-export default function CaptureDetail({ captureId }: Props) {
+export default function CaptureDetail({ captureId, onBack }: Props) {
   const [capture, setCapture] = useState<CapturedRequest | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -95,6 +96,14 @@ export default function CaptureDetail({ captureId }: Props) {
   return (
     <div className="capture-detail-pane">
       <div className="capture-detail__summary">
+        {onBack && (
+          <button className="capture-detail__back" onClick={onBack} aria-label="Back to list">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+              <path d="M2 8l4-4 4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Back
+          </button>
+        )}
         <span className="capture-detail__url" title={url}>{url}</span>
         <div className="capture-detail__meta">
           <span>{timestamp}</span>
