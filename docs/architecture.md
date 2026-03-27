@@ -61,7 +61,7 @@ Domain models live in `IoTSpy.Core/Models/`; DTOs and result types are co-locate
 |---|---|
 | `CapturedRequest` | One intercepted HTTP/HTTPS exchange; includes request + response headers/body, TLS flag, protocol, timestamp, durationMs, `IsModified`, `TlsMetadataJson` |
 | `Device` | IoT device record: IP, MAC, hostname, vendor, label, `SecurityScore` |
-| `ProxySettings` | Singleton config row (Id=1): ports, mode, TLS/body capture flags, PBKDF2 password hash, `SslStrip` toggle |
+| `ProxySettings` | Singleton config row (Id=1): ports, mode, TLS/body capture flags, PBKDF2 password hash, `SslStrip` toggle, `AutoStart` flag |
 | `TlsMetadata` | All metadata extracted from TLS handshake during passthrough mode: SNI, JA3/JA3S, cipher suites, server cert details, byte counts (serialized as JSON in `CapturedRequest.TlsMetadataJson`) |
 | `User` | Multi-user RBAC identity: username, PBKDF2 password hash, `UserRole` (Admin/Operator/Viewer), `IsEnabled`, timestamps |
 | `AuditEntry` | Immutable audit trail entry: actor user ID, action name, target, details JSON, timestamp |
@@ -152,7 +152,17 @@ Both servers share a unified `InterceptHttpStreamAsync` pipeline: HTTP is interc
 6. HTTP exchanges are parsed, stored, and forwarded.
 
 Root CA: 4096-bit RSA, self-signed, generated lazily on first use, stored as PEM in `CertificateEntries`, cached in memory.
-Leaf certs: 2048-bit RSA, 825-day validity, SAN-bearing, cached in DB, reused until one day before expiry.
+Leaf certs: 2048-bit RSA, **≤ 397-day validity** (Apple enforces a 398-day cap), SAN-bearing, cached in DB, reused until one day before expiry.
+
+**Apple iOS/macOS compatibility requirements (enforced in `CertificateAuthority`):**
+- Validity ≤ 397 days — iOS/macOS silently rejects certs exceeding Apple's 398-day cap
+- AKI in **keyid-only form** — use `CreateAuthorityKeyIdentifier(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(caKeyPair.Public))`; iOS 16+ / iOS 26 rejects the full form (keyId + DirName + serial) produced by `CreateAuthorityKeyIdentifier(caCert)`
+- IP-address SANs must use `GeneralName.IPAddress` with `DerOctetString(ip.GetAddressBytes())`; iOS rejects `DnsName`-as-IP
+
+If leaf certs were previously generated with the wrong extensions, delete them and let the proxy regenerate:
+```bash
+sqlite3 src/IoTSpy.Api/iotspy.db "DELETE FROM Certificates WHERE IsRootCa = 0;"
+```
 
 ### TLS Passthrough (`Tls/TlsClientHelloParser`, `Tls/TlsServerHelloParser`)
 
@@ -300,6 +310,12 @@ SharpPcap / PacketDotNet-based live packet capture.
 
 Registered via `ScannerExtensions.AddIoTSpyScanner()` (all singletons).
 
+> **Linux capability requirement:** SharpPcap requires `CAP_NET_RAW` and `CAP_NET_ADMIN`. Grant them to the *real* dotnet binary (not the symlink — `setcap` rejects symlinks):
+> ```bash
+> sudo setcap cap_net_raw,cap_net_admin+eip "$(readlink -f $(which dotnet))"
+> ```
+> Restart the API after running `setcap`. macOS: grant full network access in System Settings → Privacy & Security when prompted.
+
 ---
 
 ## IoTSpy.Manipulation
@@ -430,6 +446,7 @@ All repositories are **scoped** (one per HTTP request / DI scope) because they d
 | `AddTlsPassthroughAndSslStrip` | `TlsMetadataJson` (TEXT) on Captures, `SslStrip` (BOOLEAN) on ProxySettings |
 | `AddPhase11MultiUserAndAudit` | `Users`, `AuditEntries`, `DashboardLayouts` tables |
 | `AddApiSpecAndContentReplacement` | `ApiSpecDocuments`, `ContentReplacementRules` tables with indexes and FK cascade delete |
+| `AddProxyAutoStart` | `AutoStart` (BOOLEAN DEFAULT 0) column on `ProxySettings` |
 
 ---
 

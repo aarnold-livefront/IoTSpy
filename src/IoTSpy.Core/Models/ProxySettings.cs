@@ -25,4 +25,8 @@ public class ProxySettings
 
     // ── SSL stripping ────────────────────────────────────────────────────
     public bool SslStrip { get; set; }
+
+    // ── Startup behaviour ────────────────────────────────────────────────
+    /// <summary>Automatically start the proxy when the server process starts.</summary>
+    public bool AutoStart { get; set; }
 }

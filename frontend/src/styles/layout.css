@@ -85,6 +85,31 @@
   height: var(--split-divider-width);
 }
 
+.split-pane__collapse-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text-faint);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  z-index: 2;
+}
+
+.split-pane__collapse-btn:hover {
+  background: var(--color-surface-3);
+  color: var(--color-text);
+  border-color: var(--color-primary);
+}
+
 .loading-spinner {
   display: flex;
   align-items: center;

@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useCallback } from 'react'
+import { useMemo, useState, useRef, useCallback, useEffect } from 'react'
 import type { CapturedRequestSummary, Device } from '../../types/api'
 import '../../styles/timeline.css'
 
@@ -23,6 +23,22 @@ export default function TimelineSwimlaneView({ captures, devices, selectedId, on
   const [zoom, setZoom] = useState<ZoomLevel>('auto')
   const [tooltip, setTooltip] = useState<{ x: number; y: number; capture: CapturedRequestSummary } | null>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
+  const [labelsWidth, setLabelsWidth] = useState(180)
+  const draggingLabels = useRef(false)
+
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      if (!draggingLabels.current) return
+      setLabelsWidth(w => Math.max(100, Math.min(320, w + e.movementX)))
+    }
+    function onUp() { draggingLabels.current = false }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [])
 
   // Group captures by device
   const { deviceMap, sortedDeviceIds, timeRange, canvasWidth } = useMemo(() => {
@@ -105,8 +121,8 @@ export default function TimelineSwimlaneView({ captures, devices, selectedId, on
     [timeRange, canvasWidth]
   )
 
-  const getStatusClass = (statusCode: number, protocol: string): string => {
-    const proto = protocol.toLowerCase()
+  const getStatusClass = (statusCode: number, protocol: unknown): string => {
+    const proto = typeof protocol === 'string' ? protocol.toLowerCase() : ''
     if (proto === 'mqtt' || proto === 'mqtttls') return 'protocol-mqtt'
     if (proto === 'dns' || proto === 'mdns') return 'protocol-dns'
     if (proto === 'coap') return 'protocol-coap'
@@ -150,21 +166,25 @@ export default function TimelineSwimlaneView({ captures, devices, selectedId, on
       <div className="timeline-body">
         <div className="timeline-inner">
           {/* Device labels */}
-          <div className="timeline-labels">
+          <div className="timeline-labels" style={{ width: labelsWidth, minWidth: labelsWidth }}>
             <div className="timeline-label-header">Device</div>
             {sortedDeviceIds.map((deviceId) => {
               const dev = deviceInfo.get(deviceId)
               return (
                 <div key={deviceId} className="timeline-label-row">
                   <span className="label-name">{dev?.label || dev?.hostname || 'Unknown'}</span>
-                  <span className="label-ip">{dev?.ipAddress ?? deviceId}</span>
+                  <span className="label-ip">{dev?.ipAddress ?? (deviceId === '_unknown' ? '—' : deviceId)}</span>
                 </div>
               )
             })}
+            <div
+              className="timeline-labels-resize"
+              onMouseDown={() => { draggingLabels.current = true }}
+            />
           </div>
 
           {/* Timeline canvas */}
-          <div className="timeline-canvas" ref={canvasRef} style={{ width: canvasWidth }}>
+          <div className="timeline-canvas" ref={canvasRef} style={{ minWidth: canvasWidth }}>
             {/* Time axis */}
             <div className="timeline-axis">
               {ticks.map((tick) => (

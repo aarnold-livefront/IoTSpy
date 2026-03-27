@@ -8,6 +8,11 @@ export type InterceptionProtocol =
   | 'CoAP'
   | 'Dns'
   | 'MDns'
+  | 'WebSocket'
+  | 'WebSocketTls'
+  | 'Grpc'
+  | 'Modbus'
+  | 'TlsPassthrough'
   | 'Other'
 
 export type ProxyMode = 'ExplicitProxy' | 'ArpSpoof' | 'GatewayRedirect'
@@ -72,7 +77,8 @@ export interface ProxySettings {
   maxBodySizeKb: number
   listenAddress: string
   passwordHash: string
-  // Phase 2 — GatewayRedirect / ArpSpoof settings
+  autoStart: boolean
+  // GatewayRedirect / ArpSpoof settings
   transparentProxyPort: number
   targetDeviceIp: string
   gatewayIp: string
@@ -220,6 +226,7 @@ export interface ProxySettingsUpdate {
   captureResponseBodies?: boolean
   maxBodySizeKb?: number
   mode?: ProxyMode
+  autoStart?: boolean
   transparentProxyPort?: number
   targetDeviceIp?: string
   gatewayIp?: string

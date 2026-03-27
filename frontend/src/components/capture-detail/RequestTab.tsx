@@ -1,18 +1,10 @@
 import HeadersViewer from '../common/HeadersViewer'
+import BodyViewer from '../common/BodyViewer'
 import type { CapturedRequest } from '../../types/api'
 import '../../styles/capture-detail.css'
 
 interface Props {
   capture: CapturedRequest
-}
-
-function tryPrettyJson(raw: string): string {
-  if (!raw) return ''
-  try {
-    return JSON.stringify(JSON.parse(raw), null, 2)
-  } catch {
-    return raw
-  }
 }
 
 export default function RequestTab({ capture }: Props) {
@@ -37,9 +29,11 @@ export default function RequestTab({ capture }: Props) {
         <div className="req-res-section">
           <div className="req-res-section__title">Request Body</div>
           {requestBody ? (
-            <div className="body-viewer">
-              <pre>{tryPrettyJson(requestBody)}</pre>
-            </div>
+            <BodyViewer
+              body={requestBody}
+              headersJson={requestHeaders}
+              bodySize={requestBodySize}
+            />
           ) : (
             <p className="body-size-note">{requestBodySize.toLocaleString()} bytes (body not captured)</p>
           )}

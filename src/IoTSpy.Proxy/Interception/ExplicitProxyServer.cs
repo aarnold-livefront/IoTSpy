@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Security;
 using System.Text.Json;
@@ -324,6 +325,31 @@ public class ExplicitProxyServer(
 
             // Read response from upstream
             var (statusLine, respHeaders, respBody, respBodyBytes) = await ReadHttpMessageAsync(upstreamStream, settings.MaxBodySizeKb, ct);
+
+            // Decode Content-Encoding for storage (the original compressed bytes are still
+            // forwarded to the client below — we only change what gets persisted in the DB)
+            if (respBodyBytes.Length > 0)
+            {
+                var enc = ExtractHeaderValue(respHeaders, "Content-Encoding");
+                var respMime = ExtractHeaderValue(respHeaders, "Content-Type")?.Split(';')[0].Trim() ?? "";
+                byte[] storageBytes = respBodyBytes;
+
+                if (!string.IsNullOrEmpty(enc))
+                {
+                    var decoded = TryDecompressBody(respBodyBytes, enc);
+                    if (decoded is not null)
+                    {
+                        storageBytes = decoded;
+                        if (!IsBinaryContentType(respMime))
+                            respBody = Encoding.UTF8.GetString(decoded);
+                    }
+                }
+
+                // Encode binary bodies as base64 to prevent UTF-8 corruption and
+                // SQLite null-byte truncation (e.g. PNG/JPEG bytes stored as TEXT).
+                if (IsBinaryContentType(respMime))
+                    respBody = "b64:" + Convert.ToBase64String(storageBytes);
+            }
 
             // SSL stripping: intercept HTTPS redirects and follow them transparently
             if (settings.SslStrip && statusLine is not null)
@@ -1006,6 +1032,55 @@ public class ExplicitProxyServer(
                 return line[(headerName.Length + 1)..].Trim();
         }
         return null;
+    }
+
+    /// <summary>
+    /// Returns true for MIME types whose bodies are binary and must be base64-encoded for
+    /// safe storage in a UTF-8 TEXT column (prevents corruption and SQLite null-byte truncation).
+    /// SVG is excluded because it is XML text.
+    /// </summary>
+    private static bool IsBinaryContentType(string mimeType) =>
+        (mimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
+            && !mimeType.Equals("image/svg+xml", StringComparison.OrdinalIgnoreCase))
+        || mimeType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)
+        || mimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "application/octet-stream", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "application/pdf", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "application/zip", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "application/gzip", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "application/x-tar", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "application/x-bzip2", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "font/woff", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "font/woff2", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "font/ttf", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "font/otf", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Attempts to decompress a body byte array according to the given Content-Encoding value.
+    /// Returns null if the encoding is not recognised or decompression fails.
+    /// </summary>
+    private static byte[]? TryDecompressBody(byte[] compressed, string encoding)
+    {
+        try
+        {
+            using var input = new MemoryStream(compressed);
+            using var output = new MemoryStream();
+            Stream decompressor = encoding.Trim().ToLowerInvariant() switch
+            {
+                "gzip" => new GZipStream(input, CompressionMode.Decompress),
+                "deflate" => new DeflateStream(input, CompressionMode.Decompress),
+                "br" => new BrotliStream(input, CompressionMode.Decompress),
+                _ => null!
+            };
+            if (decompressor is null) return null;
+            using (decompressor)
+                decompressor.CopyTo(output);
+            return output.ToArray();
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static SslStreamCertificateContext BuildCertContext(CertificateEntry leaf, CertificateEntry rootCa)

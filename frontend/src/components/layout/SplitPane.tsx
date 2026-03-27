@@ -8,6 +8,7 @@ interface Props {
   minLeftPx?: number
   minRightPx?: number
   vertical?: boolean
+  onCollapse?: () => void
 }
 
 export default function SplitPane({
@@ -17,6 +18,7 @@ export default function SplitPane({
   minLeftPx = 200,
   minRightPx = 200,
   vertical = false,
+  onCollapse,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [leftSize, setLeftSize] = useState<number | null>(null)
@@ -70,7 +72,20 @@ export default function SplitPane({
       <div
         className={`split-pane__divider${isDragging ? ' split-pane__divider--dragging' : ''}`}
         onMouseDown={onMouseDown}
-      />
+      >
+        {onCollapse && (
+          <button
+            className="split-pane__collapse-btn"
+            onClick={(e) => { e.stopPropagation(); onCollapse() }}
+            onMouseDown={(e) => e.stopPropagation()}
+            aria-label="Collapse panel"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+              <path d="M3 2l4 3-4 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        )}
+      </div>
       <div className="split-pane__panel" style={{ flex: 1 }}>
         {right}
       </div>

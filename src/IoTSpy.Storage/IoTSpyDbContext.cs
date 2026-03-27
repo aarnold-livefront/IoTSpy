@@ -92,8 +92,9 @@ public DbSet<OpenRtbEvent> OpenRtbEvents => Set<OpenRtbEvent>();
         modelBuilder.Entity<ProxySettings>(e =>
         {
             e.HasKey(p => p.Id);
-            e.Property(p => p.CaptureRequestBodies).HasDefaultValue(true);
-            e.Property(p => p.CaptureResponseBodies).HasDefaultValue(true);
+            // No HasDefaultValue here — C# property initializers (= true) supply the values.
+            // HasDefaultValue(true) causes EF Core 8+ to treat true as the sentinel and omit
+            // the column from INSERT, which fails because the migrated schema has no DB DEFAULT.
         });
 
         modelBuilder.Entity<ManipulationRule>(e =>

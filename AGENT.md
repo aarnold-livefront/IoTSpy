@@ -157,6 +157,55 @@ claude plugin install threat-modeling@iotspy-skills --scope project
 
 See `.dev/claude-skills/README.md` for full details.
 
+## Known operational requirements
+
+### Packet capture on Linux — setcap
+
+SharpPcap requires `CAP_NET_RAW` and `CAP_NET_ADMIN` to open raw sockets. On Linux, grant them to the **real** dotnet binary (not the symlink — `setcap` refuses symlinks):
+
+```bash
+sudo setcap cap_net_raw,cap_net_admin+eip "$(readlink -f $(which dotnet))"
+# typically resolves to: /usr/share/dotnet/dotnet
+```
+
+If you see "Could not find any devices" in the Packet Capture tab, this is the most likely cause. Restart the API after running `setcap`.
+
+### JSON enum serialization
+
+`Program.cs` configures **both** MVC controllers and the SignalR JSON hub protocol with `JsonStringEnumConverter`:
+
+```csharp
+builder.Services.AddControllers()
+    .AddJsonOptions(opts => opts.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+builder.Services.AddSignalR()
+    .AddJsonProtocol(opts => opts.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+```
+
+This ensures `InterceptionProtocol` serializes as `"Http"`, `"Mqtt"`, etc. (not `0`, `1`, …) across both REST API responses and SignalR events. If you remove or forget the `AddJsonProtocol` call, live-streamed captures will have numeric protocols and the frontend timeline will crash.
+
+### TLS certificate requirements for iOS/macOS
+
+The `CertificateAuthority` class generates leaf certs meeting Apple's requirements:
+
+- **Validity ≤ 397 days** — Apple enforces a 398-day cap on TLS leaf certificates (policy effective Sep 2020). Certs exceeding this are silently rejected by iOS/macOS even if the root CA is trusted.
+- **AKI keyid-only form** — iOS 16+ (and iOS 26) rejects the full Authority Key Identifier form (`keyId + DirName + serial`) emitted by `CreateAuthorityKeyIdentifier(cert)`. Use `CreateAuthorityKeyIdentifier(SubjectPublicKeyInfoFactory.CreateSubjectPublicKeyInfo(caKeyPair.Public))` (keyid-only, matching mitmproxy/Charles/Proxyman behaviour).
+- **SAN with IP literal** — For IP address hostnames, the SAN must use `GeneralName.IPAddress` with `DerOctetString(ip.GetAddressBytes())`, not `DnsName`. iOS rejects DnsName-as-IP.
+
+If you regenerate the root CA or change cert generation logic, **delete all leaf certs** from the database so they are re-generated with the corrected extensions:
+```bash
+sqlite3 src/IoTSpy.Api/iotspy.db "DELETE FROM Certificates WHERE IsRootCa = 0;"
+```
+
+### EF Core migrations on SQLite
+
+SQLite migrations that call `AlterColumn` generate `PRAGMA foreign_keys = 0` statements, which **cannot execute inside a transaction**. EF Core wraps migrations in transactions, so the migration will fail with:
+
+> `The migration operation 'PRAGMA foreign_keys = 0;' from migration 'X' cannot be executed in a transaction`
+
+**Workaround:** Replace `AlterColumn` with direct `migrationBuilder.Sql(...)` calls (e.g. `UPDATE` statements to backfill defaults). See `20260322032005_AddBodyCaptureDefaults.cs` for an example.
+
+Every migration must have a matching `.Designer.cs` file with the `[Migration("...")]` attribute. Without it EF Core never discovers the migration. The Designer file can have a stub `BuildTargetModel` body — the full model is in `IoTSpyDbContextModelSnapshot.cs`.
+
 ## What to avoid
 
 - Do not add infrastructure dependencies to `IoTSpy.Core`.

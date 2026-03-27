@@ -59,7 +59,7 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
                 {
                     Id = Guid.NewGuid(),
                     Name = dev.Name,
-                    Description = dev is LibPcapLiveDevice ld ? ld.Description : dev.Name,
+                    Description = dev is LibPcapLiveDevice ld ? ld.Description ?? dev.Name : dev.Name,
                     MacAddress = dev is LibPcapLiveDevice lm
                         ? lm.MacAddress?.ToString() ?? string.Empty
                         : string.Empty,

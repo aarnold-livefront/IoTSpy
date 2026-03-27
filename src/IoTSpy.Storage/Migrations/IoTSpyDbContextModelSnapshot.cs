@@ -861,14 +861,10 @@ namespace IoTSpy.Storage.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("CaptureRequestBodies")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(true);
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("CaptureResponseBodies")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER")
-                        .HasDefaultValue(true);
+                        .HasColumnType("INTEGER");
 
                     b.Property<bool>("CaptureTls")
                         .HasColumnType("INTEGER");
@@ -902,6 +898,9 @@ namespace IoTSpy.Storage.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("SslStrip")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("AutoStart")
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("TargetDeviceIp")

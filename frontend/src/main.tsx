@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { AuthProvider } from './store/authStore'
 import App from './App'
 import './styles/global.css'
+import './styles/responsive.css'
 
 const root = document.getElementById('root')!
 createRoot(root).render(

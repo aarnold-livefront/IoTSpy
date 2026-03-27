@@ -24,7 +24,7 @@ README / quick start: [`README.md`](../README.md)
 | REST controllers | 14 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy, Report, ScheduledScan, Dashboard, ApiSpec) |
 | HTTP endpoints | 80+ |
 | SignalR hubs | 2 (TrafficHub, PacketCaptureHub) — TrafficHub extended with WebSocket frame + MQTT message + anomaly alert subscriptions |
-| EF Core migrations | 12 (InitialCreate → AddApiSpecAndContentReplacement) |
+| EF Core migrations | 13 (InitialCreate → AddProxyAutoStart) |
 | Frontend components | 60+ TypeScript files across 15 component directories |
 | Protocols supported | HTTP/HTTPS, TLS passthrough (JA3/JA3S), WebSocket, MQTT 3.1.1/5.0 (passive decode + active proxy), DNS/mDNS, CoAP (passive decode + active proxy), gRPC/Protobuf, Modbus TCP, OpenRTB 2.5, Datadog, Firehose, Splunk HEC, Azure Monitor |
 | CI | GitHub Actions (`.github/workflows/ci.yml`) — build, test, lint, coverage on push/PR |
@@ -141,6 +141,57 @@ Items that are still open. These inform the roadmap.
 - ~~No multi-user support~~ — Multi-user RBAC with `User` model, `UserRole` enum (Admin/Operator/Viewer), user management endpoints
 - ~~Dashboard not responsive~~ — Responsive CSS with mobile breakpoints (480px, 768px, 1024px)
 - ~~TLS passthrough/SSL strip untested~~ — `TlsClientHelloParserTests` (13 tests), `TlsServerHelloParserTests` (11 tests), `SslStripServiceTests` (14 tests)
+
+---
+
+## Bugfixes & Polish (post-Phase-11)
+
+### Timeline tab crash & enum serialization fix
+
+- **Root cause:** `Program.cs` had `JsonStringEnumConverter` on `AddControllers()` but *not* on `AddSignalR().AddJsonProtocol()`. Live-streamed captures came through with numeric protocol values (`0`, `1`, …); `getStatusClass` called `.toLowerCase()` on a number, throwing `TypeError`. No `ErrorBoundary` existed, so React unmounted the entire app tree.
+- **Fixes:**
+  - Added `JsonStringEnumConverter` to `AddSignalR().AddJsonProtocol()` in `Program.cs`
+  - Added defensive `typeof protocol === 'string'` guard in `TimelineSwimlaneView.tsx`
+  - Created `frontend/src/components/common/ErrorBoundary.tsx` (class component, `getDerivedStateFromError`) and wrapped each view panel in `DashboardPage.tsx`
+
+### Timeline device label panel — resizable column
+
+- Labels column was fixed-width and overflowed long device names/IPs
+- Added `labelsWidth` state + mouse-drag resize handle (100–320 px range) in `TimelineSwimlaneView.tsx`
+- Updated `timeline.css`: `.timeline-label-row` stacks name/IP vertically with `text-overflow: ellipsis`; `.timeline-labels-resize` drag handle at right edge
+
+### Settings modal improvements
+
+- **Proxy mode selector** was `disabled` — removed the `disabled` attribute so all three modes (Explicit, GatewayRedirect, ArpSpoof) are selectable; added conditional extra fields for each mode
+- **"Relaunch Welcome Guide"** button added to settings modal (`showWizard` state renders `<OnboardingWizard>` inline)
+- **Auto-start proxy** — new `AutoStart` boolean on `ProxySettings`; exposed in settings UI; `ProxyService.StartAsync` auto-starts when `AutoStart=true` on server launch
+
+### Capture list timestamp clip
+
+- Timestamp column grid width widened from `56px` → `76px` in `capture-list.css` to prevent locale-aware time strings (e.g. `"12:34:56 PM"`) being clipped
+
+### EF Core migration — `AddProxyAutoStart`
+
+- Migration `20260326120000_AddProxyAutoStart` adds `AutoStart BOOLEAN DEFAULT 0` column to `ProxySettings`
+- Includes stub `.Designer.cs` file (required for EF Core migration discovery)
+- `IoTSpyDbContextModelSnapshot.cs` updated with `AutoStart` property
+
+### Linux packet capture — setcap procedure
+
+- SharpPcap requires `CAP_NET_RAW` + `CAP_NET_ADMIN`. `setcap` **rejects symlinks** (`/usr/bin/dotnet`); must target the real binary:
+  ```bash
+  sudo setcap cap_net_raw,cap_net_admin+eip "$(readlink -f $(which dotnet))"
+  # typically resolves to: /usr/share/dotnet/dotnet
+  ```
+- Documented in README.md and AGENT.md under "Known operational requirements"
+
+### Apple iOS/macOS TLS certificate compatibility
+
+- iOS 16+ / iOS 26 rejects full-form Authority Key Identifier (keyId + DirName + serial)
+- `CertificateAuthority` now uses keyid-only AKI via `SubjectPublicKeyInfoFactory`
+- Leaf cert validity capped at 397 days (Apple enforces ≤ 398-day limit)
+- IP address SANs use `GeneralName.IPAddress` (not `DnsName`)
+- Documented in AGENT.md under "Known operational requirements"
 
 ---
 
