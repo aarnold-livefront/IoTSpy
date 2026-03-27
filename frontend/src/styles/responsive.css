@@ -1,4 +1,4 @@
-/* ── Responsive breakpoints ──────────────────────────────────── */
+/* ── Responsive breakpoints ────────────────────────────────────────────────── */
 
 /* Tablet: 768px–1024px */
 @media (max-width: 1024px) {
@@ -23,8 +23,11 @@
   }
 }
 
-/* Mobile: <768px */
+/* ── Mobile: <768px ──────────────────────────────────────────────────────── */
+
 @media (max-width: 768px) {
+
+  /* Header */
   .header {
     padding: 0 var(--space-2);
     gap: var(--space-2);
@@ -49,13 +52,14 @@
     font-size: var(--font-size-xs);
   }
 
-  /* Stack split pane vertically on mobile */
+  /* Split pane: vertical stacking */
   .split-pane {
     flex-direction: column;
   }
 
   .split-pane__panel {
     min-height: 200px;
+    min-width: 0;   /* prevent inner content from pushing past viewport */
   }
 
   .split-pane__divider {
@@ -64,16 +68,48 @@
     height: var(--split-divider-width);
   }
 
-  /* Capture list */
-  .capture-list__table {
-    font-size: var(--font-size-xs);
+  /* ── Capture list ────────────────────────────────────────────────────────── */
+
+  /* Drop timing + timestamp columns — 4-column grid that fits on 375px */
+  .capture-row {
+    grid-template-columns: 52px 44px 1fr 52px;
+    padding: var(--space-1) var(--space-2);
+    gap: var(--space-1);
   }
 
-  .capture-row__method {
-    min-width: 40px;
+  .capture-row__timing,
+  .capture-row__timestamp {
+    display: none;
   }
 
-  /* View toggle scrollable on mobile */
+  /* Filter bar: stack search full-width, keep secondary filters on one row */
+  .capture-filter-bar {
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .filter-input--search {
+    flex: 1 0 100%;   /* full-width on its own row */
+    min-width: 0;
+  }
+
+  .device-filter {
+    min-width: 110px;
+    flex: 1;
+  }
+
+  .filter-select {
+    flex: 1;
+    min-width: 80px;
+  }
+
+  /* Count row */
+  .capture-list__count {
+    padding: var(--space-1) var(--space-2);
+  }
+
+  /* View toggle: scrollable, smaller buttons */
   .view-toggle {
     overflow-x: auto;
     white-space: nowrap;
@@ -82,25 +118,107 @@
 
   .view-toggle button {
     flex-shrink: 0;
+    font-size: var(--font-size-xs);
+    padding: var(--space-1) var(--space-2);
   }
 
-  /* Auth pages */
+  /* ── Capture detail ──────────────────────────────────────────────────────── */
+
+  /* TLS grid: single column so long values don't overflow */
+  .tls-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+
+  .tls-grid__key {
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .tls-grid__key:first-child {
+    padding-top: 0;
+    border-top: none;
+  }
+
+  /* Headers table: let long names wrap */
+  .header-name {
+    white-space: normal;
+    word-break: break-word;
+  }
+
+  /* Detail tabs: tighter padding */
+  .detail-tabs {
+    padding: 0 var(--space-2);
+    gap: var(--space-2);
+  }
+
+  .detail-tab-content {
+    padding: var(--space-2);
+  }
+
+  /* ── Body viewer ─────────────────────────────────────────────────────────── */
+
+  .bv-toolbar {
+    padding: var(--space-1) var(--space-2);
+    gap: var(--space-1);
+    flex-wrap: wrap;
+  }
+
+  .bv-badges {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+
+  .bv-copy-btn {
+    margin-left: 0;
+  }
+
+  /* Content area: shorter max-height so it doesn't consume the whole viewport */
+  .bv-content {
+    max-height: 380px;
+  }
+
+  /* ── Timeline ────────────────────────────────────────────────────────────── */
+
+  /* Reduce default label column so the canvas gets enough space */
+  .timeline-labels {
+    min-width: 100px !important;
+  }
+
+  .timeline-toolbar {
+    flex-wrap: wrap;
+    padding: var(--space-1) var(--space-2);
+    gap: var(--space-1);
+  }
+
+  .timeline-toolbar button {
+    font-size: var(--font-size-xs);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  /* ── Auth pages ──────────────────────────────────────────────────────────── */
+
   .auth-card {
     padding: var(--space-4);
     margin: var(--space-2);
   }
 
-  /* Modals full-width on mobile */
+  /* ── Modals ──────────────────────────────────────────────────────────────── */
+
   .modal-content {
     width: 95vw;
     max-height: 90vh;
   }
 }
 
-/* Small mobile: <480px */
-@media (max-width: 480px) {
+/* ── iPhone / small mobile: ≤390px ─────────────────────────────────────── */
+
+@media (max-width: 390px) {
+  /* Header: tighten further */
   .header {
-    height: 40px;
+    height: 44px;
+    padding: 0 var(--space-1);
+    gap: var(--space-1);
   }
 
   .header__logo-icon {
@@ -111,5 +229,54 @@
 
   .proxy-status-badge__label {
     display: none;
+  }
+
+  /* Even shorter Start/Stop text so they fit alongside the status badge */
+  .header__btn--start,
+  .header__btn--stop {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  /* Capture row: drop indicators column too — method | status | host-path */
+  .capture-row {
+    grid-template-columns: 48px 40px 1fr;
+    padding: var(--space-1);
+  }
+
+  .capture-row__indicators {
+    display: none;
+  }
+
+  /* Filter bar: everything stacks */
+  .capture-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .device-filter {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .filter-select {
+    width: 100%;
+  }
+
+  /* Body viewer hex: smaller font so rows fit without scrolling */
+  .bv-hex {
+    font-size: 10px;
+  }
+
+  /* Reduce max body height on small screens */
+  .bv-content {
+    max-height: 300px;
+  }
+
+  /* TLS grid already single-column from 768px rule */
+
+  /* Timeline: minimal label column */
+  .timeline-labels {
+    min-width: 80px !important;
   }
 }
