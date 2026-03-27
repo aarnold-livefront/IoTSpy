@@ -51,7 +51,7 @@ function highlightJson(json: string): string {
     const cls = after.startsWith(':') ? 'bv-json-key' : 'bv-json-str'
     const idx = tokens.length
     tokens.push(`<span class="${cls}">${match}</span>`)
-    return `\x00${idx}\x00`
+    return `\x00T${idx}\x00`
   })
 
   // Numbers (outside of strings)
@@ -65,8 +65,9 @@ function highlightJson(json: string): string {
     '<span class="bv-json-kw">$1</span>',
   )
 
-  // Restore string tokens
-  return processed.replace(/\x00(\d+)\x00/g, (_, i) => tokens[parseInt(i)])
+  // Restore string tokens — prefix "T" prevents the number regex above from
+  // matching the numeric index inside the \x00T{n}\x00 placeholder.
+  return processed.replace(/\x00T(\d+)\x00/g, (_, i) => tokens[parseInt(i)])
 }
 
 // ─── XML / HTML formatter ────────────────────────────────────────────────────
@@ -87,16 +88,21 @@ function formatXml(source: string): string {
 const HEX_MAX_BYTES = 8192
 const HEX_ROW_BYTES = 16
 
-function buildHexDump(text: string): { lines: string[]; truncated: boolean } {
-  const len = Math.min(text.length, HEX_MAX_BYTES)
-  const truncated = text.length > HEX_MAX_BYTES
+function buildHexDump(data: Uint8Array | string): { lines: string[]; truncated: boolean } {
+  const totalLen = data instanceof Uint8Array ? data.length : data.length
+  const len = Math.min(totalLen, HEX_MAX_BYTES)
+  const truncated = totalLen > HEX_MAX_BYTES
   const lines: string[] = []
+
+  const getByte = data instanceof Uint8Array
+    ? (i: number) => data[i]
+    : (i: number) => (data as string).charCodeAt(i) & 0xff
 
   for (let i = 0; i < len; i += HEX_ROW_BYTES) {
     const offset = i.toString(16).padStart(6, '0')
     const bytes: number[] = []
     for (let j = i; j < Math.min(i + HEX_ROW_BYTES, len); j++) {
-      bytes.push(text.charCodeAt(j) & 0xff)
+      bytes.push(getByte(j))
     }
     const h1 = bytes.slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join(' ')
     const h2 = bytes.slice(8).map(b => b.toString(16).padStart(2, '0')).join(' ')
@@ -145,28 +151,49 @@ export default function BodyViewer({ body, headersJson, bodySize }: Props) {
   const isImage = contentType.startsWith('image/')
   const isSvg = contentType === 'image/svg+xml'
 
+  // Detect base64-encoded binary bodies (stored with "b64:" prefix to avoid
+  // UTF-8 corruption and SQLite null-byte truncation of binary data).
+  const isBase64 = body.startsWith('b64:')
+  const decodedBytes = useMemo((): Uint8Array | null => {
+    if (!isBase64) return null
+    try {
+      const bin = atob(body.slice(4))
+      const bytes = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+      return bytes
+    } catch {
+      return null
+    }
+  }, [body, isBase64])
+
   const [mode, setMode] = useState<ViewMode>('pretty')
   const [copied, setCopied] = useState(false)
   const [imgError, setImgError] = useState(false)
 
-  // Build an object URL from the raw char codes for binary image rendering.
-  // (SVG is text-based so we render it directly.)
+  // Build an object URL for binary image rendering.
+  // Uses decoded bytes when available (base64 storage), otherwise falls back to
+  // char-code extraction (legacy path, may be corrupted for non-UTF-8 content).
   const imageUrl = useMemo(() => {
     if (!isImage || isSvg || !body) return null
     try {
-      const bytes = new Uint8Array(body.length)
-      for (let i = 0; i < body.length; i++) bytes[i] = body.charCodeAt(i) & 0xff
-      const blob = new Blob([bytes], { type: contentType })
+      let bytes: Uint8Array
+      if (decodedBytes) {
+        bytes = decodedBytes
+      } else {
+        bytes = new Uint8Array(body.length)
+        for (let i = 0; i < body.length; i++) bytes[i] = body.charCodeAt(i) & 0xff
+      }
+      const blob = new Blob([bytes.buffer as ArrayBuffer], { type: contentType })
       return URL.createObjectURL(blob)
     } catch {
       return null
     }
-  }, [body, contentType, isImage, isSvg])
+  }, [body, contentType, isImage, isSvg, decodedBytes])
 
   useEffect(() => () => { if (imageUrl) URL.revokeObjectURL(imageUrl) }, [imageUrl])
 
   const pretty = useMemo(() => resolvePretty(body, contentType), [body, contentType])
-  const hexData = useMemo(() => (mode === 'hex' ? buildHexDump(body) : null), [mode, body])
+  const hexData = useMemo(() => (mode === 'hex' ? buildHexDump(decodedBytes ?? body) : null), [mode, body, decodedBytes])
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(body).then(() => {
@@ -242,10 +269,6 @@ export default function BodyViewer({ body, headersJson, bodySize }: Props) {
                       className="bv-img"
                       onError={() => setImgError(true)}
                     />
-                    <p className="bv-img-warn">
-                      Binary image — may be corrupted if bytes were transcoded through UTF-8 storage.
-                      Use Hex view to inspect raw bytes.
-                    </p>
                   </div>
                 )
                 : (

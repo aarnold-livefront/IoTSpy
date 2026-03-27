@@ -523,12 +523,24 @@ public class TransparentProxyServer(
             if (respBodyBytes.Length > 0)
             {
                 var enc = ExtractHeaderValue(respHeaders, "Content-Encoding");
+                var respMime = ExtractHeaderValue(respHeaders, "Content-Type")?.Split(';')[0].Trim() ?? "";
+                byte[] storageBytes = respBodyBytes;
+
                 if (!string.IsNullOrEmpty(enc))
                 {
                     var decoded = TryDecompressBody(respBodyBytes, enc);
                     if (decoded is not null)
-                        respBody = Encoding.UTF8.GetString(decoded);
+                    {
+                        storageBytes = decoded;
+                        if (!IsBinaryContentType(respMime))
+                            respBody = Encoding.UTF8.GetString(decoded);
+                    }
                 }
+
+                // Encode binary bodies as base64 to prevent UTF-8 corruption and
+                // SQLite null-byte truncation (e.g. PNG/JPEG bytes stored as TEXT).
+                if (IsBinaryContentType(respMime))
+                    respBody = "b64:" + Convert.ToBase64String(storageBytes);
             }
 
             // SSL stripping: intercept HTTPS redirects and follow them transparently
@@ -993,6 +1005,22 @@ public class TransparentProxyServer(
         }
         return null;
     }
+
+    private static bool IsBinaryContentType(string mimeType) =>
+        (mimeType.StartsWith("image/", StringComparison.OrdinalIgnoreCase)
+            && !mimeType.Equals("image/svg+xml", StringComparison.OrdinalIgnoreCase))
+        || mimeType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)
+        || mimeType.StartsWith("video/", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "application/octet-stream", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "application/pdf", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "application/zip", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "application/gzip", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "application/x-tar", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "application/x-bzip2", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "font/woff", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "font/woff2", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "font/ttf", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(mimeType, "font/otf", StringComparison.OrdinalIgnoreCase);
 
     private static byte[]? TryDecompressBody(byte[] compressed, string encoding)
     {
