@@ -4,7 +4,7 @@
 
 IoTSpy is a .NET 10 / C# solution that acts as a transparent MITM proxy, multi-protocol decoder, statistical anomaly detector, and lightweight pen-test suite for IoT network research. A REST + SignalR API exposes all functionality; the frontend is a Vite 6 + React 19 + TypeScript single-page application.
 
-All phases (1–11) plus OpenRTB inspection, TLS passthrough/SSL stripping, and API Spec Generation & Content-Aware Mocking are complete.
+All phases (1–11) plus OpenRTB inspection, TLS passthrough/SSL stripping, API Spec Generation & Content-Aware Mocking, and the Admin UI & Body Viewer update are complete.
 
 ---
 
@@ -462,15 +462,16 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 - **Scoped**: All EF Core repositories, `DbContext`
 - `ProxyService` is registered once as `IProxyService` and once as `IHostedService` via `AddHostedService(sp => sp.GetRequiredService<ProxyService>())` to prevent double instantiation.
 
-### Controllers (14)
+### Controllers (15)
 
 | Controller | Endpoints |
 |---|---|
-| `AuthController` | `POST /api/auth/setup`, `POST /api/auth/login`; admin: user CRUD (`GET/POST/PUT/DELETE /api/auth/users`), `GET /api/auth/audit` |
+| `AuthController` | `POST /api/auth/setup`, `POST /api/auth/login`; admin: user CRUD (`GET/POST/PUT/DELETE /api/auth/users`), `GET /api/auth/audit`; safety guards: cannot self-delete or demote/delete last admin |
 | `ProxyController` | `GET/PUT /api/proxy/settings`, `POST /api/proxy/start`, `POST /api/proxy/stop` |
 | `CapturesController` | `GET /api/captures` (paged + filtered), `GET /api/captures/{id}`, `DELETE /api/captures/{id}` |
 | `DevicesController` | `GET /api/devices`, `GET /api/devices/{id}`, `PUT /api/devices/{id}`, `DELETE /api/devices/{id}` |
-| `CertificatesController` | `GET /api/certificates/root` (download CA PEM, no auth) |
+| `CertificatesController` | `GET /api/certificates`, `GET /api/certificates/root-ca`, download DER + PEM (no auth), `POST /api/certificates/root-ca/regenerate` (admin: purge all certs + recreate root CA), `DELETE /api/certificates/purge-leaf-certs`, `DELETE /api/certificates/{id}` |
+| `AdminController` | Admin-role gated: `GET /api/admin/stats`, `DELETE /api/admin/captures`, `DELETE /api/admin/packets`, `GET /api/admin/export/logs`, `GET /api/admin/export/packets`, `GET /api/admin/export/config` |
 | `ScannerController` | `POST /api/scanner/scan`, `GET /api/scanner/jobs`, `GET /api/scanner/jobs/{id}`, `GET /api/scanner/jobs/{id}/findings`, `POST /api/scanner/jobs/{id}/cancel`, `DELETE /api/scanner/jobs/{id}` |
 | `ManipulationController` | CRUD for rules, breakpoints; `POST /replay`, `POST /fuzzer`, `GET+DELETE /fuzzer/{id}`, `POST /ai-mock/generate`, `DELETE /ai-mock/{host}/cache` |
 | `PacketCaptureController` | Device list, start/stop capture, packet filtering, freeze frame (create/get), protocol distribution, communication patterns, suspicious activity, freeze/unfreeze analysis |
@@ -506,7 +507,9 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 
 - Multi-user RBAC model (Phase 11): `User` table with `UserRole` enum (Admin/Operator/Viewer); PBKDF2-SHA256 password hashing; JWT claims include `NameIdentifier` (user ID), `Name` (username), and `Role`
 - Backward-compatible with legacy single-user auth via `ProxySettings.PasswordHash` (used when no `User` record matches)
-- Admin-only endpoints: user CRUD and audit log in `AuthController`; SignalR accepts token via `?access_token=` query param
+- Admin-only endpoints: user CRUD and audit log in `AuthController`; all `AdminController` endpoints; cert regenerate in `CertificatesController`; SignalR accepts token via `?access_token=` query param
+- Safety guards: cannot delete own account; cannot delete or demote the last admin (both `DeleteUser` and `UpdateUser` enforce this)
+- Login response includes `{ token, user: { id, username, displayName, role } }`; frontend persists `user` in `localStorage["iotspy-user"]` and exposes it via `useCurrentUser()` hook for role-gated UI
 - JWT issuer and audience: `"iotspy"`
 - `Auth:JwtSecret` must be ≥ 32 characters; app throws on startup if absent
 - OpenAPI (Scalar) at `/scalar` in Development mode only
@@ -546,17 +549,30 @@ Located in `frontend/`. Dev server on `:3000`; Vite proxies `/api` and `/hubs` t
 
 `GET /api/auth/status` on mount → `/setup` if no password set → `/login` if no token → dashboard.
 JWT stored in `localStorage['iotspy_token']`; passed as `?access_token=` for SignalR.
+Login response writes `user: { id, username, displayName, role }` to `localStorage['iotspy-user']`; cleared on logout.
+`useCurrentUser()` reads this for role-gated UI (admin link in header, `/admin` route guard).
 
 ### Layout & panels
 
 | Panel | Components |
 |---|---|
-| Captures | Split-pane list + detail (request / response / TLS tabs); `CaptureFilterBar` |
+| Captures | Split-pane list + detail (request / response / TLS tabs); `CaptureFilterBar`; `BodyViewer` with SSE/NDJSON stream rendering |
 | Devices | Device list with timeline swimlane view per device |
 | Scanner | `ScannerPanel` → `ScanJobList` + `ScanFindingsView` |
 | Manipulation | `ManipulationPanel` → `RulesEditor`, `BreakpointsEditor`, `ReplayPanel`, `FuzzerPanel`, `ApiSpecPanel` |
 | Packet Capture | `PanelPacketCapture` (tabbed: Packets / Protocols / Patterns / Suspicious) → `PacketListFilterable`, `PacketInspector` (Details / Hex Dump / Layers), `ProtocolDistributionView`, `PatternExplorer`, `SuspiciousActivityPanel` |
 | Live stream | `useTrafficStream` via SignalR; new captures prepended in real time |
+| Admin (`/admin`) | `AdminPage` — role-guarded (`admin` only); four tabs: DatabaseTab, CertificatesTab, AuditLogTab, UsersTab |
+
+### BodyViewer stream rendering
+
+`BodyViewer` (used in capture detail and packet inspector) detects SSE and NDJSON bodies in Pretty mode:
+
+- `detectStream(body, contentType)` → `{ kind: 'sse' | 'ndjson'; events: StreamEvent[] } | null`
+  - `text/event-stream` → `parseSSE()`: splits on double-newline, extracts `data:` / `event:` / `id:` / `retry:` fields
+  - `application/x-ndjson`, `application/jsonl`, or sniffed (every line parses as JSON) → `parseNDJSON()`
+- `StreamEventRow` — collapsible row: chevron + index + label + byte count; optional SSE metadata strip; JSON syntax-highlighted body or plain text
+- Toolbar additions: `bv-badge--events` event count badge; Expand all / Collapse all toggle button (`bv-stream-toggle`)
 
 ### Source structure
 
@@ -592,7 +608,7 @@ frontend/src/
 
 ## Test projects
 
-350+ backend tests + 11 frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI.
+370+ backend tests + 11 frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI.
 
 | Project | Test classes | Coverage |
 |---|---|---|
@@ -603,7 +619,7 @@ frontend/src/
 | `IoTSpy.Api.Tests` | `AuthControllerTests`, `ProxyControllerTests`, `CapturesControllerTests`, `DevicesControllerTests`, `ScannerControllerTests`, `AuthServiceTests` | Controller unit tests with NSubstitute mocks; multi-user + legacy auth; `AuthService` PBKDF2/JWT logic |
 | `IoTSpy.Proxy.Tests` | `ProxyServiceTests`, `ResilienceOptionsTests`, `GracefulShutdownTests`, `TlsClientHelloParserTests`, `TlsServerHelloParserTests`, `SslStripServiceTests` | ProxyService state machine; resilience defaults; graceful shutdown; TLS handshake parsing (JA3/JA3S/SNI); SSL strip redirect/HSTS/rewrite |
 | `IoTSpy.Storage.Tests` | `DeviceRepositoryTests`, `CaptureRepositoryTests`, `ProxySettingsRepositoryTests`, `DataRetentionServiceTests` | EF Core in-memory SQLite integration tests; data retention service cleanup |
-| `IoTSpy.Api.IntegrationTests` | `AuthIntegrationTests`, `DevicesIntegrationTests`, `HealthCheckEndpointTests` | `WebApplicationFactory` with NSubstitute fakes; full HTTP auth flow; health check endpoint contract |
+| `IoTSpy.Api.IntegrationTests` | `AuthIntegrationTests`, `DevicesIntegrationTests`, `HealthCheckEndpointTests`, `AdminControllerTests`, `CertificatesControllerTests`, `UserSafetyGuardsTests` | `WebApplicationFactory` with NSubstitute fakes; full HTTP auth flow; health check endpoint contract; admin stats/purge/export; cert regenerate; self-delete + last-admin guards |
 
 ---
 

@@ -19,10 +19,10 @@ README / quick start: [`README.md`](../README.md)
 |---|---|
 | Backend projects | 7 (Core, Proxy, Protocols, Scanner, Manipulation, Storage, Api) |
 | Test projects | 8 (Core.Tests, Protocols.Tests, Manipulation.Tests, Scanner.Tests, Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests) |
-| Backend tests | 350+ (all passing) — includes Phase 10 decoders + Phase 11 TLS parser/SSL strip/model/auth tests + API spec generator/replacer/controller tests |
+| Backend tests | 370+ (all passing) — includes Phase 10 decoders + Phase 11 TLS parser/SSL strip/model/auth tests + API spec generator/replacer/controller tests + Admin/Certificates/UserSafetyGuards integration tests |
 | Frontend tests | 11 component tests via Vitest + React Testing Library |
-| REST controllers | 14 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy, Report, ScheduledScan, Dashboard, ApiSpec) |
-| HTTP endpoints | 80+ |
+| REST controllers | 15 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy, Report, ScheduledScan, Dashboard, ApiSpec, Admin) |
+| HTTP endpoints | 90+ |
 | SignalR hubs | 2 (TrafficHub, PacketCaptureHub) — TrafficHub extended with WebSocket frame + MQTT message + anomaly alert subscriptions |
 | EF Core migrations | 13 (InitialCreate → AddProxyAutoStart) |
 | Frontend components | 60+ TypeScript files across 15 component directories |
@@ -33,7 +33,7 @@ README / quick start: [`README.md`](../README.md)
 
 ## What has been built
 
-All phases 1–11, plus OpenRTB inspection, TLS passthrough/SSL stripping, and API Spec Generation & Content-Aware Mocking are complete.
+All phases 1–11, plus OpenRTB inspection, TLS passthrough/SSL stripping, API Spec Generation & Content-Aware Mocking, and the Admin UI & Body Viewer update are complete.
 
 ### Phase 1 — Foundation
 
@@ -124,6 +124,22 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Tests** — `ApiSpecGeneratorTests` (18 tests: path normalization, JSON schema inference, format detection), `ContentReplacerTests` (14 tests: match types, actions, scope, priority), `ApiSpecControllerTests` (14 tests: controller endpoints)
 - **Frontend** — `ApiSpecPanel`, `GenerateSpecDialog`, `SpecEditor`, `ReplacementRulesEditor`, `ImportExportControls` components; `useApiSpec` hook; new "API Spec" tab in ManipulationPanel
 - EF Core migration `AddApiSpecAndContentReplacement` — adds `ApiSpecDocuments` and `ContentReplacementRules` tables with indexes and FK cascade delete
+
+### Admin UI & Body Viewer
+
+**Goal:** Operational admin page for database maintenance, certificate management, audit log review, and user management; plus SSE/NDJSON stream rendering in the body viewer.
+
+- **`AdminController`** — admin-role gated at `/api/admin`; stats (row counts + estimated sizes), purge endpoints (captures by age/host/purgeAll, packets by age/purgeAll), export endpoints (captures + packets as JSON/CSV, full config as JSON); writes audit log entries on all destructive operations
+- **`CertificatesController` regenerate endpoint** — `POST /api/certificates/root-ca/regenerate` (admin-only); purges all leaf and root certs, recreates the root CA, writes audit log entry
+- **`AuthController` safety guards** — `DeleteUser` now blocks self-deletion and deletion of the last admin; `UpdateUser` now blocks demoting the last admin
+- **Admin frontend** — `/admin` route (redirects non-admins to `/`); wrench icon in `Header` shown only to users with `role === 'admin'`; four tabs:
+  - *Database* — stat cards with row counts/sizes/oldest entry; range-slider purge by age; host-filter purge; purge-all with confirm dialog; JSON/CSV export via authenticated download
+  - *Certificates* — root CA metadata table; DER/PEM download links; regenerate-CA and purge-leaf-certs with confirm dialogs
+  - *Audit Log* — paginated table of all audit entries (timestamp, user, action, entity, details, IP)
+  - *Users* — user table with inline role select; create-user dialog; delete with confirm guard; self-delete hidden
+- **`useCurrentUser()` hook** — reads `iotspy-user` from localStorage; populated on login, cleared on logout; used to gate the admin link and `/admin` route
+- **Body viewer stream rendering** — `detectStream()` identifies SSE (`text/event-stream`) and NDJSON (`application/x-ndjson`, `application/jsonl`, or sniffed multi-line JSON); `parseSSE()` / `parseNDJSON()` produce `StreamEvent[]`; `StreamEventRow` component: collapsible per-event row with chevron, index, label, byte count, optional SSE metadata, and JSON syntax-highlighted or plain body; event count badge in toolbar; expand/collapse-all toggle
+- **Tests added** — `AdminControllerTests` (10 tests), `CertificatesControllerTests` (2 tests), `UserSafetyGuardsTests` (3 tests)
 
 ---
 
