@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import ProxyStatusBadge from '../proxy/ProxyStatusBadge'
 import SettingsModal from '../proxy/SettingsModal'
-import { useLogout } from '../../hooks/useAuth'
+import { useCurrentUser, useLogout } from '../../hooks/useAuth'
 import type { ProxySettings, ProxySettingsUpdate } from '../../types/api'
 import type { Theme } from '../../hooks/useTheme'
 import '../../styles/header.css'
@@ -32,6 +33,7 @@ export default function Header({
   onToggleTheme,
 }: Props) {
   const logout = useLogout()
+  const currentUser = useCurrentUser()
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
@@ -86,6 +88,17 @@ export default function Header({
           >
             Root CA
           </a>
+
+          {currentUser?.role === 'admin' && (
+            <Link
+              className="header__btn header__btn--icon"
+              to="/admin"
+              title="System administration"
+              aria-label="Admin"
+            >
+              &#x1F527;
+            </Link>
+          )}
 
           <button
             className="header__btn header__btn--icon"

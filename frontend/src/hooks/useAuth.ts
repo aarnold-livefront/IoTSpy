@@ -8,7 +8,19 @@ import {
   useAuthState,
   type AuthState,
 } from '../store/authStore'
-import type { LoginRequest, SetupRequest } from '../types/api'
+import type { CurrentUser, LoginRequest, SetupRequest } from '../types/api'
+
+const CURRENT_USER_KEY = 'iotspy-user'
+
+export function useCurrentUser(): CurrentUser | null {
+  const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(CURRENT_USER_KEY) : null
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as CurrentUser
+  } catch {
+    return null
+  }
+}
 
 export function useAuthInit(): AuthState {
   const dispatch = useAuthDispatch()
@@ -57,7 +69,10 @@ export function useLogin() {
   const navigate = useNavigate()
 
   return async (req: LoginRequest) => {
-    const { token } = await apiLogin(req)
+    const { token, user } = await apiLogin(req)
+    if (user) {
+      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user))
+    }
     dispatchLogin(dispatch, token)
     navigate('/', { replace: true })
   }
@@ -77,6 +92,7 @@ export function useLogout() {
   const navigate = useNavigate()
 
   return () => {
+    localStorage.removeItem(CURRENT_USER_KEY)
     dispatch({ type: 'LOGOUT' })
     navigate('/login', { replace: true })
   }

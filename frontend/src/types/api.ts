@@ -188,6 +188,36 @@ export interface DashboardLayout {
 
 export interface LoginResponse {
   token: string
+  user?: CurrentUser
+}
+
+export interface CurrentUser {
+  id: string
+  username: string
+  displayName: string
+  role: string
+}
+
+export interface AdminDataStats {
+  count: number
+  estimatedSizeBytes: number
+  oldestTimestamp: string | null
+}
+
+export interface AdminStats {
+  captures: AdminDataStats
+  packets: AdminDataStats
+  scanFindings: { count: number }
+}
+
+export interface UserSummary {
+  id: string
+  username: string
+  displayName: string
+  role: string
+  isEnabled: boolean
+  createdAt: string
+  lastLoginAt: string | null
 }
 
 export interface RootCaSummary {
