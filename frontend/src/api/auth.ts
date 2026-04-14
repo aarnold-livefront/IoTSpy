@@ -1,6 +1,7 @@
 import { apiFetch } from './client'
 import type {
   AuthStatusResponse,
+  CurrentUser,
   LoginRequest,
   LoginResponse,
   SetupRequest,
@@ -8,6 +9,10 @@ import type {
 
 export function getAuthStatus(): Promise<AuthStatusResponse> {
   return apiFetch<AuthStatusResponse>('/api/auth/status')
+}
+
+export function getMe(): Promise<{ user: CurrentUser }> {
+  return apiFetch<{ user: CurrentUser }>('/api/auth/me')
 }
 
 export function login(req: LoginRequest): Promise<LoginResponse> {

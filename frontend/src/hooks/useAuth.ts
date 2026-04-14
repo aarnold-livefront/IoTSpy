@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { getToken } from '../api/client'
-import { getAuthStatus, login as apiLogin, setup as apiSetup } from '../api/auth'
+import { getAuthStatus, getMe, login as apiLogin, setup as apiSetup } from '../api/auth'
 import {
   dispatchLogin,
   useAuthDispatch,
@@ -26,6 +26,7 @@ export function useAuthInit(): AuthState {
   const dispatch = useAuthDispatch()
   const state = useAuthState()
   const navigate = useNavigate()
+  const location = useLocation()
 
   useEffect(() => {
     let cancelled = false
@@ -45,7 +46,17 @@ export function useAuthInit(): AuthState {
           return
         }
         dispatch({ type: 'SET_AUTHENTICATED', token })
-        navigate('/', { replace: true })
+        // Ensure user profile is in localStorage (missing for legacy/pre-multiuser logins)
+        if (!localStorage.getItem(CURRENT_USER_KEY)) {
+          try {
+            const { user } = await getMe()
+            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user))
+          } catch { /* non-fatal — wrench icon just won't show */ }
+        }
+        // Only redirect to / if currently on an unauthenticated page
+        if (['/login', '/setup'].includes(location.pathname)) {
+          navigate('/', { replace: true })
+        }
       } catch {
         if (!cancelled) {
           dispatch({ type: 'SET_UNAUTHENTICATED' })
@@ -59,7 +70,7 @@ export function useAuthInit(): AuthState {
     return () => {
       cancelled = true
     }
-  }, [state.status, dispatch, navigate])
+  }, [state.status, dispatch, navigate, location.pathname])
 
   return state
 }

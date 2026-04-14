@@ -56,7 +56,7 @@ public class AuthController(
         if (legacyToken is null)
             return Unauthorized(new { error = "Invalid credentials" });
 
-        return Ok(new { token = legacyToken });
+        return Ok(new { token = legacyToken, user = new { Id = Guid.Empty, Username = req.Username, DisplayName = req.Username, role = "admin" } });
     }
 
     [HttpPost("setup")]
@@ -85,6 +85,21 @@ public class AuthController(
         await settingsRepo.SaveAsync(settings);
 
         return Ok(new { message = "Password set" });
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<IActionResult> Me()
+    {
+        var username = User.Identity?.Name;
+        if (username is null) return Unauthorized();
+
+        var user = await userRepo.GetByUsernameAsync(username);
+        if (user is not null)
+            return Ok(new { user.Id, user.Username, user.DisplayName, role = user.Role.ToString().ToLowerInvariant() });
+
+        // Legacy user — treat as admin
+        return Ok(new { Id = Guid.Empty, Username = username, DisplayName = username, role = "admin" });
     }
 
     [HttpGet("status")]
