@@ -157,6 +157,13 @@ public class AuthController(
         var user = await userRepo.GetByIdAsync(id);
         if (user is null) return NotFound();
 
+        if (req.Role.HasValue && req.Role.Value != UserRole.Admin && user.Role == UserRole.Admin)
+        {
+            var adminCount = (await userRepo.GetAllAsync()).Count(u => u.Role == UserRole.Admin && u.IsEnabled);
+            if (adminCount <= 1)
+                return BadRequest(new { error = "Cannot demote the last admin account" });
+        }
+
         if (req.DisplayName is not null) user.DisplayName = req.DisplayName;
         if (req.Role.HasValue) user.Role = req.Role.Value;
         if (req.IsEnabled.HasValue) user.IsEnabled = req.IsEnabled.Value;
@@ -188,6 +195,16 @@ public class AuthController(
     {
         var user = await userRepo.GetByIdAsync(id);
         if (user is null) return NotFound();
+
+        if (User.Identity?.Name == user.Username)
+            return BadRequest(new { error = "Cannot delete your own account" });
+
+        if (user.Role == UserRole.Admin)
+        {
+            var adminCount = (await userRepo.GetAllAsync()).Count(u => u.Role == UserRole.Admin && u.IsEnabled);
+            if (adminCount <= 1)
+                return BadRequest(new { error = "Cannot delete the last admin account" });
+        }
 
         await userRepo.DeleteAsync(id);
 
