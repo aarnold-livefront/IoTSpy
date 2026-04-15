@@ -28,10 +28,10 @@ public class AdminControllerTests
     {
         var client = await CreateAdminClientAsync();
 
-        var resp = await client.GetAsync("/api/admin/stats");
+        var resp = await client.GetAsync("/api/admin/stats", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-        var json = await resp.Content.ReadAsStringAsync();
+        var json = await resp.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Contains("captures", json);
         Assert.Contains("packets", json);
         Assert.Contains("scanFindings", json);
@@ -44,7 +44,7 @@ public class AdminControllerTests
         await factory.InitializeDbAsync();
         var client = factory.CreateClient();
 
-        var resp = await client.GetAsync("/api/admin/stats");
+        var resp = await client.GetAsync("/api/admin/stats", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
     }
@@ -54,7 +54,7 @@ public class AdminControllerTests
     {
         var client = await CreateAdminClientAsync();
 
-        var resp = await client.DeleteAsync("/api/admin/captures");
+        var resp = await client.DeleteAsync("/api/admin/captures", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
     }
@@ -64,10 +64,10 @@ public class AdminControllerTests
     {
         var client = await CreateAdminClientAsync();
 
-        var resp = await client.DeleteAsync("/api/admin/captures?purgeAll=true");
+        var resp = await client.DeleteAsync("/api/admin/captures?purgeAll=true", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-        var json = await resp.Content.ReadAsStringAsync();
+        var json = await resp.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Contains("deleted", json);
     }
 
@@ -76,7 +76,7 @@ public class AdminControllerTests
     {
         var client = await CreateAdminClientAsync();
 
-        var resp = await client.DeleteAsync("/api/admin/packets");
+        var resp = await client.DeleteAsync("/api/admin/packets", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
     }
@@ -86,7 +86,7 @@ public class AdminControllerTests
     {
         var client = await CreateAdminClientAsync();
 
-        var resp = await client.DeleteAsync("/api/admin/packets?purgeAll=true");
+        var resp = await client.DeleteAsync("/api/admin/packets?purgeAll=true", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
     }
@@ -96,7 +96,7 @@ public class AdminControllerTests
     {
         var client = await CreateAdminClientAsync();
 
-        var resp = await client.GetAsync("/api/admin/export/logs?format=json");
+        var resp = await client.GetAsync("/api/admin/export/logs?format=json", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
         Assert.Equal("application/json", resp.Content.Headers.ContentType?.MediaType);
@@ -107,11 +107,11 @@ public class AdminControllerTests
     {
         var client = await CreateAdminClientAsync();
 
-        var resp = await client.GetAsync("/api/admin/export/logs?format=csv");
+        var resp = await client.GetAsync("/api/admin/export/logs?format=csv", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
         Assert.Equal("text/csv", resp.Content.Headers.ContentType?.MediaType);
-        var content = await resp.Content.ReadAsStringAsync();
+        var content = await resp.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.StartsWith("Timestamp,Method,Host,Path,StatusCode,RequestSize,ResponseSize,Device", content);
     }
 
@@ -120,10 +120,10 @@ public class AdminControllerTests
     {
         var client = await CreateAdminClientAsync();
 
-        var resp = await client.GetAsync("/api/admin/export/packets?format=csv");
+        var resp = await client.GetAsync("/api/admin/export/packets?format=csv", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-        var content = await resp.Content.ReadAsStringAsync();
+        var content = await resp.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.StartsWith("Timestamp,Protocol,SourceIp,DestinationIp,SourcePort,DestinationPort,Length", content);
     }
 
@@ -132,10 +132,10 @@ public class AdminControllerTests
     {
         var client = await CreateAdminClientAsync();
 
-        var resp = await client.GetAsync("/api/admin/export/config");
+        var resp = await client.GetAsync("/api/admin/export/config", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-        var content = await resp.Content.ReadAsStringAsync();
+        var content = await resp.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Contains("manipulationRules", content);
         Assert.Contains("scheduledScans", content);
         Assert.Contains("exportedAt", content);

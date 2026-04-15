@@ -28,10 +28,10 @@ public class CertificatesControllerTests
     {
         var client = await CreateAdminClientAsync();
 
-        var resp = await client.PostAsync("/api/certificates/root-ca/regenerate", null);
+        var resp = await client.PostAsync("/api/certificates/root-ca/regenerate", null, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-        var content = await resp.Content.ReadAsStringAsync();
+        var content = await resp.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Contains("message", content);
     }
 
@@ -42,7 +42,7 @@ public class CertificatesControllerTests
         await factory.InitializeDbAsync();
         var client = factory.CreateClient();
 
-        var resp = await client.PostAsync("/api/certificates/root-ca/regenerate", null);
+        var resp = await client.PostAsync("/api/certificates/root-ca/regenerate", null, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, resp.StatusCode);
     }

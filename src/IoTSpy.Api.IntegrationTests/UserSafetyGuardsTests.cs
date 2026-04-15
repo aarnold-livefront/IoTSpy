@@ -29,7 +29,7 @@ public class UserSafetyGuardsTests
     {
         var (client, userId) = await CreateAdminClientAsync();
 
-        var resp = await client.DeleteAsync($"/api/auth/users/{userId}");
+        var resp = await client.DeleteAsync($"/api/auth/users/{userId}", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
     }
@@ -42,9 +42,9 @@ public class UserSafetyGuardsTests
         var (client, userId) = await CreateAdminClientAsync();
 
         await client.PostAsJsonAsync("/api/auth/users",
-            new { username = "viewer1", password = "pass123", role = "Viewer" });
+            new { username = "viewer1", password = "pass123", role = "Viewer" }, TestContext.Current.CancellationToken);
 
-        var resp = await client.DeleteAsync($"/api/auth/users/{userId}");
+        var resp = await client.DeleteAsync($"/api/auth/users/{userId}", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
     }
@@ -55,7 +55,7 @@ public class UserSafetyGuardsTests
         var (client, userId) = await CreateAdminClientAsync();
 
         var resp = await client.PutAsJsonAsync($"/api/auth/users/{userId}",
-            new { role = "Viewer" });
+            new { role = "Viewer" }, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
     }
