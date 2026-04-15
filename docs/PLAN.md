@@ -143,6 +143,57 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 
 ---
 
+### Post-Phase-11 Stabilization — Bugfixes & Polish
+
+#### Timeline tab crash & enum serialization fix
+
+- **Root cause:** `Program.cs` had `JsonStringEnumConverter` on `AddControllers()` but *not* on `AddSignalR().AddJsonProtocol()`. Live-streamed captures came through with numeric protocol values (`0`, `1`, …); `getStatusClass` called `.toLowerCase()` on a number, throwing `TypeError`. No `ErrorBoundary` existed, so React unmounted the entire app tree.
+- **Fixes:**
+  - Added `JsonStringEnumConverter` to `AddSignalR().AddJsonProtocol()` in `Program.cs`
+  - Added defensive `typeof protocol === 'string'` guard in `TimelineSwimlaneView.tsx`
+  - Created `frontend/src/components/common/ErrorBoundary.tsx` (class component, `getDerivedStateFromError`) and wrapped each view panel in `DashboardPage.tsx`
+
+#### Timeline device label panel — resizable column
+
+- Labels column was fixed-width and overflowed long device names/IPs
+- Added `labelsWidth` state + mouse-drag resize handle (100–320 px range) in `TimelineSwimlaneView.tsx`
+- Updated `timeline.css`: `.timeline-label-row` stacks name/IP vertically with `text-overflow: ellipsis`; `.timeline-labels-resize` drag handle at right edge
+
+#### Settings modal improvements
+
+- **Proxy mode selector** was `disabled` — removed the `disabled` attribute so all three modes (Explicit, GatewayRedirect, ArpSpoof) are selectable; added conditional extra fields for each mode
+- **"Relaunch Welcome Guide"** button added to settings modal (`showWizard` state renders `<OnboardingWizard>` inline)
+- **Auto-start proxy** — new `AutoStart` boolean on `ProxySettings`; exposed in settings UI; `ProxyService.StartAsync` auto-starts when `AutoStart=true` on server launch
+
+#### Capture list timestamp clip
+
+- Timestamp column grid width widened from `56px` → `76px` in `capture-list.css` to prevent locale-aware time strings (e.g. `"12:34:56 PM"`) being clipped
+
+#### EF Core migration — `AddProxyAutoStart`
+
+- Migration `20260326120000_AddProxyAutoStart` adds `AutoStart BOOLEAN DEFAULT 0` column to `ProxySettings`
+- Includes stub `.Designer.cs` file (required for EF Core migration discovery)
+- `IoTSpyDbContextModelSnapshot.cs` updated with `AutoStart` property
+
+#### Linux packet capture — setcap procedure
+
+- SharpPcap requires `CAP_NET_RAW` + `CAP_NET_ADMIN`. `setcap` **rejects symlinks** (`/usr/bin/dotnet`); must target the real binary:
+  ```bash
+  sudo setcap cap_net_raw,cap_net_admin+eip "$(readlink -f $(which dotnet))"
+  # typically resolves to: /usr/share/dotnet/dotnet
+  ```
+- Documented in README.md and AGENT.md under "Known operational requirements"
+
+#### Apple iOS/macOS TLS certificate compatibility
+
+- iOS 16+ / iOS 26 rejects full-form Authority Key Identifier (keyId + DirName + serial)
+- `CertificateAuthority` now uses keyid-only AKI via `SubjectPublicKeyInfoFactory`
+- Leaf cert validity capped at 397 days (Apple enforces ≤ 398-day limit)
+- IP address SANs use `GeneralName.IPAddress` (not `DnsName`)
+- Documented in AGENT.md under "Known operational requirements"
+
+---
+
 ## Remaining gaps and technical debt
 
 Items that are still open. These inform the roadmap.
@@ -160,71 +211,7 @@ Items that are still open. These inform the roadmap.
 
 ---
 
-## Bugfixes & Polish (post-Phase-11)
-
-### Timeline tab crash & enum serialization fix
-
-- **Root cause:** `Program.cs` had `JsonStringEnumConverter` on `AddControllers()` but *not* on `AddSignalR().AddJsonProtocol()`. Live-streamed captures came through with numeric protocol values (`0`, `1`, …); `getStatusClass` called `.toLowerCase()` on a number, throwing `TypeError`. No `ErrorBoundary` existed, so React unmounted the entire app tree.
-- **Fixes:**
-  - Added `JsonStringEnumConverter` to `AddSignalR().AddJsonProtocol()` in `Program.cs`
-  - Added defensive `typeof protocol === 'string'` guard in `TimelineSwimlaneView.tsx`
-  - Created `frontend/src/components/common/ErrorBoundary.tsx` (class component, `getDerivedStateFromError`) and wrapped each view panel in `DashboardPage.tsx`
-
-### Timeline device label panel — resizable column
-
-- Labels column was fixed-width and overflowed long device names/IPs
-- Added `labelsWidth` state + mouse-drag resize handle (100–320 px range) in `TimelineSwimlaneView.tsx`
-- Updated `timeline.css`: `.timeline-label-row` stacks name/IP vertically with `text-overflow: ellipsis`; `.timeline-labels-resize` drag handle at right edge
-
-### Settings modal improvements
-
-- **Proxy mode selector** was `disabled` — removed the `disabled` attribute so all three modes (Explicit, GatewayRedirect, ArpSpoof) are selectable; added conditional extra fields for each mode
-- **"Relaunch Welcome Guide"** button added to settings modal (`showWizard` state renders `<OnboardingWizard>` inline)
-- **Auto-start proxy** — new `AutoStart` boolean on `ProxySettings`; exposed in settings UI; `ProxyService.StartAsync` auto-starts when `AutoStart=true` on server launch
-
-### Capture list timestamp clip
-
-- Timestamp column grid width widened from `56px` → `76px` in `capture-list.css` to prevent locale-aware time strings (e.g. `"12:34:56 PM"`) being clipped
-
-### EF Core migration — `AddProxyAutoStart`
-
-- Migration `20260326120000_AddProxyAutoStart` adds `AutoStart BOOLEAN DEFAULT 0` column to `ProxySettings`
-- Includes stub `.Designer.cs` file (required for EF Core migration discovery)
-- `IoTSpyDbContextModelSnapshot.cs` updated with `AutoStart` property
-
-### Linux packet capture — setcap procedure
-
-- SharpPcap requires `CAP_NET_RAW` + `CAP_NET_ADMIN`. `setcap` **rejects symlinks** (`/usr/bin/dotnet`); must target the real binary:
-  ```bash
-  sudo setcap cap_net_raw,cap_net_admin+eip "$(readlink -f $(which dotnet))"
-  # typically resolves to: /usr/share/dotnet/dotnet
-  ```
-- Documented in README.md and AGENT.md under "Known operational requirements"
-
-### Apple iOS/macOS TLS certificate compatibility
-
-- iOS 16+ / iOS 26 rejects full-form Authority Key Identifier (keyId + DirName + serial)
-- `CertificateAuthority` now uses keyid-only AKI via `SubjectPublicKeyInfoFactory`
-- Leaf cert validity capped at 397 days (Apple enforces ≤ 398-day limit)
-- IP address SANs use `GeneralName.IPAddress` (not `DnsName`)
-- Documented in AGENT.md under "Known operational requirements"
-
----
-
-## Roadmap — what comes next
-
-### Phase 11 — UX & multi-user ✅ Complete
-
-| # | Task | Status | Details |
-|---|---|---|---|
-| 11.1 | Responsive/mobile-friendly dashboard layout | ✅ Complete | `responsive.css` with mobile breakpoints at 480px, 768px, 1024px; stacked split panes, scrollable view toggles |
-| 11.2 | Dark mode theme toggle | ✅ Complete | `[data-theme]` CSS custom properties; `useTheme` hook; persisted in localStorage; toggle button in header |
-| 11.3 | Multi-user authentication with RBAC | ✅ Complete | `User` model with `UserRole` enum (Admin/Operator/Viewer); `IUserRepository`; JWT claims include `sub` + `role`; admin-only user CRUD endpoints; backward-compatible with legacy single-user auth |
-| 11.4 | Audit log | ✅ Complete | `AuditEntry` model + `IAuditRepository`; tracked: login, user CRUD; admin-only `/api/auth/audit` endpoint |
-| 11.5 | Dashboard customization | ✅ Complete | `DashboardLayout` model + `IDashboardLayoutRepository`; per-user saved layouts with JSON config; `DashboardController` CRUD |
-| 11.6 | Onboarding wizard | ✅ Complete | `OnboardingWizard` component (5 steps: welcome, proxy mode, TLS setup, device, done); persisted in localStorage; shows on first authenticated visit |
-
----
+## Roadmap — what comes next (Phases 12+)
 
 ### Phase 12 — Threat Intelligence & Advanced Detection
 
