@@ -19,21 +19,24 @@ README / quick start: [`README.md`](../README.md)
 |---|---|
 | Backend projects | 7 (Core, Proxy, Protocols, Scanner, Manipulation, Storage, Api) |
 | Test projects | 8 (Core.Tests, Protocols.Tests, Manipulation.Tests, Scanner.Tests, Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests) |
-| Backend tests | 370+ (all passing) — includes Phase 10 decoders + Phase 11 TLS parser/SSL strip/model/auth tests + API spec generator/replacer/controller tests + Admin/Certificates/UserSafetyGuards integration tests |
-| Frontend tests | 11 component tests via Vitest + React Testing Library |
+| Backend tests | 350+ (all passing) — includes Phase 10 decoders + Phase 11 multi-user/TLS/tests + Phase 12 API spec generation + Phase 20 admin/integration tests |
+| Frontend tests | 11+ component tests via Vitest + React Testing Library |
 | REST controllers | 15 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy, Report, ScheduledScan, Dashboard, ApiSpec, Admin) |
-| HTTP endpoints | 90+ |
+| HTTP endpoints | 100+ |
 | SignalR hubs | 2 (TrafficHub, PacketCaptureHub) — TrafficHub extended with WebSocket frame + MQTT message + anomaly alert subscriptions |
 | EF Core migrations | 13 (InitialCreate → AddProxyAutoStart) |
-| Frontend components | 60+ TypeScript files across 15 component directories |
+| Frontend components | 65+ TypeScript files across 16+ component directories |
 | Protocols supported | HTTP/HTTPS, TLS passthrough (JA3/JA3S), WebSocket, MQTT 3.1.1/5.0 (passive decode + active proxy), DNS/mDNS, CoAP (passive decode + active proxy), gRPC/Protobuf, Modbus TCP, OpenRTB 2.5, Datadog, Firehose, Splunk HEC, Azure Monitor |
+| Frontend design | Space Grotesk + IBM Plex Sans typography; teal (`#00c9b1`) accent color; radar SVG logo; responsive design (480px, 768px, 1024px breakpoints); dark/light theme toggle |
+| Admin features | Database stats/purge, certificate management, audit log, user management, root CA regeneration (admin-only) |
+| Body viewer | Pretty/Raw/Hex view modes; content-type-aware rendering (JSON syntax highlight, XML/HTML format, image preview); stream support (SSE/NDJSON with collapsible rows); automatic decompression (gzip/deflate/Brotli) |
 | CI | GitHub Actions (`.github/workflows/ci.yml`) — build, test, lint, coverage on push/PR |
 
 ---
 
 ## What has been built
 
-All phases 1–11, plus OpenRTB inspection, TLS passthrough/SSL stripping, API Spec Generation & Content-Aware Mocking, and the Admin UI & Body Viewer update are complete.
+All phases 1–20 are complete. This includes the foundation (proxy/API/dashboard), all major features (protocols, scanning, manipulation, capture analysis), UX polish, admin operations, and modern frontend design.
 
 ### Phase 1 — Foundation
 
@@ -141,6 +144,81 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Body viewer stream rendering** — `detectStream()` identifies SSE (`text/event-stream`) and NDJSON (`application/x-ndjson`, `application/jsonl`, or sniffed multi-line JSON); `parseSSE()` / `parseNDJSON()` produce `StreamEvent[]`; `StreamEventRow` component: collapsible per-event row with chevron, index, label, byte count, optional SSE metadata, and JSON syntax-highlighted or plain body; event count badge in toolbar; expand/collapse-all toggle
 - **Tests added** — `AdminControllerTests` (10 tests), `CertificatesControllerTests` (2 tests), `UserSafetyGuardsTests` (3 tests)
 
+### Phase 12 — API Spec Generation & Content-Aware Mocking
+
+**Goal:** Generate OpenAPI 3.0 specs from captured traffic, mock API responses based on observed data, and replace content (images, video, etc.) in responses with custom assets.
+
+- **OpenAPI spec generation** — `ApiSpecGenerator` analyzes captured traffic to produce OpenAPI 3.0 JSON; path normalization detects GUID/numeric/hex segments and replaces with `{id}` placeholders; recursive JSON schema inference with format detection (uuid, date-time, email, uri)
+- **Import/export** — Import and export API spec `.json` files via `ApiSpecController`; specs can be shared across environments
+- **Passthrough-first mocking** — `ApiSpecMockService` allows real traffic through while observing payloads; dual-layer cache (ConcurrentDictionary + Timer-based background DB flush) records observed responses as OpenAPI examples
+- **LLM-enhanced refinement** — `ApiSpecLlmEnhancer` uses existing `IAiProvider` infrastructure (Claude/OpenAI/Ollama) to improve spec descriptions, add summaries, and infer semantic types
+- **Content replacement engine** — `ContentReplacer` supports four match types: `ContentType` (wildcards like `image/*`), `JsonPath`, `HeaderValue`, `BodyRegex`; four actions: `ReplaceWithFile`, `ReplaceWithUrl`, `ReplaceWithValue`, `Redact`; priority-based rule ordering with host/path scope patterns
+- **Asset management** — Local filesystem storage (`./data/assets/`) for replacement files (images, video, audio); upload/list/delete via API endpoints; 50MB upload limit
+- **Proxy pipeline integration** — `ApiSpecMockService.ApplyMockAsync` called in the manipulation pipeline between rules engine and breakpoint scripts
+- **Models** — `ApiSpecDocument` (spec entity with status, mock/passthrough/LLM flags), `ContentReplacementRule` (replacement rule with match type, action, priority), `ApiSpecGenerationRequest` (generation DTO)
+- **Enums** — `ApiSpecStatus` (Draft/Active/Archived), `ContentMatchType` (ContentType/JsonPath/HeaderValue/BodyRegex), `ContentReplacementAction` (ReplaceWithFile/ReplaceWithUrl/ReplaceWithValue/Redact)
+- **Controller** — `ApiSpecController` with 20+ endpoints: spec CRUD, generate, import, export, refine, activate/deactivate, replacement rules CRUD, asset upload/list/delete
+- **Tests** — `ApiSpecGeneratorTests` (18 tests: path normalization, JSON schema inference, format detection), `ContentReplacerTests` (14 tests: match types, actions, scope, priority), `ApiSpecControllerTests` (14 tests: controller endpoints)
+- **Frontend** — `ApiSpecPanel`, `GenerateSpecDialog`, `SpecEditor`, `ReplacementRulesEditor`, `ImportExportControls` components; `useApiSpec` hook; new "API Spec" tab in ManipulationPanel
+- EF Core migration `AddApiSpecAndContentReplacement` — adds `ApiSpecDocuments` and `ContentReplacementRules` tables with indexes and FK cascade delete
+
+### Phase 18 — React Frontend Performance & Correctness
+
+**Goal:** Fix React best-practices issues identified in code audit; improve rendering performance and eliminate memory leaks.
+
+- **Duplicate hook removal** — Removed duplicate `useCaptures` from `ManipulationPanel`; now accepts captures as prop from `DashboardPage` so SignalR live-updates are not missed
+- **Dependency array fixes** — Added `analysis` to `useEffect` dependency array in `PanelPacketCapture` (stale closure fix)
+- **Callback optimization** — Removed needless arrow-function wrappers around stable callbacks in `OpenRtbPanel`; pass `rtb.refreshEvents` directly to prevent defeating `React.memo`
+- **API client consolidation** — Replaced raw `fetch` calls with shared `apiFetch` client in `usePacketCapture` for consistent auth/error handling
+- **Component memoization** — Wrapped `CaptureRow` in `React.memo` to short-circuit re-renders on unchanged rows during SignalR events
+- **Key stabilization** — Replaced array index keys with `tick.position` in `TimelineSwimlaneView` to avoid reconciliation artifacts on zoom
+- **Constant hoisting** — Moved `statusBadge` colors map to module scope in `ApiSpecPanel`
+- **Styling** — Added comprehensive `manipulation.css` with full styles for all manipulation/apispec components
+
+### Phase 18 — Frontend Design & Usability Overhaul
+
+**Goal:** Modernize UI with cohesive typography, colors, icons, and interactions for improved usability and visual hierarchy.
+
+- **Typography** — Space Grotesk (primary) + IBM Plex Sans (fallback) from Google Fonts; replaces generic system font stack
+- **Accent colour** — Changed from generic blue `#4e7aff` → teal `#00c9b1` across both dark and light themes, including focus rings and split-pane divider
+- **Logo** — Placeholder letter 'I' replaced with radar/signal SVG icon (two concentric arcs + dot) thematically fitting for IoT traffic interception
+- **Header** — Start/Stop buttons now solid filled (green/red with white text) with subtle depth shadow; 'CA' renamed to 'Root CA'; Sign Out becomes icon-only button with door/arrow SVG
+- **Capture rows** — min-height 36 → 40 px; alternating row stripes; 4xx/5xx left-border color coding; real-time flash: 1.4s teal glow animation on new captures via SignalR
+- **Badges** — Padding increased 1px → 2px 5px; DELETE badge now solid red + white text; added letter-spacing for readability
+- **Empty states** — Emoji icons replaced with inline SVGs (magnifying glass in capture list; document outline in detail pane); detail placeholder now vertical with icon above text
+- **Radius tokens** — `sm` 4 → 5 px, `lg` 8 → 10 px for softer feel
+- **Scrollbars** — 6 → 4 px wide, transparent track, semi-transparent thumb for less visual dominance
+- **Focus rings** — Global `:focus-visible` with teal outline replaces inconsistent border-color approach on individual inputs
+
+### Phase 19 — Bugfixes, UI Polish, iOS TLS Compatibility & Proxy Auto-start
+
+**Goal:** Fix critical bugs (timeline crash, enum serialization), improve UI polish, resolve iOS/macOS TLS certificate rejection, enable proxy auto-start on launch.
+
+- **Timeline crash fix** — `InterceptionProtocol` serialized as integers over SignalR (missing `JsonStringEnumConverter` on `AddJsonProtocol`). Fixed by adding `JsonStringEnumConverter` to both controllers and SignalR, defensive guard in `getStatusClass`, and `ErrorBoundary` component wrapping each view panel
+- **Timeline device labels** — Label column now resizable via drag handle (100–320 px range); name/IP stacks vertically with ellipsis truncation
+- **Settings modal** — Proxy mode selector now enabled for all three modes with conditional extra fields; added "Relaunch Welcome Guide" button and **Auto-start proxy** checkbox
+- **Capture list timestamp** — Timestamp column widened 56 px → 76 px to prevent clipping of locale-aware time strings
+- **iOS/macOS TLS compatibility** — `CertificateAuthority` now uses keyid-only AKI form; leaf cert validity capped at 397 days (Apple enforces ≤ 398-day limit); IP SANs use `GeneralName.IPAddress`
+- **EF Core migration quirks** — `AddBodyCaptureDefaults` uses `Sql()` instead of `AlterColumn` for SQLite compatibility; stub `.Designer.cs` added for EF Core migration discovery
+- **`AddProxyAutoStart` migration** — Adds `AutoStart BOOLEAN DEFAULT 0` column to `ProxySettings`; `ProxyService` auto-starts on launch when `AutoStart=true`
+- **Rich body viewer** — New `BodyViewer` component with three view modes: Pretty (content-type-aware JSON/XML/HTML with syntax highlighting), Raw (plain text), Hex (Wireshark-style offset/hex/ASCII dump, 16 bytes per row, capped at 8 KiB)
+- **Body viewer features** — Info toolbar shows Content-Type, Content-Encoding (e.g. `gzip ✓ decoded`), byte size; copy-to-clipboard button; unknown content types sniff JSON; images rendered as `<img>` via Blob URL
+- **Backend decompression** — Both proxy servers now decompress gzip/deflate/Brotli response bodies before DB write (original compressed bytes forwarded to client), making IoT JSON/HTML responses readable in UI
+- **Documentation updates** — README, AGENT.md, CLAUDE.md, PLAN.md, architecture.md updated with Linux `setcap` procedure, JSON enum serialization requirement, iOS TLS cert requirements, EF Core SQLite migration quirks
+
+### Phase 20 — Admin UI & Body Viewer Stream Rendering
+
+**Goal:** Complete operational admin page with database maintenance, user management, and support for SSE/NDJSON stream rendering in body viewer.
+
+- **Admin dashboard** — `/admin` route with four management tabs (Database, Certificates, Audit, Users)
+- **Database tab** — Row count and size stats; date-range and hostname-filter purge controls; JSON/CSV export of captures/packets; purge-all confirmation guard
+- **Certificates tab** — Root CA metadata display; DER/PEM download links; regenerate root CA endpoint with audit logging; purge leaf certs
+- **Audit tab** — Paginated table of all audit entries (timestamp, user, action, entity, details, source IP)
+- **Users tab** — User list with inline role selector; create user dialog; delete with confirmation guards (blocks self-delete and last-admin demotion/deletion)
+- **Admin controller** — `POST /api/admin/purge`, `GET /api/admin/export`, `POST /api/certificates/root-ca/regenerate`; admin-role gated; all destructive operations audit-logged
+- **Stream rendering** — `detectStream()` identifies SSE (`text/event-stream`) and NDJSON (`application/x-ndjson`, `application/jsonl`); `StreamEventRow` component renders collapsible per-event rows with chevron, index, label, byte count, optional SSE metadata; expand/collapse-all toggle
+- **Integration tests** — `AdminControllerTests` (10 tests), `CertificatesControllerTests` (2 tests), `UserSafetyGuardsTests` (3 tests)
+
 ---
 
 ### Post-Phase-11 Stabilization — Bugfixes & Polish
@@ -211,121 +289,19 @@ Items that are still open. These inform the roadmap.
 
 ---
 
-## Roadmap — what comes next (Phases 12+)
+## Roadmap — what comes next (Phases 21+)
 
-### Phase 12 — Threat Intelligence & Advanced Detection
+Future enhancement phases are planned in this section as the project evolves. Some candidate areas for future work include:
 
-**Goal:** Enrich scan findings and traffic analysis with external threat intelligence and improve automated detection capabilities.
+- **Threat Intelligence** — Shodan/VirusTotal integration, local CVE database caching, MISP threat feed ingestion, passive OS fingerprinting, DGA domain detection
+- **PCAP Analysis** — PCAP/pcapng file upload and import, session reconstruction (TCP stream reassembly), diff view for imported vs. live captures
+- **API Key Management** — Service account API keys with scope-based access control, key rotation and revocation, API key frontend management
+- **Team Collaboration** — Shared investigation sessions, in-session annotations, presence indicators, activity feeds, session export
+- **Deployment** — Kestrel HTTPS for API, Kubernetes Helm chart, Docker Compose production setup, plugin system for custom decoders
+- **Protocol Expansion** — AMQP 1.0, RTSP/RTP, Matter/Thread, Zigbee, Bluetooth LE, Z-Wave support
+- **Operations & Metrics** — LDAP/SAML SSO, Prometheus metrics endpoint, Slack/Teams/PagerDuty alerting, distributed multi-node deployment
 
-| # | Task | Priority | Details |
-|---|---|---|---|
-| 12.1 | Shodan integration | High | Query Shodan for open ports/vulnerabilities on scanned device IPs; surface results as `ScanFinding` entries with `ScanFindingType.Shodan` |
-| 12.2 | VirusTotal URL/IP lookup | High | Check captured hostnames/IPs against VirusTotal API; flag malicious destinations in the captures list |
-| 12.3 | Local CVE database cache | Medium | Download NVD/OSV CVE data on a schedule so CVE lookups work offline and reduce API rate-limit exposure |
-| 12.4 | MISP threat feed ingestion | Medium | Pull IOCs (IPs, domains, hashes) from a configured MISP instance; auto-tag matching captures |
-| 12.5 | Passive OS fingerprinting | Medium | Derive OS/device type from TCP/IP stack behaviour (TTL, window size, options) in packet captures; enrich `Device` records |
-| 12.6 | DGA domain detection | High | ML/heuristic model to classify captured DNS names as likely DGA (entropy, n-gram analysis); emit `AnomalyAlert` on match |
-| 12.7 | Threat intelligence frontend panel | High | New "Threat Intel" tab: per-device IOC matches, VirusTotal reports, CVE timeline, flagged captures |
-
-Backend: `IoTSpy.Core` — `ThreatIntelMatch`, `IOC`, `OsFingerprint` models; `IThreatIntelService`, `IOsFingerprinter` interfaces. `IoTSpy.Scanner` — `ThreatIntelService`, `OsFingerprinter`. `IoTSpy.Storage` — `ThreatIntelMatches` DbSet + migration.
-
----
-
-### Phase 13 — PCAP Import & Offline Analysis
-
-**Goal:** Allow users to upload and analyze existing PCAP files, not just live captures.
-
-| # | Task | Priority | Details |
-|---|---|---|---|
-| 13.1 | PCAP file upload endpoint | High | `POST /api/packet-capture/import` — multipart upload; parse with SharpPcap `OfflinePcapDevice`; insert packets into DB with `Source=Import` tag |
-| 13.2 | Import progress streaming | Medium | Stream import progress via SignalR `PacketCaptureHub` so the frontend can show a live progress bar |
-| 13.3 | PCAP import frontend | High | Drag-and-drop upload zone in `PanelPacketCapture`; shows import job status + packet count |
-| 13.4 | pcapng support | Medium | Extend the importer to handle pcapng (next-generation PCAP) via SharpPcap's built-in support |
-| 13.5 | Session reconstruction | Medium | TCP stream reassembly on imported PCAP data to extract HTTP/MQTT/CoAP payloads; store as `CapturedRequest` entries for manipulation analysis |
-| 13.6 | Diff view for imported vs. live | Low | Side-by-side comparison of an imported PCAP session against a live capture of the same device |
-
-Backend: `IoTSpy.Scanner` — `PcapImportService`; `IoTSpy.Core` — `PcapImportJob`, `IPcapImportService`.
-
----
-
-### Phase 14 — API Key Management & Service Accounts
-
-**Goal:** Enable programmatic/CI access to IoTSpy without sharing user credentials.
-
-| # | Task | Priority | Details |
-|---|---|---|---|
-| 14.1 | `ApiKey` model & repository | High | `ApiKey` entity: name, hashed secret, scopes, expiry, last-used timestamp, owner user ID; `IApiKeyRepository` |
-| 14.2 | API key issuance endpoint | High | `POST /api/auth/api-keys` (admin/operator) — generates a random 32-byte key, returns it once in plaintext, stores PBKDF2 hash |
-| 14.3 | API key authentication middleware | High | `ApiKeyAuthenticationHandler` — accepts `X-Api-Key` header; resolves key → user principal with role claims |
-| 14.4 | Scope enforcement | Medium | Fine-grained scope strings (`captures:read`, `scanner:write`, etc.) validated per endpoint via policy attribute |
-| 14.5 | Key rotation & revocation | Medium | `DELETE /api/auth/api-keys/{id}`, `POST /api/auth/api-keys/{id}/rotate`; rotation issues replacement and revokes old key |
-| 14.6 | API key frontend management | Medium | Admin panel for listing/creating/revoking keys; copy-to-clipboard on creation |
-| 14.7 | EF Core migration | High | `AddApiKeyManagement` migration — `ApiKeys` table |
-
----
-
-### Phase 15 — Collaboration & Real-time Sharing
-
-**Goal:** Support multiple operators monitoring the same device/proxy session simultaneously with role-aware views.
-
-| # | Task | Priority | Details |
-|---|---|---|---|
-| 15.1 | Shared capture sessions | High | Named "investigation sessions" that multiple users can join; all captures within a session visible to all participants in real time |
-| 15.2 | In-session annotations | Medium | Users can annotate individual captures with notes/tags; annotations stored in DB, broadcast via SignalR |
-| 15.3 | Viewer role restrictions | High | Viewer role enforced at SignalR hub level: read-only groups, no rule/script application |
-| 15.4 | Presence indicators | Low | Show which users are currently active on which device/panel in the dashboard header |
-| 15.5 | Activity feed | Medium | Per-session activity log (user X started scan, user Y added rule) broadcast to all participants |
-| 15.6 | Session export | Medium | Export a complete investigation session (captures + annotations + scan findings + manipulation rules) as a ZIP archive |
-
-Backend: `IoTSpy.Core` — `InvestigationSession`, `CaptureAnnotation` models; `IoTSpy.Storage` — migration.
-
----
-
-### Phase 16 — Deployment & Operations
-
-**Goal:** Make IoTSpy production-ready for team deployments with proper TLS, container orchestration, and operational tooling.
-
-| # | Task | Priority | Details |
-|---|---|---|---|
-| 16.1 | Kestrel HTTPS for the API | High | Configure Kestrel to serve the REST + SignalR API over TLS; support certificate path + password config or Let's Encrypt via `Certes` |
-| 16.2 | Kubernetes Helm chart | Medium | Helm chart in `deploy/helm/iotspy/`; values for replica count, image tag, DB connection, secret management; Ingress with TLS annotation |
-| 16.3 | Docker Compose improvements | Medium | Add a `docker-compose.prod.yml` with Postgres, pgAdmin, and Traefik reverse proxy; separate from dev compose |
-| 16.4 | Plugin system for protocol decoders | Medium | `IPluginDecoder` interface loaded from a `plugins/` directory via MEF/AssemblyLoadContext; allows community-contributed decoders without rebuilding |
-| 16.5 | LDAP / SAML SSO | Low | External identity provider integration; map LDAP groups to `UserRole`; `ExternalAuthController` |
-| 16.6 | Metrics endpoint (Prometheus) | Medium | `GET /metrics` via `prometheus-net.AspNetCore`; expose proxy request counts, scan durations, anomaly alert rates, capture queue depth |
-| 16.7 | Alerting integrations | Medium | Webhook targets for Slack, Teams, and PagerDuty; triggered on high-severity scan findings and anomaly alerts |
-| 16.8 | Distributed mode (multi-node) | Low | Redis-backed SignalR backplane; shared Postgres; multiple IoTSpy nodes behind a load balancer covering different network segments |
-
----
-
-### Phase 17 — Protocol Expansion (Non-IP IoT)
-
-**Goal:** Extend coverage to wireless IoT protocols beyond TCP/IP networking.
-
-| # | Task | Priority | Details |
-|---|---|---|---|
-| 17.1 | AMQP 1.0 decoder | Medium | Decode AMQP frames captured via transparent proxy or PCAP import; surface messages alongside MQTT |
-| 17.2 | RTSP/RTP for IP cameras | Medium | Detect RTSP `DESCRIBE`/`SETUP`/`PLAY` sequences; capture SDP metadata; flag unauthenticated streams |
-| 17.3 | Matter/Thread protocol support | Low | Passive decode of Matter commissioning and cluster messages; Thread network topology mapping (requires USB border router) |
-| 17.4 | Zigbee passive capture | Low | USB Zigbee sniffer integration (e.g. RZUSBSTICK / CC2531) via `libusb`; decode ZDP/ZCL frames |
-| 17.5 | Bluetooth LE advertisement decode | Low | HCI socket or BlueZ integration; decode BLE advertisements from IoT beacons; map to known vendor profiles (Eddystone, iBeacon, Tile) |
-| 17.6 | Z-Wave frame decode | Low | Serial port integration with a Z-Wave controller; decode Z-Wave frames and map to device/command class |
-
----
-
-### Phase 18 — Frontend React Performance & Correctness
-
-**Goal:** Fix 7 high-confidence issues identified by React best-practices audit on 2026-03-25.
-
-| # | Task | Severity | File | Details |
-|---|---|---|---|---|
-| 18.1 | Fix duplicate `useCaptures` in `ManipulationPanel` | CRITICAL | `ManipulationPanel.tsx:17` | Remove `useCaptures` call from `ManipulationPanel`; accept captures as a prop from `DashboardPage` so SignalR live-updates are not missed |
-| 18.2 | Add `analysis` to `useEffect` dependency array | CRITICAL | `PanelPacketCapture.tsx:25` | `analysis` object is used inside the effect but missing from the dep array — stale closure risk |
-| 18.3 | Remove needless arrow-function wrappers around stable callbacks | HIGH | `OpenRtbPanel.tsx:47, 73` | `onRefresh={() => rtb.refreshEvents()}` wraps an already-stable `useCallback` ref; pass `rtb.refreshEvents` directly to prevent defeating `React.memo` and dep-array stability |
-| 18.4 | Replace raw `fetch` in `usePacketCapture` with shared API client | HIGH | `usePacketCapture.ts:29, 74, 92` | Raw `fetch` calls bypass auth error handling, base URL config, and token-expiry logic in `api/client` |
-| 18.5 | Wrap `CaptureRow` in `React.memo` | MEDIUM | `CaptureRow.tsx` | Pure presentational component re-renders on every SignalR event because the parent array is replaced; `React.memo` will short-circuit unchanged rows |
-| 18.6 | Replace index keys with stable keys for timeline ticks | MEDIUM | `TimelineSwimlaneView.tsx:171, 179` | Use `tick.position` as key instead of array index to avoid reconciliation artifacts on zoom changes |
-| 18.7 | Hoist `statusBadge` colors map to module scope | MEDIUM | `ApiSpecPanel.tsx:17` | The `colors` Record is recreated on every render; move to module-level constant |
+Phase scoping and prioritization for future work will be determined based on user needs and feedback.
 
 ---
 
