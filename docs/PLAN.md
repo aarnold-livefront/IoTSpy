@@ -19,13 +19,13 @@ README / quick start: [`README.md`](../README.md)
 |---|---|
 | Backend projects | 7 (Core, Proxy, Protocols, Scanner, Manipulation, Storage, Api) |
 | Test projects | 8 (Core.Tests, Protocols.Tests, Manipulation.Tests, Scanner.Tests, Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests) |
-| Backend tests | 350+ (all passing) — includes Phase 10 decoders + Phase 11 multi-user/TLS/tests + Phase 12 API spec generation + Phase 20 admin/integration tests |
+| Backend tests | 479 (all passing) — includes Phase 10 decoders + Phase 11 multi-user/TLS/tests + Phase 12 API spec generation + Phase 20 admin/integration tests |
 | Frontend tests | 11+ component tests via Vitest + React Testing Library |
 | REST controllers | 15 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy, Report, ScheduledScan, Dashboard, ApiSpec, Admin) |
 | HTTP endpoints | 100+ |
 | SignalR hubs | 2 (TrafficHub, PacketCaptureHub) — TrafficHub extended with WebSocket frame + MQTT message + anomaly alert subscriptions |
 | EF Core migrations | 13 (InitialCreate → AddProxyAutoStart) |
-| Frontend components | 65+ TypeScript files across 16+ component directories |
+| Frontend components | 82 TypeScript files across 16+ component directories |
 | Protocols supported | HTTP/HTTPS, TLS passthrough (JA3/JA3S), WebSocket, MQTT 3.1.1/5.0 (passive decode + active proxy), DNS/mDNS, CoAP (passive decode + active proxy), gRPC/Protobuf, Modbus TCP, OpenRTB 2.5, Datadog, Firehose, Splunk HEC, Azure Monitor |
 | Frontend design | Space Grotesk + IBM Plex Sans typography; teal (`#00c9b1`) accent color; radar SVG logo; responsive design (480px, 768px, 1024px breakpoints); dark/light theme toggle |
 | Admin features | Database stats/purge, certificate management, audit log, user management, root CA regeneration (admin-only) |
@@ -36,7 +36,7 @@ README / quick start: [`README.md`](../README.md)
 
 ## What has been built
 
-All phases 1–20 are complete. This includes the foundation (proxy/API/dashboard), all major features (protocols, scanning, manipulation, capture analysis), UX polish, admin operations, and modern frontend design.
+Phases 1–12 and 18–20 are complete. Phases 13–17 were deprioritized in favor of Phases 18–20 (frontend correctness, UX polish, admin operations) and remain valid candidates for future implementation. See the "Proposed phases" section below.
 
 ### Phase 1 — Foundation
 
@@ -109,40 +109,6 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Core model tests** — `IoTSpy.Core.Tests` project (30+ tests): model defaults, enum coverage, new User/AuditEntry/DashboardLayout models
 - **Auth controller tests updated** — 10 tests covering multi-user + legacy auth
 - EF Core migration `AddPhase11MultiUserAndAudit` — adds `Users`, `AuditEntries`, `DashboardLayouts` tables
-
-### API Spec Generation & Content-Aware Mocking
-
-**Goal:** Generate OpenAPI 3.0 specs from captured traffic, mock API responses based on observed data, and replace content (images, video, etc.) in responses with custom assets.
-
-- **OpenAPI spec generation** — `ApiSpecGenerator` analyzes captured traffic to produce OpenAPI 3.0 JSON; path normalization detects GUID/numeric/hex segments and replaces with `{id}` placeholders; recursive JSON schema inference with format detection (uuid, date-time, email, uri)
-- **Import/export** — Import and export API spec `.json` files via `ApiSpecController`; specs can be shared across environments
-- **Passthrough-first mocking** — `ApiSpecMockService` allows real traffic through while observing payloads; dual-layer cache (ConcurrentDictionary + Timer-based background DB flush) records observed responses as OpenAPI examples
-- **LLM-enhanced refinement** — `ApiSpecLlmEnhancer` uses existing `IAiProvider` infrastructure (Claude/OpenAI/Ollama) to improve spec descriptions, add summaries, and infer semantic types
-- **Content replacement engine** — `ContentReplacer` supports four match types: `ContentType` (wildcards like `image/*`), `JsonPath`, `HeaderValue`, `BodyRegex`; four actions: `ReplaceWithFile`, `ReplaceWithUrl`, `ReplaceWithValue`, `Redact`; priority-based rule ordering with host/path scope patterns
-- **Asset management** — Local filesystem storage (`./data/assets/`) for replacement files (images, video, audio); upload/list/delete via API endpoints; 50MB upload limit
-- **Proxy pipeline integration** — `ApiSpecMockService.ApplyMockAsync` called in the manipulation pipeline between rules engine and breakpoint scripts
-- **Models** — `ApiSpecDocument` (spec entity with status, mock/passthrough/LLM flags), `ContentReplacementRule` (replacement rule with match type, action, priority), `ApiSpecGenerationRequest` (generation DTO)
-- **Enums** — `ApiSpecStatus` (Draft/Active/Archived), `ContentMatchType` (ContentType/JsonPath/HeaderValue/BodyRegex), `ContentReplacementAction` (ReplaceWithFile/ReplaceWithUrl/ReplaceWithValue/Redact)
-- **Controller** — `ApiSpecController` with 20+ endpoints: spec CRUD, generate, import, export, refine, activate/deactivate, replacement rules CRUD, asset upload/list/delete
-- **Tests** — `ApiSpecGeneratorTests` (18 tests: path normalization, JSON schema inference, format detection), `ContentReplacerTests` (14 tests: match types, actions, scope, priority), `ApiSpecControllerTests` (14 tests: controller endpoints)
-- **Frontend** — `ApiSpecPanel`, `GenerateSpecDialog`, `SpecEditor`, `ReplacementRulesEditor`, `ImportExportControls` components; `useApiSpec` hook; new "API Spec" tab in ManipulationPanel
-- EF Core migration `AddApiSpecAndContentReplacement` — adds `ApiSpecDocuments` and `ContentReplacementRules` tables with indexes and FK cascade delete
-
-### Admin UI & Body Viewer
-
-**Goal:** Operational admin page for database maintenance, certificate management, audit log review, and user management; plus SSE/NDJSON stream rendering in the body viewer.
-
-- **`AdminController`** — admin-role gated at `/api/admin`; stats (row counts + estimated sizes), purge endpoints (captures by age/host/purgeAll, packets by age/purgeAll), export endpoints (captures + packets as JSON/CSV, full config as JSON); writes audit log entries on all destructive operations
-- **`CertificatesController` regenerate endpoint** — `POST /api/certificates/root-ca/regenerate` (admin-only); purges all leaf and root certs, recreates the root CA, writes audit log entry
-- **`AuthController` safety guards** — `DeleteUser` now blocks self-deletion and deletion of the last admin; `UpdateUser` now blocks demoting the last admin
-- **Admin frontend** — `/admin` route (redirects non-admins to `/`); wrench icon in `Header` shown only to users with `role === 'admin'`; four tabs:
-  - *Database* — stat cards with row counts/sizes/oldest entry; range-slider purge by age; host-filter purge; purge-all with confirm dialog; JSON/CSV export via authenticated download
-  - *Certificates* — root CA metadata table; DER/PEM download links; regenerate-CA and purge-leaf-certs with confirm dialogs
-  - *Audit Log* — paginated table of all audit entries (timestamp, user, action, entity, details, IP)
-  - *Users* — user table with inline role select; create-user dialog; delete with confirm guard; self-delete hidden
-- **`useCurrentUser()` hook** — reads `iotspy-user` from localStorage; populated on login, cleared on logout; used to gate the admin link and `/admin` route
-- **Body viewer stream rendering** — `detectStream()` identifies SSE (`text/event-stream`) and NDJSON (`application/x-ndjson`, `application/jsonl`, or sniffed multi-line JSON); `parseSSE()` / `parseNDJSON()` produce `StreamEvent[]`; `StreamEventRow` component: collapsible per-event row with chevron, index, label, byte count, optional SSE metadata, and JSON syntax-highlighted or plain body; event count badge in toolbar; expand/collapse-all toggle
-- **Tests added** — `AdminControllerTests` (10 tests), `CertificatesControllerTests` (2 tests), `UserSafetyGuardsTests` (3 tests)
 
 ### Phase 12 — API Spec Generation & Content-Aware Mocking
 
@@ -221,58 +187,7 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 
 ---
 
-### Stabilization — Bugfixes & Polish
-
-#### Timeline tab crash & enum serialization fix
-
-- **Root cause:** `Program.cs` had `JsonStringEnumConverter` on `AddControllers()` but *not* on `AddSignalR().AddJsonProtocol()`. Live-streamed captures came through with numeric protocol values (`0`, `1`, …); `getStatusClass` called `.toLowerCase()` on a number, throwing `TypeError`. No `ErrorBoundary` existed, so React unmounted the entire app tree.
-- **Fixes:**
-  - Added `JsonStringEnumConverter` to `AddSignalR().AddJsonProtocol()` in `Program.cs`
-  - Added defensive `typeof protocol === 'string'` guard in `TimelineSwimlaneView.tsx`
-  - Created `frontend/src/components/common/ErrorBoundary.tsx` (class component, `getDerivedStateFromError`) and wrapped each view panel in `DashboardPage.tsx`
-
-#### Timeline device label panel — resizable column
-
-- Labels column was fixed-width and overflowed long device names/IPs
-- Added `labelsWidth` state + mouse-drag resize handle (100–320 px range) in `TimelineSwimlaneView.tsx`
-- Updated `timeline.css`: `.timeline-label-row` stacks name/IP vertically with `text-overflow: ellipsis`; `.timeline-labels-resize` drag handle at right edge
-
-#### Settings modal improvements
-
-- **Proxy mode selector** was `disabled` — removed the `disabled` attribute so all three modes (Explicit, GatewayRedirect, ArpSpoof) are selectable; added conditional extra fields for each mode
-- **"Relaunch Welcome Guide"** button added to settings modal (`showWizard` state renders `<OnboardingWizard>` inline)
-- **Auto-start proxy** — new `AutoStart` boolean on `ProxySettings`; exposed in settings UI; `ProxyService.StartAsync` auto-starts when `AutoStart=true` on server launch
-
-#### Capture list timestamp clip
-
-- Timestamp column grid width widened from `56px` → `76px` in `capture-list.css` to prevent locale-aware time strings (e.g. `"12:34:56 PM"`) being clipped
-
-#### EF Core migration — `AddProxyAutoStart`
-
-- Migration `20260326120000_AddProxyAutoStart` adds `AutoStart BOOLEAN DEFAULT 0` column to `ProxySettings`
-- Includes stub `.Designer.cs` file (required for EF Core migration discovery)
-- `IoTSpyDbContextModelSnapshot.cs` updated with `AutoStart` property
-
-#### Linux packet capture — setcap procedure
-
-- SharpPcap requires `CAP_NET_RAW` + `CAP_NET_ADMIN`. `setcap` **rejects symlinks** (`/usr/bin/dotnet`); must target the real binary:
-  ```bash
-  sudo setcap cap_net_raw,cap_net_admin+eip "$(readlink -f $(which dotnet))"
-  # typically resolves to: /usr/share/dotnet/dotnet
-  ```
-- Documented in README.md and AGENT.md under "Known operational requirements"
-
-#### Apple iOS/macOS TLS certificate compatibility
-
-- iOS 16+ / iOS 26 rejects full-form Authority Key Identifier (keyId + DirName + serial)
-- `CertificateAuthority` now uses keyid-only AKI via `SubjectPublicKeyInfoFactory`
-- Leaf cert validity capped at 397 days (Apple enforces ≤ 398-day limit)
-- IP address SANs use `GeneralName.IPAddress` (not `DnsName`)
-- Documented in AGENT.md under "Known operational requirements"
-
----
-
-## Proposed phases (13-17) — deprioritized, may be revisited
+## Proposed phases (13-17) — not yet implemented, may be revisited
 
 These phases were proposed in the original roadmap but deprioritized in favor of Phase 18-20 work (frontend correctness, UX polish, admin operations). They remain valid candidates for future implementation.
 
@@ -394,6 +309,7 @@ Items that are still open. These inform the roadmap.
 | No HTTPS for the API itself | The API serves on plain HTTP; TLS termination is assumed external | Low |
 | No Bluetooth/Zigbee/Z-Wave | IoT protocols beyond IP-based networking are not supported | Low |
 | Customization of CA Certificate | Add support for Customizing Name, Organization and other properties on the proxy CA certificate | Medium |
+| Stray draft components in `src/IoTSpy.React/` | `PacketAnalysisView.tsx` and `NetworkDeviceSelector.tsx` exist under `src/IoTSpy.React/components/` but are not wired into the app, import a non-existent `useWebSocket` hook, and duplicate functionality already in `frontend/src/components/packet-capture/`. Should be deleted or migrated. | Low |
 
 **Resolved in Phase 11:**
 - ~~No Core model tests~~ — `IoTSpy.Core.Tests` project added with 30+ model default/enum tests
@@ -477,7 +393,7 @@ dotnet run --project src/IoTSpy.Api
 - `IoTSpy.Protocols` has MQTT, DNS/mDNS, CoAP, WebSocket, gRPC/Protobuf, Modbus TCP, OpenRTB, and four telemetry decoders (Datadog, Firehose, Splunk HEC, Azure Monitor).
 - `IoTSpy.Scanner` has port scan, fingerprinting, credential testing, CVE lookup, config audit, and packet capture.
 - `IoTSpy.Manipulation` has rules engine, scripted breakpoints (C#/JS), replay, fuzzer, AI mock engine, packet capture analyzer, OpenRTB PII service, API spec generation, content replacement, and LLM-enhanced spec refinement.
-- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` — 12 migrations applied: InitialCreate, AddPhase2ProxySettings, AddPhase3Scanner, AddPhase4ManipulationFix, AddOpenRtbInspection, AddPacketCapture, AddMissingPhase7Changes, AddPhase9ScheduledScans, AddBodyCaptureDefaults, AddTlsPassthroughAndSslStrip, AddPhase11MultiUserAndAudit, AddApiSpecAndContentReplacement. Run `dotnet ef migrations add <Name> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api` from the repo root.
+- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` — 13 migrations applied: InitialCreate, AddPhase2ProxySettings, AddPhase3Scanner, AddPhase4ManipulationFix, AddOpenRtbInspection, AddPacketCapture, AddMissingPhase7Changes, AddPhase9ScheduledScans, AddBodyCaptureDefaults, AddTlsPassthroughAndSslStrip, AddPhase11MultiUserAndAudit, AddApiSpecAndContentReplacement, AddProxyAutoStart. Run `dotnet ef migrations add <Name> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api` from the repo root.
 - **Multi-user RBAC** — `User` model with `UserRole` enum (Admin/Operator/Viewer); `IUserRepository`; JWT claims include `sub` (user ID) + `role`; admin-only user CRUD in `AuthController`; backward-compatible with legacy single-user auth (falls back to `ProxySettings.PasswordHash` when no `User` record matches).
 - **Audit log** — `AuditEntry` model + `IAuditRepository`; tracks login, user CRUD; admin-only GET `/api/auth/audit`.
 - **Dashboard customization** — `DashboardLayout` model + `IDashboardLayoutRepository`; per-user saved layouts with JSON config; `DashboardController` CRUD.
