@@ -740,6 +740,118 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         return ms.ToArray();
     }
 
+    // ── PCAP import ─────────────────────────────────────────────────────────
+
+    public async Task<PcapImportResult> ImportFromPcapAsync(
+        Stream pcapStream,
+        string fileName,
+        CancellationToken ct = default)
+    {
+        var jobId = Guid.NewGuid().ToString("N")[..8];
+        var result = new PcapImportResult { JobId = jobId };
+
+        // Write the upload to a temp file — SharpPcap requires a file path
+        var tempPath = Path.Combine(Path.GetTempPath(), $"iotspy_import_{jobId}.pcap");
+        try
+        {
+            await using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write))
+                await pcapStream.CopyToAsync(fs, ct);
+
+            // Phase 1 (synchronous): read all raw captures into memory.
+            // PacketCapture is a ref struct and cannot cross await boundaries,
+            // so we do all SharpPcap reads before any async work.
+            List<RawCapture> rawCaptures = ReadAllRawCaptures(tempPath, ct);
+            int total = rawCaptures.Count;
+
+            await _publisher.PublishImportProgressAsync(jobId, 0, total, ct);
+
+            // Phase 2 (async-safe): parse packets, publish progress via SignalR
+            var imported = new List<CapturedPacket>(Math.Min(total, MaxLivePackets));
+            long index = Interlocked.Read(ref _captureIndex);
+
+            for (int i = 0; i < rawCaptures.Count; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                try
+                {
+                    var packet = ParseRawPacket(rawCaptures[i]);
+                    packet.Timestamp = new DateTimeOffset(rawCaptures[i].Timeval.Date);
+                    packet.CaptureIndex = ++index;
+                    packet.Source = "Import";
+                    imported.Add(packet);
+                    result.PacketsImported++;
+                }
+                catch
+                {
+                    result.PacketsSkipped++;
+                }
+
+                int processed = i + 1;
+                if (processed % 100 == 0 || processed == total)
+                    await _publisher.PublishImportProgressAsync(jobId, processed, total, ct);
+            }
+
+            Interlocked.Exchange(ref _captureIndex, index);
+
+            // Phase 3: replace in-memory buffer with imported packets
+            lock (_lock)
+            {
+                _livePackets.Clear();
+                _freezeFrames.Clear();
+                foreach (var pkt in imported.TakeLast(MaxLivePackets))
+                    _livePackets.AddLast(pkt);
+            }
+
+            // Phase 4: TCP session reconstruction enriches HTTP packet metadata
+            result.TcpSessionsReconstructed = TcpSessionReconstructor.ReconstructSessions(imported);
+
+            // Phase 5: push each imported packet to SignalR so the frontend list populates
+            foreach (var pkt in imported)
+            {
+                ct.ThrowIfCancellationRequested();
+                await _publisher.PublishPacketAsync(pkt, ct);
+            }
+
+            result.Success = true;
+            _logger.LogInformation(
+                "PCAP import {JobId}: {Imported} packets imported, {Sessions} HTTP sessions reconstructed",
+                jobId, result.PacketsImported, result.TcpSessionsReconstructed);
+        }
+        catch (OperationCanceledException)
+        {
+            result.Error = "Import cancelled";
+        }
+        catch (Exception ex)
+        {
+            result.Error = ex.Message;
+            _logger.LogError(ex, "PCAP import {JobId} failed", jobId);
+        }
+        finally
+        {
+            try { File.Delete(tempPath); } catch { /* best-effort */ }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Reads all raw packet captures from a PCAP/pcapng file synchronously.
+    /// Must remain non-async because <see cref="SharpPcap.PacketCapture"/> is a
+    /// ref struct and cannot cross await boundaries.
+    /// </summary>
+    private static List<RawCapture> ReadAllRawCaptures(string filePath, CancellationToken ct)
+    {
+        var captures = new List<RawCapture>();
+        using var device = new SharpPcap.LibPcap.CaptureFileReaderDevice(filePath);
+        device.Open();
+        while (!ct.IsCancellationRequested &&
+               device.GetNextPacket(out var cap) == SharpPcap.GetPacketStatus.PacketRead)
+        {
+            captures.Add(cap.GetPacket());
+        }
+        return captures;
+    }
+
     // ── Disposal ─────────────────────────────────────────────────────────────
 
     public void Dispose()

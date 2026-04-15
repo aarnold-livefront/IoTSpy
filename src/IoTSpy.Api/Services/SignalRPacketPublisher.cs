@@ -28,4 +28,13 @@ public class SignalRPacketPublisher(IHubContext<PacketCaptureHub> hub) : IPacket
 
     public Task PublishStatusAsync(bool isCapturing, Guid? deviceId = null, CancellationToken ct = default)
         => hub.Clients.All.SendAsync("CaptureStatus", new { isCapturing, deviceId }, ct);
+
+    public Task PublishImportProgressAsync(string jobId, int processed, int total, CancellationToken ct = default)
+        => hub.Clients.Group(LiveGroup).SendAsync("ImportProgress", new
+        {
+            jobId,
+            processed,
+            total,
+            percent = total > 0 ? (int)((double)processed / total * 100) : 0
+        }, ct);
 }

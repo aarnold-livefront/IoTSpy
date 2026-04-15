@@ -96,6 +96,25 @@ public interface IPacketCaptureService
     /// Export filtered captured packets to PCAP file format.
     /// </summary>
     Task<byte[]?> ExportToPcapFilteredAsync(PacketFilterDto filter, CancellationToken ct = default);
+
+    /// <summary>
+    /// Import packets from a PCAP or pcapng file stream.
+    /// Returns import statistics. Streams progress via the packet publisher.
+    /// </summary>
+    Task<PcapImportResult> ImportFromPcapAsync(Stream pcapStream, string fileName, CancellationToken ct = default);
+}
+
+/// <summary>
+/// Result returned after a PCAP import operation.
+/// </summary>
+public class PcapImportResult
+{
+    public string JobId { get; set; } = string.Empty;
+    public int PacketsImported { get; set; }
+    public int PacketsSkipped { get; set; }
+    public int TcpSessionsReconstructed { get; set; }
+    public bool Success { get; set; }
+    public string? Error { get; set; }
 }
 
 /// <summary>

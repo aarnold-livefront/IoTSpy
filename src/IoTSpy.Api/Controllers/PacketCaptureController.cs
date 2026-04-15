@@ -236,6 +236,32 @@ public class PacketCaptureController : ControllerBase
         }));
     }
 
+    [HttpPost("import")]
+    [RequestSizeLimit(200 * 1024 * 1024)] // 200 MB
+    public async Task<IActionResult> ImportPcap(IFormFile file, CancellationToken ct = default)
+    {
+        if (file == null || file.Length == 0)
+            return BadRequest("No file provided");
+
+        var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (ext is not (".pcap" or ".pcapng" or ".cap"))
+            return BadRequest("File must be a .pcap, .pcapng, or .cap file");
+
+        await using var stream = file.OpenReadStream();
+        var result = await _captureService.ImportFromPcapAsync(stream, file.FileName, ct);
+
+        if (!result.Success)
+            return BadRequest(new { error = result.Error, jobId = result.JobId });
+
+        return Ok(new
+        {
+            jobId = result.JobId,
+            packetsImported = result.PacketsImported,
+            packetsSkipped = result.PacketsSkipped,
+            tcpSessionsReconstructed = result.TcpSessionsReconstructed
+        });
+    }
+
     [HttpGet("export/pcap")]
     public async Task<IActionResult> ExportPcap(
         [FromQuery] string? protocol,

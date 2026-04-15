@@ -78,11 +78,18 @@ namespace IoTSpy.Core.Models
         public string? SuspicionReason { get; set; }
 
         /// <summary>
-        /// Raw frame bytes — only populated in memory during live capture.
+        /// Raw frame bytes — only populated in memory during live capture or PCAP import.
         /// Not persisted to DB.
         /// </summary>
         [NotMapped]
         public byte[]? RawData { get; set; }
+
+        /// <summary>
+        /// Origin of the packet: "Live" for real-time capture, "Import" for PCAP file imports.
+        /// Not persisted to DB.
+        /// </summary>
+        [NotMapped]
+        public string Source { get; set; } = "Live";
 
         // Navigation property for EF Core
         public CaptureDevice Device { get; set; } = null!;
