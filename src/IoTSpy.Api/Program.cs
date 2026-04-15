@@ -2,6 +2,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using IoTSpy.Api.Hubs;
 using IoTSpy.Api.Services;
+using IoTSpy.Core.Enums;
 using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using IoTSpy.Protocols.Anomaly;
@@ -175,6 +176,27 @@ var app = builder.Build();
 
 // ── Migrate DB on startup ────────────────────────────────────────────────────
 await app.Services.MigrateAsync();
+
+// ── Migrate legacy single-user account to Users table ───────────────────────
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+    var settingsRepo = scope.ServiceProvider.GetRequiredService<IProxySettingsRepository>();
+    var settings = await settingsRepo.GetAsync();
+
+    if (await userRepo.CountAsync() == 0 && !string.IsNullOrEmpty(settings.PasswordHash))
+    {
+        await userRepo.CreateAsync(new User
+        {
+            Username = "admin",
+            PasswordHash = settings.PasswordHash,
+            DisplayName = "Administrator (legacy)",
+            Role = UserRole.Admin,
+            IsEnabled = true,
+        });
+        Log.Information("Migrated legacy password to admin user account");
+    }
+}
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 if (app.Environment.IsDevelopment())

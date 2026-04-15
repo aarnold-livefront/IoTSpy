@@ -113,6 +113,147 @@ function buildHexDump(data: Uint8Array | string): { lines: string[]; truncated: 
   return { lines, truncated }
 }
 
+// ─── Stream / SSE / NDJSON parsing ───────────────────────────────────────────
+
+interface StreamEvent {
+  index: number
+  label: string
+  rawBytes: number
+  jsonHtml: string | null
+  plainText: string | null
+  meta: Record<string, string>
+}
+
+function parseSSE(body: string): StreamEvent[] {
+  const blocks = body.split(/\n\n+/)
+  const events: StreamEvent[] = []
+  let index = 0
+  for (const block of blocks) {
+    if (!block.trim()) continue
+    const lines = block.split(/\r?\n/)
+    const meta: Record<string, string> = {}
+    const dataLines: string[] = []
+    for (const line of lines) {
+      if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trim())
+      } else if (line.startsWith('event:')) {
+        meta['event'] = line.slice(6).trim()
+      } else if (line.startsWith('id:')) {
+        meta['id'] = line.slice(3).trim()
+      } else if (line.startsWith('retry:')) {
+        meta['retry'] = line.slice(6).trim()
+      }
+    }
+    if (dataLines.length === 0) continue
+    const dataStr = dataLines.join('\n')
+    let jsonHtml: string | null = null
+    let label = meta['event'] ?? ''
+    try {
+      const parsed = JSON.parse(dataStr)
+      jsonHtml = highlightJson(JSON.stringify(parsed, null, 2))
+      if (!label && parsed && typeof parsed === 'object') {
+        const firstStringKey = Object.keys(parsed).find(k => typeof parsed[k] === 'string')
+        if (firstStringKey) label = String(parsed[firstStringKey]).slice(0, 40)
+      }
+    } catch {
+      // not JSON
+    }
+    events.push({
+      index: index++,
+      label: label || `event ${index}`,
+      rawBytes: new TextEncoder().encode(block).length,
+      jsonHtml,
+      plainText: jsonHtml ? null : dataStr,
+      meta,
+    })
+  }
+  return events
+}
+
+function parseNDJSON(body: string): StreamEvent[] {
+  const lines = body.split(/\r?\n/).filter(l => l.trim())
+  return lines.map((line, index) => {
+    let jsonHtml: string | null = null
+    let label = ''
+    try {
+      const parsed = JSON.parse(line)
+      jsonHtml = highlightJson(JSON.stringify(parsed, null, 2))
+      if (parsed && typeof parsed === 'object') {
+        const firstStringKey = Object.keys(parsed).find(k => typeof parsed[k] === 'string')
+        if (firstStringKey) label = String(parsed[firstStringKey]).slice(0, 40)
+      }
+    } catch {
+      // not JSON
+    }
+    return {
+      index,
+      label: label || `line ${index + 1}`,
+      rawBytes: new TextEncoder().encode(line).length,
+      jsonHtml,
+      plainText: jsonHtml ? null : line,
+      meta: {},
+    }
+  })
+}
+
+type StreamResult =
+  | { kind: 'sse'; events: StreamEvent[] }
+  | { kind: 'ndjson'; events: StreamEvent[] }
+  | null
+
+function detectStream(body: string, contentType: string): StreamResult {
+  if (contentType === 'text/event-stream') {
+    const events = parseSSE(body)
+    return events.length > 0 ? { kind: 'sse', events } : null
+  }
+  if (contentType === 'application/x-ndjson' || contentType === 'application/jsonl') {
+    const events = parseNDJSON(body)
+    return events.length > 1 ? { kind: 'ndjson', events } : null
+  }
+  if (body.includes('\n')) {
+    const lines = body.split(/\r?\n/).filter(l => l.trim())
+    if (lines.length > 1 && lines.every(l => {
+      try { JSON.parse(l); return true } catch { return false }
+    })) {
+      return { kind: 'ndjson', events: parseNDJSON(body) }
+    }
+  }
+  return null
+}
+
+function StreamEventRow({ event, defaultOpen }: { event: StreamEvent; defaultOpen: boolean }) {
+  const [open, setOpen] = useState(defaultOpen)
+  useEffect(() => { setOpen(defaultOpen) }, [defaultOpen])
+  const hasMeta = Object.keys(event.meta).length > 0
+
+  return (
+    <div className="bv-event">
+      <div className="bv-event__header" onClick={() => setOpen(o => !o)}>
+        <span className={`bv-event__chevron${open ? ' bv-event__chevron--open' : ''}`}>▶</span>
+        <span className="bv-event__index">#{event.index + 1}</span>
+        <span className="bv-event__label">{event.label}</span>
+        <span className="bv-event__size">{event.rawBytes} B</span>
+      </div>
+      {open && (
+        <>
+          {hasMeta && (
+            <div className="bv-event__meta">
+              {Object.entries(event.meta).map(([k, v]) => (
+                <span key={k} style={{ marginRight: 12 }}>{k}: {v}</span>
+              ))}
+            </div>
+          )}
+          <div className="bv-event__body">
+            {event.jsonHtml
+              ? <span dangerouslySetInnerHTML={{ __html: event.jsonHtml }} />
+              : event.plainText}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ─── Pretty content resolver ─────────────────────────────────────────────────
 
 type PrettyResult =
@@ -193,6 +334,11 @@ export default function BodyViewer({ body, headersJson, bodySize }: Props) {
   useEffect(() => () => { if (imageUrl) URL.revokeObjectURL(imageUrl) }, [imageUrl])
 
   const pretty = useMemo(() => resolvePretty(body, contentType), [body, contentType])
+  const stream = useMemo(
+    () => (mode === 'pretty' && !isBase64 ? detectStream(body, contentType) : null),
+    [mode, body, contentType, isBase64]
+  )
+  const [allExpanded, setAllExpanded] = useState(false)
   const hexData = useMemo(() => (mode === 'hex' ? buildHexDump(decodedBytes ?? body) : null), [mode, body, decodedBytes])
 
   const handleCopy = useCallback(() => {
@@ -229,12 +375,18 @@ export default function BodyViewer({ body, headersJson, bodySize }: Props) {
         <div className="bv-badges">
           {contentType && <span className="bv-badge">{contentType}</span>}
           {encodingLabel && <span className="bv-badge bv-badge--encoding">{encodingLabel}</span>}
+          {stream && <span className="bv-badge bv-badge--events">{stream.events.length} events</span>}
           <span className="bv-badge bv-badge--size">{bodySize.toLocaleString()} B</span>
         </div>
 
         <button className="bv-copy-btn" onClick={handleCopy}>
           {copied ? '✓ Copied' : 'Copy'}
         </button>
+        {stream && mode === 'pretty' && (
+          <button className="bv-stream-toggle" onClick={() => setAllExpanded(e => !e)}>
+            {allExpanded ? 'Collapse all' : 'Expand all'}
+          </button>
+        )}
       </div>
 
       {/* Content */}
@@ -255,8 +407,17 @@ export default function BodyViewer({ body, headersJson, bodySize }: Props) {
         {/* Raw view */}
         {mode === 'raw' && <pre className="bv-raw">{body}</pre>}
 
+        {/* Stream view — SSE / NDJSON */}
+        {mode === 'pretty' && stream && (
+          <div className="bv-stream-events">
+            {stream.events.map(event => (
+              <StreamEventRow key={event.index} event={event} defaultOpen={allExpanded} />
+            ))}
+          </div>
+        )}
+
         {/* Pretty view */}
-        {mode === 'pretty' && (
+        {mode === 'pretty' && !stream && (
           <>
             {/* Binary image */}
             {isImage && !isSvg && (

@@ -7,6 +7,7 @@ import OnboardingWizard from './components/onboarding/OnboardingWizard'
 const SetupPage = lazy(() => import('./pages/SetupPage'))
 const LoginPage = lazy(() => import('./pages/LoginPage'))
 const DashboardPage = lazy(() => import('./pages/DashboardPage'))
+const AdminPage = lazy(() => import('./pages/AdminPage'))
 
 function AppRoutes() {
   const { status } = useAuthInit()
@@ -23,6 +24,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/setup" element={<SetupPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="/*" element={<DashboardPage />} />
       </Routes>
       {status === 'authenticated' && showOnboarding && (

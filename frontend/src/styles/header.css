@@ -64,6 +64,7 @@
 .header__btn:hover {
   background-color: var(--color-surface-2);
   border-color: var(--color-border-focus);
+  text-decoration: none;
 }
 
 .header__btn--icon {

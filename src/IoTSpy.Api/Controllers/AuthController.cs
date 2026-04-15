@@ -56,7 +56,7 @@ public class AuthController(
         if (legacyToken is null)
             return Unauthorized(new { error = "Invalid credentials" });
 
-        return Ok(new { token = legacyToken });
+        return Ok(new { token = legacyToken, user = new { Id = Guid.Empty, req.Username, DisplayName = req.Username, role = "admin" } });
     }
 
     [HttpPost("setup")]
@@ -85,6 +85,21 @@ public class AuthController(
         await settingsRepo.SaveAsync(settings);
 
         return Ok(new { message = "Password set" });
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<IActionResult> Me()
+    {
+        var username = User.Identity?.Name;
+        if (username is null) return Unauthorized();
+
+        var user = await userRepo.GetByUsernameAsync(username);
+        if (user is not null)
+            return Ok(new { user.Id, user.Username, user.DisplayName, role = user.Role.ToString().ToLowerInvariant() });
+
+        // Legacy user — treat as admin
+        return Ok(new { Id = Guid.Empty, Username = username, DisplayName = username, role = "admin" });
     }
 
     [HttpGet("status")]
@@ -157,6 +172,13 @@ public class AuthController(
         var user = await userRepo.GetByIdAsync(id);
         if (user is null) return NotFound();
 
+        if (req.Role.HasValue && req.Role.Value != UserRole.Admin && user.Role == UserRole.Admin)
+        {
+            var adminCount = (await userRepo.GetAllAsync()).Count(u => u.Role == UserRole.Admin && u.IsEnabled);
+            if (adminCount <= 1)
+                return BadRequest(new { error = "Cannot demote the last admin account" });
+        }
+
         if (req.DisplayName is not null) user.DisplayName = req.DisplayName;
         if (req.Role.HasValue) user.Role = req.Role.Value;
         if (req.IsEnabled.HasValue) user.IsEnabled = req.IsEnabled.Value;
@@ -188,6 +210,16 @@ public class AuthController(
     {
         var user = await userRepo.GetByIdAsync(id);
         if (user is null) return NotFound();
+
+        if (User.Identity?.Name == user.Username)
+            return BadRequest(new { error = "Cannot delete your own account" });
+
+        if (user.Role == UserRole.Admin)
+        {
+            var adminCount = (await userRepo.GetAllAsync()).Count(u => u.Role == UserRole.Admin && u.IsEnabled);
+            if (adminCount <= 1)
+                return BadRequest(new { error = "Cannot delete the last admin account" });
+        }
 
         await userRepo.DeleteAsync(id);
 

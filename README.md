@@ -76,6 +76,15 @@ IoT network security platform: transparent MITM proxy, protocol analyzer, pen-te
 - **Freeze frame** — hex dump + layer-by-layer packet analysis
 - **PCAP export** — standard format for Wireshark analysis
 
+### Administration
+
+- **System admin page** — `/admin` route accessible only to users with the `admin` role; wrench icon in the header
+- **Database tab** — view row counts and estimated sizes for captures, packets, and scan findings; purge by age/host or purge all; export captures/packets (JSON or CSV) and full configuration (JSON) — all downloads authenticated via Bearer token
+- **Certificates tab** — view root CA details (CN, serial, validity); download CA as DER or PEM; purge leaf certs; regenerate root CA (invalidates all leaf certs and writes an audit entry)
+- **Audit log tab** — paginated table of all audit entries (user, action, entity, details, IP, timestamp)
+- **Users tab** — list all users; create new users; update roles inline; delete users; confirm dialogs on destructive actions
+- **Safety guards** — cannot delete your own account; cannot delete or demote the last admin
+
 ### Anomaly detection
 - **Statistical baseline** — Welford online algorithm for per-host metrics (response time, size, status codes, request rate)
 - **Alert types** — ResponseTime, ResponseSize, StatusCode, RequestRate anomalies
@@ -323,7 +332,33 @@ All endpoints (except `/api/auth/*`, `/api/certificates/root-ca/download`, `/hea
 | GET | `/api/certificates` | List generated certificates |
 | GET | `/api/certificates/root-ca` | Root CA info |
 | GET | `/api/certificates/root-ca/download` | Download root CA as DER (.crt) — no auth required |
+| GET | `/api/certificates/root-ca/pem` | Download root CA as PEM — no auth required |
+| POST | `/api/certificates/root-ca/regenerate` | Regenerate root CA, purge all leaf certs — admin only |
+| DELETE | `/api/certificates/purge-leaf-certs` | Delete all non-CA leaf certificates |
 | DELETE | `/api/certificates/{id}` | Remove a leaf certificate |
+
+### Admin
+
+All endpoints require `admin` role.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/admin/stats` | Row counts + estimated sizes for captures, packets, scan findings |
+| DELETE | `/api/admin/captures` | Purge captures — require `purgeAll=true`, `olderThanDays`, `deviceId`, or `host` |
+| DELETE | `/api/admin/packets` | Purge packets — require `purgeAll=true` or `olderThanDays` |
+| GET | `/api/admin/export/logs` | Export capture log as `format=json` (default) or `format=csv` |
+| GET | `/api/admin/export/packets` | Export packets as `format=json` or `format=csv` |
+| GET | `/api/admin/export/config` | Export full configuration (rules, breakpoints, scheduled scans, OpenRTB policies, API specs) as JSON |
+
+### User management (admin only)
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/auth/users` | List all users |
+| POST | `/api/auth/users` | Create a user |
+| PUT | `/api/auth/users/{id}` | Update display name, role, enabled flag, or password |
+| DELETE | `/api/auth/users/{id}` | Delete a user (guards: cannot self-delete, cannot delete last admin) |
+| GET | `/api/auth/audit` | Paginated audit log (`?count=N`, max 500) |
 
 ### Scanner
 
@@ -483,7 +518,7 @@ src/
   IoTSpy.Scanner/       # Port scan, fingerprinting, CVE lookup, packet capture
   IoTSpy.Manipulation/  # Rules engine, replay, fuzzer, AI mock, OpenRTB PII, packet analysis, API spec generation, content replacement
   IoTSpy.Storage/       # EF Core DbContext, repositories, migrations
-  IoTSpy.Api/           # ASP.NET Core host, 14 controllers, 2 SignalR hubs
+  IoTSpy.Api/           # ASP.NET Core host, 15 controllers, 2 SignalR hubs
 frontend/               # Vite 6 + React 19 + TypeScript dashboard
 docs/
   architecture.md       # Full architecture spec
@@ -535,6 +570,7 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full implementation plan, identified 
 | — | TLS passthrough & SSL stripping (no-CA-install HTTPS visibility) | **Complete** |
 | 11 | UX polish & multi-user support | **Complete** |
 | — | API spec generation & content-aware mocking | **Complete** |
+| — | Admin UI (database, certificates, audit log, users) + body viewer stream rendering | **Complete** |
 
 ---
 
