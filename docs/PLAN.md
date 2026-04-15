@@ -309,7 +309,9 @@ Items that are still open. These inform the roadmap.
 | No HTTPS for the API itself | The API serves on plain HTTP; TLS termination is assumed external | Low |
 | No Bluetooth/Zigbee/Z-Wave | IoT protocols beyond IP-based networking are not supported | Low |
 | Customization of CA Certificate | Add support for Customizing Name, Organization and other properties on the proxy CA certificate | Medium |
-| Stray draft components in `src/IoTSpy.React/` | `PacketAnalysisView.tsx` and `NetworkDeviceSelector.tsx` exist under `src/IoTSpy.React/components/` but are not wired into the app, import a non-existent `useWebSocket` hook, and duplicate functionality already in `frontend/src/components/packet-capture/`. Should be deleted or migrated. | Low |
+
+**Resolved post-Phase 20:**
+- ~~Stray draft components in `src/IoTSpy.React/`~~ — `PacketAnalysisView.tsx` and `NetworkDeviceSelector.tsx` deleted; unique functionality (`showOnlyErrors` / `showOnlyRetransmissions` filters) migrated into `PacketListFilterable.tsx`
 
 **Resolved in Phase 11:**
 - ~~No Core model tests~~ — `IoTSpy.Core.Tests` project added with 30+ model default/enum tests
