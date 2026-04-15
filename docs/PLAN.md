@@ -175,7 +175,7 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Constant hoisting** — Moved `statusBadge` colors map to module scope in `ApiSpecPanel`
 - **Styling** — Added comprehensive `manipulation.css` with full styles for all manipulation/apispec components
 
-### Phase 18 — Frontend Design & Usability Overhaul
+### Phase 18.5 — Frontend Design & Usability Overhaul
 
 **Goal:** Modernize UI with cohesive typography, colors, icons, and interactions for improved usability and visual hierarchy.
 
@@ -221,7 +221,7 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 
 ---
 
-### Post-Phase-11 Stabilization — Bugfixes & Polish
+### Stabilization — Bugfixes & Polish
 
 #### Timeline tab crash & enum serialization fix
 
@@ -269,23 +269,6 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - Leaf cert validity capped at 397 days (Apple enforces ≤ 398-day limit)
 - IP address SANs use `GeneralName.IPAddress` (not `DnsName`)
 - Documented in AGENT.md under "Known operational requirements"
-
----
-
-## Remaining gaps and technical debt
-
-Items that are still open. These inform the roadmap.
-
-| Gap | Description | Severity |
-|---|---|---|
-| No HTTPS for the API itself | The API serves on plain HTTP; TLS termination is assumed external | Low |
-| No Bluetooth/Zigbee/Z-Wave | IoT protocols beyond IP-based networking are not supported | Low |
-
-**Resolved in Phase 11:**
-- ~~No Core model tests~~ — `IoTSpy.Core.Tests` project added with 30+ model default/enum tests
-- ~~No multi-user support~~ — Multi-user RBAC with `User` model, `UserRole` enum (Admin/Operator/Viewer), user management endpoints
-- ~~Dashboard not responsive~~ — Responsive CSS with mobile breakpoints (480px, 768px, 1024px)
-- ~~TLS passthrough/SSL strip untested~~ — `TlsClientHelloParserTests` (13 tests), `TlsServerHelloParserTests` (11 tests), `SslStripServiceTests` (14 tests)
 
 ---
 
@@ -399,6 +382,24 @@ Backend: `IoTSpy.Proxy` — `PassivePipelineFilter` (skip manipulation stack); `
 ## Future enhancement areas (Phases 22+)
 
 Beyond Phase 21, potential candidates include Phases 13-17 (PCAP import, API keys, collaboration, deployment, protocol expansion) or new features based on user needs and feedback.
+
+---
+
+## Remaining gaps and technical debt
+
+Items that are still open. These inform the roadmap.
+
+| Gap | Description | Severity |
+|---|---|---|
+| No HTTPS for the API itself | The API serves on plain HTTP; TLS termination is assumed external | Low |
+| No Bluetooth/Zigbee/Z-Wave | IoT protocols beyond IP-based networking are not supported | Low |
+| Customization of CA Certificate | Add support for Customizing Name, Organization and other properties on the proxy CA certificate | Medium |
+
+**Resolved in Phase 11:**
+- ~~No Core model tests~~ — `IoTSpy.Core.Tests` project added with 30+ model default/enum tests
+- ~~No multi-user support~~ — Multi-user RBAC with `User` model, `UserRole` enum (Admin/Operator/Viewer), user management endpoints
+- ~~Dashboard not responsive~~ — Responsive CSS with mobile breakpoints (480px, 768px, 1024px)
+- ~~TLS passthrough/SSL strip untested~~ — `TlsClientHelloParserTests` (13 tests), `TlsServerHelloParserTests` (11 tests), `SslStripServiceTests` (14 tests)
 
 ---
 
