@@ -1,4 +1,4 @@
-import { apiFetch } from './client'
+import { apiFetch, getToken } from './client'
 import type {
   CaptureDeviceDto,
   CapturedPacket,
@@ -6,6 +6,7 @@ import type {
   ProtocolDistributionDto,
   CommunicationPatternDto,
   SuspiciousActivityDto,
+  PcapImportResult,
 } from '../types/api'
 
 // ── Devices ──────────────────────────────────────────────────────────────────
@@ -113,4 +114,39 @@ export function unfreezeAnalysis(): Promise<{ unfrozen: boolean }> {
 
 export function getFreezeStatus(): Promise<{ isFrozen: boolean; filteredCount: number }> {
   return apiFetch('/api/packet-capture/freeze/status')
+}
+
+// ── PCAP import / export ─────────────────────────────────────────────────────
+
+export async function importPcap(file: File): Promise<PcapImportResult> {
+  const form = new FormData()
+  form.append('file', file)
+  const token = getToken()
+  const res = await fetch('/api/packet-capture/import', {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }))
+    throw new Error(err?.error ?? `Import failed: ${res.status}`)
+  }
+  return res.json()
+}
+
+export function exportPcapUrl(filter?: {
+  protocol?: string
+  sourceIp?: string
+  destIp?: string
+  from?: string
+  to?: string
+}): string {
+  const params = new URLSearchParams()
+  if (filter?.protocol) params.set('protocol', filter.protocol)
+  if (filter?.sourceIp) params.set('sourceIp', filter.sourceIp)
+  if (filter?.destIp) params.set('destIp', filter.destIp)
+  if (filter?.from) params.set('from', filter.from)
+  if (filter?.to) params.set('to', filter.to)
+  const qs = params.toString()
+  return `/api/packet-capture/export/pcap${qs ? `?${qs}` : ''}`
 }

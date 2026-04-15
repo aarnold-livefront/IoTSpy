@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usePacketCapture } from '../../hooks/usePacketCapture'
 import { usePacketAnalysis } from '../../hooks/usePacketAnalysis'
 import PacketListFilterable from '../../components/packet-capture/PacketListFilterable'
@@ -6,16 +6,23 @@ import PacketInspector from '../../components/packet-capture/PacketInspector'
 import ProtocolDistributionView from '../../components/packet-capture/ProtocolDistributionView'
 import PatternExplorer from '../../components/packet-capture/PatternExplorer'
 import SuspiciousActivityPanel from '../../components/packet-capture/SuspiciousActivityPanel'
-import type { CapturedPacket } from '../../types/api'
+import { getToken } from '../../api/client'
+import type { CapturedPacket, PcapImportResult } from '../../types/api'
 
 type AnalysisTab = 'packets' | 'protocols' | 'patterns' | 'suspicious'
 
 export default function PanelPacketCapture() {
-  const { devices, packets, isCapturing, startCapture, stopCapture, clearPackets, error } = usePacketCapture()
+  const {
+    devices, packets, isCapturing, isImporting, importProgress,
+    startCapture, stopCapture, clearPackets, importPcapFile, error
+  } = usePacketCapture()
   const analysis = usePacketAnalysis()
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null)
   const [selectedPacket, setSelectedPacket] = useState<CapturedPacket | null>(null)
   const [activeTab, setActiveTab] = useState<AnalysisTab>('packets')
+  const [isDragOver, setIsDragOver] = useState(false)
+  const [importResult, setImportResult] = useState<PcapImportResult | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Load analysis data when switching to an analysis tab
   useEffect(() => {
@@ -23,6 +30,48 @@ export default function PanelPacketCapture() {
     else if (activeTab === 'patterns') analysis.loadPatterns()
     else if (activeTab === 'suspicious') analysis.loadSuspicious()
   }, [activeTab, analysis])
+
+  const handleFileDrop = async (file: File) => {
+    setImportResult(null)
+    try {
+      const result = await importPcapFile(file)
+      setImportResult(result)
+    } catch {
+      // error already set in hook
+    }
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file) handleFileDrop(file)
+  }
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) handleFileDrop(file)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleExport = async () => {
+    try {
+      const token = getToken()
+      const res = await fetch('/api/packet-capture/export/pcap', {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      })
+      if (!res.ok) return
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'capture.pcap'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      // best-effort
+    }
+  }
 
   const tabs: { key: AnalysisTab; label: string }[] = [
     { key: 'packets', label: 'Packets' },
@@ -126,7 +175,83 @@ export default function PanelPacketCapture() {
           </button>
         )}
 
-        <div style={{ marginTop: 'auto' }}>
+        {/* PCAP Import drop zone */}
+        <div>
+          <div
+            onDrop={handleDrop}
+            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
+            onDragLeave={() => setIsDragOver(false)}
+            onClick={() => fileInputRef.current?.click()}
+            style={{
+              border: `2px dashed ${isDragOver ? 'var(--color-primary)' : 'var(--color-border)'}`,
+              borderRadius: 'var(--radius-sm)',
+              padding: '12px 8px',
+              textAlign: 'center',
+              cursor: isImporting ? 'not-allowed' : 'pointer',
+              background: isDragOver ? 'var(--color-surface-2)' : 'transparent',
+              fontSize: 'var(--font-size-sm)',
+              color: 'var(--color-text-muted)',
+              transition: 'border-color 0.15s, background 0.15s',
+              opacity: isImporting ? 0.6 : 1,
+            }}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pcap,.pcapng,.cap"
+              onChange={handleFileInput}
+              style={{ display: 'none' }}
+              disabled={isImporting}
+            />
+            {isImporting ? (
+              <span>Importing{importProgress && importProgress.total > 0 ? ` ${importProgress.percent}%` : '…'}</span>
+            ) : (
+              <span>Drop .pcap/.pcapng here<br />or click to browse</span>
+            )}
+          </div>
+
+          {/* Import progress bar */}
+          {isImporting && importProgress && importProgress.total > 0 && (
+            <div style={{ marginTop: '6px', height: '4px', background: 'var(--color-border)', borderRadius: '2px' }}>
+              <div style={{
+                height: '100%',
+                width: `${importProgress.percent}%`,
+                background: 'var(--color-primary)',
+                borderRadius: '2px',
+                transition: 'width 0.2s',
+              }} />
+            </div>
+          )}
+
+          {/* Import result summary */}
+          {importResult && !isImporting && (
+            <div style={{ marginTop: '6px', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+              Imported {importResult.packetsImported} packets
+              {importResult.tcpSessionsReconstructed > 0 && `, ${importResult.tcpSessionsReconstructed} HTTP sessions reconstructed`}
+              {importResult.packetsSkipped > 0 && `, ${importResult.packetsSkipped} skipped`}
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          {/* Export button */}
+          <button
+            onClick={handleExport}
+            disabled={!packets.length}
+            style={{
+              width: '100%',
+              padding: '8px',
+              background: 'var(--color-surface-2)',
+              color: 'var(--color-text)',
+              border: '1px solid var(--color-border)',
+              borderRadius: 'var(--radius-sm)',
+              cursor: packets.length ? 'pointer' : 'not-allowed',
+              opacity: packets.length ? 1 : 0.5,
+            }}
+          >
+            Export PCAP
+          </button>
+
           <button
             onClick={clearPackets}
             disabled={!packets.length || isCapturing}

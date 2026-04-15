@@ -1,12 +1,20 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import path from 'path'
 
 export default defineConfig({
   plugins: [react()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
+  build: {
+    rollupOptions: {
+      onwarn(warning, warn) {
+        // Suppress pure annotation warnings from SignalR library
+        if (
+          warning.loc?.file?.includes('@microsoft/signalr') &&
+          warning.message?.includes('/*#__PURE__*/')
+        ) {
+          return
+        }
+        warn(warning)
+      },
     },
   },
   server: {

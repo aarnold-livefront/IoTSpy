@@ -36,7 +36,7 @@ README / quick start: [`README.md`](../README.md)
 
 ## What has been built
 
-Phases 1–12 and 18–20 are complete. Phases 13–17 were deprioritized in favor of Phases 18–20 (frontend correctness, UX polish, admin operations) and remain valid candidates for future implementation. See the "Proposed phases" section below.
+Phases 1–13 and 18–20 are complete. Phases 14–17 were deprioritized in favor of Phases 18–20 (frontend correctness, UX polish, admin operations) and remain valid candidates for future implementation. See the "Proposed phases" section below.
 
 ### Phase 1 — Foundation
 
@@ -128,6 +128,18 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Frontend** — `ApiSpecPanel`, `GenerateSpecDialog`, `SpecEditor`, `ReplacementRulesEditor`, `ImportExportControls` components; `useApiSpec` hook; new "API Spec" tab in ManipulationPanel
 - EF Core migration `AddApiSpecAndContentReplacement` — adds `ApiSpecDocuments` and `ContentReplacementRules` tables with indexes and FK cascade delete
 
+### Phase 13 — PCAP Import & Offline Analysis
+
+**Goal:** Allow users to upload and analyze existing PCAP files, not just live captures.
+
+- **PCAP/pcapng upload** — `POST /api/packet-capture/import` — multipart upload (up to 200 MB); writes to temp file; parsed synchronously via SharpPcap `CaptureFileReaderDevice` (handles both `.pcap` and `.pcapng` natively); packets tagged `Source=Import` ([NotMapped] field on `CapturedPacket`)
+- **Import progress streaming** — `PublishImportProgressAsync` added to `IPacketCapturePublisher`/`SignalRPacketPublisher`; broadcasts `ImportProgress` SignalR event every 100 packets with `jobId`, `processed`, `total`, `percent`; frontend hook subscribes and auto-clears progress after completion
+- **In-memory buffer replacement** — Imported packets replace `_livePackets` ring buffer so all existing analysis features (protocol distribution, communication patterns, suspicious activity, freeze-frame, hex dump) work identically on imported data
+- **Export round-trip compatibility** — Existing `ExportToPcapAsync`/`ExportToPcapFilteredAsync` write the same libpcap format (magic `0xa1b2c3d4`, LINKTYPE_ETHERNET) that the importer reads; `RawData` is preserved through import so re-export produces a valid PCAP
+- **TCP session reconstruction** — `TcpSessionReconstructor` (new, `IoTSpy.Scanner`) reassembles TCP flows, detects HTTP on standard and non-standard ports (payload sniff), and enriches `CapturedPacket.HttpMethodName`/`HttpRequestUri`/`HttpResponseCode` fields; returns count of reconstructed sessions included in import response
+- **Frontend** — Drag-and-drop upload zone in `PanelPacketCapture` left panel; animated progress bar and packet count display during import; result summary (imported/skipped/sessions) shown after completion; Export PCAP button uses authenticated `fetch` → Blob download
+- **No migration required** — `Source` field is `[NotMapped]` consistent with `RawData`; no DB schema changes needed
+
 ### Phase 18 — React Frontend Performance & Correctness
 
 **Goal:** Fix React best-practices issues identified in code audit; improve rendering performance and eliminate memory leaks.
@@ -187,24 +199,9 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 
 ---
 
-## Proposed phases (13-17) — not yet implemented, may be revisited
+## Proposed phases (14-17) — not yet implemented, may be revisited
 
 These phases were proposed in the original roadmap but deprioritized in favor of Phase 18-20 work (frontend correctness, UX polish, admin operations). They remain valid candidates for future implementation.
-
-### Phase 13 — PCAP Import & Offline Analysis
-
-**Goal:** Allow users to upload and analyze existing PCAP files, not just live captures.
-
-| # | Task | Priority | Details |
-|---|---|---|---|
-| 13.1 | PCAP file upload endpoint | High | `POST /api/packet-capture/import` — multipart upload; parse with SharpPcap `OfflinePcapDevice`; insert packets into DB with `Source=Import` tag |
-| 13.2 | Import progress streaming | Medium | Stream import progress via SignalR `PacketCaptureHub` so the frontend can show a live progress bar |
-| 13.3 | PCAP import frontend | High | Drag-and-drop upload zone in `PanelPacketCapture`; shows import job status + packet count |
-| 13.4 | pcapng support | Medium | Extend the importer to handle pcapng (next-generation PCAP) via SharpPcap's built-in support |
-| 13.5 | Session reconstruction | Medium | TCP stream reassembly on imported PCAP data to extract HTTP/MQTT/CoAP payloads; store as `CapturedRequest` entries for manipulation analysis |
-| 13.6 | Diff view for imported vs. live | Low | Side-by-side comparison of an imported PCAP session against a live capture of the same device |
-
-Backend: `IoTSpy.Scanner` — `PcapImportService`; `IoTSpy.Core` — `PcapImportJob`, `IPcapImportService`.
 
 ---
 

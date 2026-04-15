@@ -732,6 +732,15 @@ export interface CapturedPacket {
   tcpFlags?: string
   isError?: boolean
   isRetransmission?: boolean
+  /** "Live" for real-time capture, "Import" for PCAP file imports */
+  source?: string
+}
+
+export interface PcapImportResult {
+  jobId: string
+  packetsImported: number
+  packetsSkipped: number
+  tcpSessionsReconstructed: number
 }
 
 export interface CaptureDeviceDto {
