@@ -58,6 +58,22 @@ export default function UsersTab({ currentUsername }: Props) {
     }
   }
 
+  const updateDisplayName = async (user: UserSummary, displayName: string) => {
+    setBusy(true)
+    try {
+      await apiFetch(`/api/auth/users/${user.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ displayName }),
+      })
+      showToast(`Updated ${user.username} display name`)
+      await load()
+    } catch (err) {
+      showToast(err instanceof ApiError ? err.message : 'Failed to update display name')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const deleteUser = async (user: UserSummary) => {
     setBusy(true)
     try {
@@ -119,7 +135,19 @@ export default function UsersTab({ currentUsername }: Props) {
             {users.map(u => (
               <tr key={u.id}>
                 <td>{u.username}{u.username === currentUsername && ' (you)'}</td>
-                <td>{u.displayName}</td>
+                <td>
+                  <input
+                    type="text"
+                    defaultValue={u.displayName}
+                    disabled={busy}
+                    style={{ fontSize: 'var(--font-size-xs)', background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', color: 'var(--color-text)', padding: '2px 4px', width: '100%' }}
+                    onBlur={e => {
+                      if (e.target.value !== u.displayName) {
+                        updateDisplayName(u, e.target.value)
+                      }
+                    }}
+                  />
+                </td>
                 <td>
                   <select
                     value={u.role}

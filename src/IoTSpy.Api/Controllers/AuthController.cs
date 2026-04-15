@@ -56,7 +56,7 @@ public class AuthController(
         if (legacyToken is null)
             return Unauthorized(new { error = "Invalid credentials" });
 
-        return Ok(new { token = legacyToken, user = new { Id = Guid.Empty, Username = req.Username, DisplayName = req.Username, role = "admin" } });
+        return Ok(new { token = legacyToken, user = new { Id = Guid.Empty, req.Username, DisplayName = req.Username, role = "admin" } });
     }
 
     [HttpPost("setup")]

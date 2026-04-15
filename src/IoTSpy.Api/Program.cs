@@ -190,7 +190,7 @@ await using (var scope = app.Services.CreateAsyncScope())
         {
             Username = "admin",
             PasswordHash = settings.PasswordHash,
-            DisplayName = "Administrator",
+            DisplayName = "Administrator (legacy)",
             Role = UserRole.Admin,
             IsEnabled = true,
         });
