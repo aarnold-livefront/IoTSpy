@@ -9,25 +9,33 @@ interface Props {
   freezeFrame: boolean
 }
 
+interface Filter {
+  protocol: string
+  sourceIp: string
+  destIp: string
+  errorsOnly: boolean
+  retransmissionsOnly: boolean
+}
+
 export default function PacketListFilterable({ packets, isCapturing, selectedPacket, onSelect, freezeFrame }: Props) {
-  const [filterProtocol, setFilterProtocol] = useState<string>('all')
-  const [filterSourceIp, setFilterSourceIp] = useState<string>('')
-  const [filterDestIp, setFilterDestIp] = useState<string>('')
+  const [filter, setFilter] = useState<Filter>({
+    protocol: 'all',
+    sourceIp: '',
+    destIp: '',
+    errorsOnly: false,
+    retransmissionsOnly: false,
+  })
 
   const filteredPackets = useMemo(() => {
     return packets.filter(packet => {
-      if (filterProtocol !== 'all' && packet.protocol.toLowerCase() !== filterProtocol.toLowerCase()) {
-        return false
-      }
-      if (filterSourceIp && !packet.sourceIp.includes(filterSourceIp)) {
-        return false
-      }
-      if (filterDestIp && !packet.destinationIp.includes(filterDestIp)) {
-        return false
-      }
+      if (filter.protocol !== 'all' && packet.protocol.toLowerCase() !== filter.protocol.toLowerCase()) return false
+      if (filter.sourceIp && !packet.sourceIp.includes(filter.sourceIp)) return false
+      if (filter.destIp && !packet.destinationIp.includes(filter.destIp)) return false
+      if (filter.errorsOnly && !packet.isError) return false
+      if (filter.retransmissionsOnly && !packet.isRetransmission) return false
       return true
     })
-  }, [packets, filterProtocol, filterSourceIp, filterDestIp])
+  }, [packets, filter])
 
   const protocols = useMemo(() => ['all', ...new Set(packets.map(p => p.protocol))], [packets])
 
@@ -35,10 +43,10 @@ export default function PacketListFilterable({ packets, isCapturing, selectedPac
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
       {/* Filter controls */}
       <div style={{ padding: '8px 12px', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
           <select
-            value={filterProtocol}
-            onChange={(e) => setFilterProtocol(e.target.value)}
+            value={filter.protocol}
+            onChange={(e) => setFilter(f => ({ ...f, protocol: e.target.value }))}
             disabled={freezeFrame}
             style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
           >
@@ -50,8 +58,8 @@ export default function PacketListFilterable({ packets, isCapturing, selectedPac
           <input
             type="text"
             placeholder="Source IP..."
-            value={filterSourceIp}
-            onChange={(e) => setFilterSourceIp(e.target.value)}
+            value={filter.sourceIp}
+            onChange={(e) => setFilter(f => ({ ...f, sourceIp: e.target.value }))}
             disabled={freezeFrame}
             style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
           />
@@ -59,11 +67,31 @@ export default function PacketListFilterable({ packets, isCapturing, selectedPac
           <input
             type="text"
             placeholder="Dest IP..."
-            value={filterDestIp}
-            onChange={(e) => setFilterDestIp(e.target.value)}
+            value={filter.destIp}
+            onChange={(e) => setFilter(f => ({ ...f, destIp: e.target.value }))}
             disabled={freezeFrame}
             style={{ padding: '4px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
           />
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: 'var(--font-size-sm)', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={filter.errorsOnly}
+              onChange={(e) => setFilter(f => ({ ...f, errorsOnly: e.target.checked }))}
+              disabled={freezeFrame}
+            />
+            Errors only
+          </label>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: 'var(--font-size-sm)', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={filter.retransmissionsOnly}
+              onChange={(e) => setFilter(f => ({ ...f, retransmissionsOnly: e.target.checked }))}
+              disabled={freezeFrame}
+            />
+            Retransmissions only
+          </label>
 
           {freezeFrame && (
             <span title="Freeze frame active" style={{ display: 'flex', alignItems: 'center', color: '#f57c00' }}>
