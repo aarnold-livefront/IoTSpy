@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { getCapture } from '../../api/captures'
+import { listSessions, addCaptureToSession } from '../../api/sessions'
 import { ApiError } from '../../api/client'
 import RequestTab from '../capture-detail/RequestTab'
 import ResponseTab from '../capture-detail/ResponseTab'
@@ -7,6 +8,7 @@ import TlsTab from '../capture-detail/TlsTab'
 import LoadingSpinner from '../common/LoadingSpinner'
 import ErrorBanner from '../common/ErrorBanner'
 import type { CapturedRequest } from '../../types/api'
+import type { InvestigationSession } from '../../types/sessions'
 import '../../styles/capture-detail.css'
 
 type Tab = 'request' | 'response' | 'tls'
@@ -27,6 +29,52 @@ export default function CaptureDetail({ captureId, onBack }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>('request')
+
+  // Add-to-session picker
+  const [showSessionPicker, setShowSessionPicker] = useState(false)
+  const [sessions, setSessions] = useState<InvestigationSession[]>([])
+  const [sessionsLoading, setSessionsLoading] = useState(false)
+  const [addedMsg, setAddedMsg] = useState<string | null>(null)
+  const pickerRef = useRef<HTMLDivElement>(null)
+
+  // Close picker when clicking outside
+  useEffect(() => {
+    if (!showSessionPicker) return
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowSessionPicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showSessionPicker])
+
+  const handleOpenSessionPicker = async () => {
+    setShowSessionPicker(v => !v)
+    if (sessions.length === 0) {
+      setSessionsLoading(true)
+      try {
+        setSessions(await listSessions())
+      } catch {
+        // silently fail — picker will show empty
+      } finally {
+        setSessionsLoading(false)
+      }
+    }
+  }
+
+  const handleAddToSession = async (sessionId: string, sessionName: string) => {
+    if (!captureId) return
+    try {
+      await addCaptureToSession(sessionId, captureId)
+      setShowSessionPicker(false)
+      setAddedMsg(`Added to "${sessionName}"`)
+      setTimeout(() => setAddedMsg(null), 3000)
+    } catch {
+      setAddedMsg('Failed to add to session')
+      setTimeout(() => setAddedMsg(null), 3000)
+    }
+  }
 
   useEffect(() => {
     if (!captureId) {
@@ -110,6 +158,33 @@ export default function CaptureDetail({ captureId, onBack }: Props) {
           <span>{capture.clientIp}</span>
           {capture.durationMs > 0 && <span>{capture.durationMs}ms</span>}
         </div>
+        <div className="capture-detail__session-action" ref={pickerRef}>
+          <button
+            className="capture-detail__add-to-session"
+            onClick={handleOpenSessionPicker}
+            title="Add this capture to an investigation session"
+          >
+            + Session
+          </button>
+          {showSessionPicker && (
+            <div className="capture-detail__session-picker">
+              {sessionsLoading && <div className="capture-detail__session-picker-item capture-detail__session-picker-item--muted">Loading…</div>}
+              {!sessionsLoading && sessions.length === 0 && (
+                <div className="capture-detail__session-picker-item capture-detail__session-picker-item--muted">No active sessions</div>
+              )}
+              {sessions.map(s => (
+                <div
+                  key={s.id}
+                  className="capture-detail__session-picker-item"
+                  onClick={() => void handleAddToSession(s.id, s.name)}
+                >
+                  {s.name}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        {addedMsg && <span className="capture-detail__added-msg">{addedMsg}</span>}
       </div>
 
       <div className="detail-tabs">

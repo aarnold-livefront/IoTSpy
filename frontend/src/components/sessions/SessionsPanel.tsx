@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useSessions, useSessionDetail } from '../../hooks/useSessions'
 import PresenceIndicator from './PresenceIndicator'
 import AnnotationPanel from './AnnotationPanel'
@@ -8,8 +8,12 @@ import {
   generateShareToken,
   revokeShareToken,
   exportSession,
+  addCaptureToSession,
 } from '../../api/sessions'
+import { listCaptures } from '../../api/captures'
 import type { CaptureAnnotation } from '../../types/sessions'
+import type { CapturedRequestSummary } from '../../types/api'
+import '../../styles/sessions.css'
 
 type SessionTab = 'captures' | 'annotations' | 'activity'
 
@@ -22,6 +26,13 @@ export default function SessionsPanel() {
   const [newDesc, setNewDesc] = useState('')
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
+  const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [selectedCaptureId, setSelectedCaptureId] = useState<string | null>(null)
+
+  // Capture picker state
+  const [showCapturePicker, setShowCapturePicker] = useState(false)
+  const [pickerCaptures, setPickerCaptures] = useState<CapturedRequestSummary[]>([])
+  const [pickerLoading, setPickerLoading] = useState(false)
 
   const {
     session,
@@ -30,7 +41,16 @@ export default function SessionsPanel() {
     activity,
     presence,
     setAnnotations,
+    reload: reloadDetail,
   } = useSessionDetail(activeSessionId)
+
+  // Clear per-session state when switching sessions
+  useEffect(() => {
+    setShareUrl(null)
+    setSelectedCaptureId(null)
+    setShowCapturePicker(false)
+    setPickerCaptures([])
+  }, [activeSessionId])
 
   const showToast = useCallback((msg: string) => {
     setToast(msg)
@@ -64,23 +84,63 @@ export default function SessionsPanel() {
     }
   }
 
+  // True when the Web Share API is available (requires HTTPS / localhost on iOS Safari).
+  const canNativeShare = typeof navigator.share === 'function'
+
   const handleShare = async () => {
     if (!activeSessionId) return
     try {
       const { url } = await generateShareToken(activeSessionId)
-      await navigator.clipboard.writeText(url)
-      showToast('Share URL copied to clipboard')
+      setShareUrl(url)
+      void reloadDetail()
       void reload()
+
+      if (canNativeShare) {
+        // Best-effort: on HTTPS, modern browsers keep the transient user activation
+        // alive across a short await so this often succeeds directly.
+        try {
+          await navigator.share({ title: session?.name ?? 'Investigation Session', url })
+          return // share sheet opened — done
+        } catch (err) {
+          if ((err as Error).name === 'AbortError') return // user cancelled — fine
+          // NotAllowedError: gesture expired (older iOS). URL bar is now visible;
+          // the "Share via…" button lets the user retry with a fresh gesture.
+        }
+      }
+      // navigator.share unavailable (HTTP context) or gesture expired:
+      // URL bar is shown — user can copy or tap the link to open in Safari for AirDrop.
     } catch {
       showToast('Failed to generate share link')
     }
   }
 
+  // Wired to a direct button click so the user gesture is fresh (no preceding await).
+  // This is the reliable fallback when handleShare's best-effort attempt fails.
+  const handleNativeShare = () => {
+    if (!shareUrl || !canNativeShare) return
+    navigator.share({ title: session?.name ?? 'Investigation Session', url: shareUrl })
+      .catch(err => {
+        if ((err as Error).name !== 'AbortError') {
+          void navigator.clipboard.writeText(shareUrl).catch(() => {})
+          showToast('URL copied to clipboard')
+        }
+      })
+  }
+
+  const handleCopyShareUrl = () => {
+    if (!shareUrl) return
+    void navigator.clipboard.writeText(shareUrl).catch(() => {})
+    showToast('URL copied')
+  }
+
+  // Bug fix: reload detail so hasShareToken clears in the UI immediately
   const handleRevokeShare = async () => {
     if (!activeSessionId || !confirm('Revoke the share link?')) return
     try {
       await revokeShareToken(activeSessionId)
+      setShareUrl(null)
       showToast('Share link revoked')
+      void reloadDetail()
       void reload()
     } catch {
       showToast('Failed to revoke share link')
@@ -103,6 +163,41 @@ export default function SessionsPanel() {
   const handleAnnotationDeleted = useCallback((id: string) => {
     setAnnotations(prev => prev.filter(a => a.id !== id))
   }, [setAnnotations])
+
+  const handleOpenCapturePicker = async () => {
+    setShowCapturePicker(true)
+    if (pickerCaptures.length > 0) return
+    setPickerLoading(true)
+    try {
+      const result = await listCaptures({ page: 1, pageSize: 50 })
+      setPickerCaptures(result.items)
+    } catch {
+      showToast('Failed to load captures')
+    } finally {
+      setPickerLoading(false)
+    }
+  }
+
+  const handleAddCapture = async (captureId: string) => {
+    if (!activeSessionId) return
+    if (captures.some(c => c.captureId === captureId)) {
+      showToast('Already in this session')
+      return
+    }
+    try {
+      await addCaptureToSession(activeSessionId, captureId)
+      setShowCapturePicker(false)
+      void reloadDetail()
+      showToast('Capture added')
+    } catch {
+      showToast('Failed to add capture')
+    }
+  }
+
+  const handleCaptureRowClick = (captureId: string) => {
+    setSelectedCaptureId(captureId)
+    setActiveTab('annotations')
+  }
 
   return (
     <div className="sessions-panel">
@@ -138,7 +233,7 @@ export default function SessionsPanel() {
               <button className="btn btn--primary btn--sm" onClick={handleCreate} disabled={busy || !newName.trim()}>
                 {busy ? 'Creating…' : 'Create'}
               </button>
-              <button className="btn btn--sm" onClick={() => setShowCreate(false)}>Cancel</button>
+              <button className="btn btn--secondary btn--sm" onClick={() => setShowCreate(false)}>Cancel</button>
             </div>
           </div>
         )}
@@ -153,16 +248,26 @@ export default function SessionsPanel() {
               className={`sessions-panel__item${activeSessionId === s.id ? ' sessions-panel__item--active' : ''}`}
               onClick={() => setActiveSessionId(s.id)}
             >
-              <div className="sessions-panel__item-name">{s.name}</div>
-              <div className="sessions-panel__item-meta">
-                by {s.createdByUsername} · {new Date(s.createdAt).toLocaleDateString()}
+              <div className="sessions-panel__item-name">
+                {s.name}
+                {s.hasShareToken && (
+                  <svg
+                    className="sessions-panel__item-link-icon"
+                    width="12" height="12" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" strokeWidth="2.5"
+                    aria-label="Has share link"
+                  >
+                    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                  </svg>
+                )}
               </div>
-              {s.hasShareToken && (
-                <span className="badge badge--teal" title="Has share link">shared</span>
-              )}
+              <div className="sessions-panel__item-meta">
+                {s.createdByUsername} · {new Date(s.createdAt).toLocaleDateString()}
+              </div>
               <button
                 className="sessions-panel__item-close"
-                onClick={e => { e.stopPropagation(); handleDelete(s.id) }}
+                onClick={e => { e.stopPropagation(); void handleDelete(s.id) }}
                 title="Close session"
               >
                 ×
@@ -170,7 +275,9 @@ export default function SessionsPanel() {
             </li>
           ))}
           {!loading && sessions.length === 0 && (
-            <li className="sessions-panel__empty">No active sessions</li>
+            <li className="sessions-panel__empty">
+              No active sessions — create one to get started
+            </li>
           )}
         </ul>
       </div>
@@ -200,20 +307,47 @@ export default function SessionsPanel() {
               </div>
               <PresenceIndicator presence={presence} />
               <div className="sessions-panel__detail-actions">
-                <button className="btn btn--sm" onClick={handleExport} title="Export session as ZIP">
+                <button className="btn btn--sm btn--secondary" onClick={handleExport} title="Export session as ZIP">
                   Export
                 </button>
-                {session.hasShareToken ? (
+                <button className="btn btn--sm btn--secondary" onClick={handleShare}>
+                  {session.hasShareToken ? 'Copy Link' : 'Share'}
+                </button>
+                {session.hasShareToken && (
                   <button className="btn btn--sm btn--danger" onClick={handleRevokeShare}>
-                    Revoke Link
-                  </button>
-                ) : (
-                  <button className="btn btn--sm btn--secondary" onClick={handleShare}>
-                    Share
+                    Revoke
                   </button>
                 )}
               </div>
             </div>
+
+            {/* Share URL bar — own row so it's always full-width and never clipped */}
+            {shareUrl && (
+              <div className="sessions-panel__share-bar">
+                <a
+                  className="sessions-panel__share-bar-url"
+                  href={shareUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Tap to open in browser"
+                >
+                  {shareUrl}
+                </a>
+                <div className="sessions-panel__share-bar-actions">
+                  <button className="btn btn--sm btn--secondary" onClick={handleCopyShareUrl}>Copy</button>
+                  {canNativeShare && (
+                    <button className="btn btn--sm btn--primary" onClick={handleNativeShare}>
+                      Share / AirDrop
+                    </button>
+                  )}
+                </div>
+                {!canNativeShare && (
+                  <p className="sessions-panel__share-hint">
+                    Tap the link above to open in browser, then use the browser Share button for AirDrop
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Tabs */}
             <div className="sessions-panel__tabs">
@@ -233,20 +367,68 @@ export default function SessionsPanel() {
             {/* Captures tab */}
             {activeTab === 'captures' && (
               <div className="sessions-panel__captures">
-                {captures.length === 0 && (
+                <div className="sessions-panel__captures-header">
+                  <button className="btn btn--sm btn--secondary" onClick={handleOpenCapturePicker}>
+                    + Add Capture
+                  </button>
+                </div>
+
+                {/* Inline capture picker */}
+                {showCapturePicker && (
+                  <div className="sessions-panel__capture-picker">
+                    <div className="sessions-panel__capture-picker-header">
+                      <span>Select capture to add</span>
+                      <button
+                        className="sessions-panel__capture-picker-close"
+                        onClick={() => setShowCapturePicker(false)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {pickerLoading && <p className="sessions-panel__empty">Loading…</p>}
+                    {!pickerLoading && pickerCaptures.length === 0 && (
+                      <p className="sessions-panel__empty">No captures available.</p>
+                    )}
+                    <div style={{ overflowY: 'auto', flex: 1 }}>
+                      {pickerCaptures.map(c => {
+                        const alreadyAdded = captures.some(sc => sc.captureId === c.id)
+                        return (
+                          <div
+                            key={c.id}
+                            className={`sessions-panel__picker-row${alreadyAdded ? ' sessions-panel__picker-row--added' : ''}`}
+                            onClick={() => !alreadyAdded && void handleAddCapture(c.id)}
+                            title={alreadyAdded ? 'Already in session' : `${c.method} ${c.host}${c.path}`}
+                          >
+                            <span className={`badge badge--method-${c.method.toLowerCase()}`}>{c.method}</span>
+                            <span className="sessions-panel__capture-host">{c.host}</span>
+                            <span className="sessions-panel__capture-path">{c.path || '/'}</span>
+                            {alreadyAdded && <span className="sessions-panel__picker-added">✓</span>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {!showCapturePicker && captures.length === 0 && (
                   <p className="sessions-panel__empty">
-                    No captures in this session. Add captures from the capture list.
+                    No captures in this session yet. Use "+ Add Capture" above.
                   </p>
                 )}
                 {captures.map(sc => (
-                  <div key={sc.id} className="sessions-panel__capture-row">
+                  <div
+                    key={sc.id}
+                    className={`sessions-panel__capture-row${selectedCaptureId === sc.captureId ? ' sessions-panel__capture-row--selected' : ''}`}
+                    onClick={() => handleCaptureRowClick(sc.captureId)}
+                    title="Click to annotate"
+                  >
                     {sc.capture ? (
                       <>
                         <span className={`badge badge--method-${sc.capture.method.toLowerCase()}`}>
                           {sc.capture.method}
                         </span>
                         <span className="sessions-panel__capture-host">{sc.capture.host}</span>
-                        <span className="sessions-panel__capture-path">{sc.capture.path}</span>
+                        <span className="sessions-panel__capture-path">{sc.capture.path || '/'}</span>
                         <span className={`badge badge--status-${Math.floor(sc.capture.statusCode / 100)}xx`}>
                           {sc.capture.statusCode}
                         </span>
@@ -264,13 +446,25 @@ export default function SessionsPanel() {
 
             {/* Annotations tab */}
             {activeTab === 'annotations' && (
-              <AnnotationPanel
-                sessionId={activeSessionId}
-                captureId={captures[0]?.captureId ?? ''}
-                annotations={annotations}
-                onAdded={handleAnnotationAdded}
-                onDeleted={handleAnnotationDeleted}
-              />
+              <>
+                {captures.length === 0 ? (
+                  <p className="sessions-panel__empty" style={{ margin: 'var(--space-4)' }}>
+                    Add captures to this session first, then click a capture to annotate it.
+                  </p>
+                ) : !selectedCaptureId && captures.length > 0 ? (
+                  <p className="sessions-panel__empty" style={{ margin: 'var(--space-4)' }}>
+                    Go to the Captures tab and click a capture to annotate it.
+                  </p>
+                ) : (
+                  <AnnotationPanel
+                    sessionId={activeSessionId}
+                    captureId={selectedCaptureId ?? captures[0].captureId}
+                    annotations={annotations}
+                    onAdded={handleAnnotationAdded}
+                    onDeleted={handleAnnotationDeleted}
+                  />
+                )}
+              </>
             )}
 
             {/* Activity feed tab */}
