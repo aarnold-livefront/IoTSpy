@@ -49,7 +49,8 @@ This is the primary navigation hub for all project planning, architecture, and i
 
 | Document | Purpose | Audience | Length |
 |---|---|---|---|
-| **[AGENT-NOTES.md](AGENT-NOTES.md)** | Quick setup, testing, session handoff | Claude Code agents | ~300 lines |
+| **[AGENT-NOTES.md](AGENT-NOTES.md)** | Quick setup, testing, session handoff | Claude Code agents | ~400 lines |
+| **[SKILLS-PLUGINS.md](SKILLS-PLUGINS.md)** | When/how to use skills and plugins | Claude Code agents | ~300 lines |
 | **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** | Detailed phase descriptions (1-15, 18-20) | Contributors, architects | ~500 lines |
 | **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** | Future phases (21+), deprioritized (16-17) | Product managers, strategists | ~150 lines |
 | **[GAPS.md](GAPS.md)** | Known issues, technical debt, test gaps | QA, tech leads | ~200 lines |
@@ -124,8 +125,11 @@ CLAUDE.md              ~100 lines (skills + commands)
 | Run tests? | [AGENT-NOTES.md](AGENT-NOTES.md#testing-before-commit) |
 | Add a new feature? | [AGENT-NOTES.md](AGENT-NOTES.md#adding-features-checklist) |
 | Create an EF Core migration? | [AGENT-NOTES.md](AGENT-NOTES.md#ef-core-migrations) |
-| Add a protocol decoder? | [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md#open-questions--areas-for-refinement) |
-| Debug a problem? | [AGENT-NOTES.md](AGENT-NOTES.md#common-debugging-scenarios) |
+| Use a skill or plugin? | [SKILLS-PLUGINS.md](SKILLS-PLUGINS.md#when-to-use-each-skill) |
+| Know when to use `/dotnet-engineer`? | [SKILLS-PLUGINS.md](SKILLS-PLUGINS.md#dotnet-engineer) |
+| Know when to use `/security-code-review`? | [SKILLS-PLUGINS.md](SKILLS-PLUGINS.md#security-code-review) |
+| Add a protocol decoder? | [CODE-PATTERNS.md](CODE-PATTERNS.md#protocol-decoder-pattern) |
+| Debug a problem? | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | Find what's deprioritized? | [PHASES-ROADMAP.md](PHASES-ROADMAP.md#proposed-phases-1617--deprioritized) |
 | See known issues? | [GAPS.md](GAPS.md#active-gaps) |
 | Understand the architecture? | [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md#core-design-decisions) |

@@ -24,6 +24,9 @@ export Auth__JwtSecret="your-32-char-secret" && dotnet build && dotnet test
 ### "I want to understand the architecture"
 → **[DESIGN-DECISIONS.md](DESIGN-DECISIONS.md)** — Why we chose X, naming rules, critical notes
 
+### "I need to use skills or plugins"
+→ **[SKILLS-PLUGINS.md](SKILLS-PLUGINS.md)** — When/how to use `/dotnet-engineer`, `/security-code-review`, `/threat-modeling`, etc.
+
 ### "What should I work on next?"
 → **[GAPS.md](GAPS.md)** — Known issues, tech debt, suggestions for next steps
 
@@ -70,27 +73,31 @@ export Auth__JwtSecret="your-32-char-secret" && dotnet build && dotnet test
    - Solutions for 30+ problems with step-by-step fixes
    - Best for: "X is broken, how do I fix it?"
 
+5. **[SKILLS-PLUGINS.md](SKILLS-PLUGINS.md)** (300 lines)
+   - When/how to use `/dotnet-engineer`, `/security-code-review`, `/threat-modeling`
+   - Best for: "When should I use a skill? How do I invoke it?"
+
 ### Planning & Design
-5. **[DESIGN-DECISIONS.md](DESIGN-DECISIONS.md)** (400 lines)
+6. **[DESIGN-DECISIONS.md](DESIGN-DECISIONS.md)** (400 lines)
    - Architecture decisions, naming, patterns, quirks
    - Best for: "Why did we choose X?"
 
-6. **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** (500 lines)
+7. **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** (500 lines)
    - All 20 phases with descriptions
    - Best for: "What did Phase 15 do?"
 
-7. **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** (150 lines)
+8. **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** (150 lines)
    - Future phases (21+) and deprioritized (16-17)
    - Best for: "What's next?"
 
-8. **[GAPS.md](GAPS.md)** (200 lines)
+9. **[GAPS.md](GAPS.md)** (200 lines)
    - Known issues, tech debt, suggestions
    - Best for: "What should I work on?"
 
 ### Comprehensive Reference
-9. **[PLAN-INDEX.md](PLAN-INDEX.md)** (250 lines)
-   - Full navigation hub
-   - Best for: "I want to see everything"
+10. **[PLAN-INDEX.md](PLAN-INDEX.md)** (250 lines)
+    - Full navigation hub
+    - Best for: "I want to see everything"
 
 ### External References
 - **[architecture.md](architecture.md)** — Full technical architecture

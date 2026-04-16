@@ -603,4 +603,15 @@ What am I adding?
 └─ Frontend API client → frontend/src/api/
 ```
 
-See [AGENT-NOTES.md](AGENT-NOTES.md#adding-features-checklist) for the full "Add a Feature" checklist.
+## Recommended Workflow
+
+1. **Design phase** → Use `/dotnet-engineer` for architecture guidance (see [SKILLS-PLUGINS.md](SKILLS-PLUGINS.md))
+2. **Implementation** → Follow patterns in this document
+3. **Testing** → Use patterns in Test Pattern section above
+4. **Code review** → Use `/review` before PR
+5. **Security review** → Use `/security-code-review` for auth/data code
+6. **Cleanup** → Use `/simplify` if complex
+7. **Commit** → Reference skill reviews in commit message
+
+See [AGENT-NOTES.md](AGENT-NOTES.md#adding-features-checklist) for the full "Add a Feature" checklist.  
+See [SKILLS-PLUGINS.md](SKILLS-PLUGINS.md) for when/how to use each skill.
