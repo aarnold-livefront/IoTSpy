@@ -61,6 +61,11 @@ services.AddScoped<IOpenRtbEventRepository, OpenRtbEventRepository>();
         // Phase 14 — API key management
         services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
 
+        // Phase 15 — Collaboration & real-time sharing
+        services.AddScoped<IInvestigationSessionRepository, InvestigationSessionRepository>();
+        services.AddScoped<ICaptureAnnotationRepository, CaptureAnnotationRepository>();
+        services.AddScoped<ISessionActivityRepository, SessionActivityRepository>();
+
         return services;
     }
 

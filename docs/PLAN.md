@@ -19,12 +19,12 @@ README / quick start: [`README.md`](../README.md)
 |---|---|
 | Backend projects | 7 (Core, Proxy, Protocols, Scanner, Manipulation, Storage, Api) |
 | Test projects | 8 (Core.Tests, Protocols.Tests, Manipulation.Tests, Scanner.Tests, Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests) |
-| Backend tests | 503 (all passing) — includes Phase 10 decoders + Phase 11 multi-user/TLS/tests + Phase 12 API spec generation + Phase 14 API keys + Phase 20 admin/integration tests |
+| Backend tests | 517 (all passing) — includes Phase 10 decoders + Phase 11 multi-user/TLS/tests + Phase 12 API spec generation + Phase 14 API keys + Phase 15 collaboration + Phase 20 admin/integration tests |
 | Frontend tests | 11+ component tests via Vitest + React Testing Library |
-| REST controllers | 15 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy, Report, ScheduledScan, Dashboard, ApiSpec, Admin) |
-| HTTP endpoints | 105+ |
-| SignalR hubs | 2 (TrafficHub, PacketCaptureHub) — TrafficHub extended with WebSocket frame + MQTT message + anomaly alert subscriptions |
-| EF Core migrations | 14 (InitialCreate → AddApiKeyManagement) |
+| REST controllers | 16 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy, Report, ScheduledScan, Dashboard, ApiSpec, Admin, Sessions) |
+| HTTP endpoints | 120+ |
+| SignalR hubs | 3 (TrafficHub, PacketCaptureHub, CollaborationHub) — TrafficHub extended with WebSocket frame + MQTT message + anomaly alert subscriptions |
+| EF Core migrations | 15 (InitialCreate → AddPhase15Collaboration) |
 | Frontend components | 82 TypeScript files across 16+ component directories |
 | Protocols supported | HTTP/HTTPS, TLS passthrough (JA3/JA3S), WebSocket, MQTT 3.1.1/5.0 (passive decode + active proxy), DNS/mDNS, CoAP (passive decode + active proxy), gRPC/Protobuf, Modbus TCP, OpenRTB 2.5, Datadog, Firehose, Splunk HEC, Azure Monitor |
 | Frontend design | Space Grotesk + IBM Plex Sans typography; teal (`#00c9b1`) accent color; radar SVG logo; responsive design (480px, 768px, 1024px breakpoints); dark/light theme toggle |
@@ -36,7 +36,7 @@ README / quick start: [`README.md`](../README.md)
 
 ## What has been built
 
-Phases 1–14 and 18–20 are complete. Phases 15–17 were deprioritized in favor of Phases 18–20 (frontend correctness, UX polish, admin operations) and remain valid candidates for future implementation. See the "Proposed phases" section below.
+Phases 1–15 and 18–20 are complete. Phases 16–17 were deprioritized and remain valid candidates for future implementation. See the "Proposed phases" section below.
 
 ### Phase 1 — Foundation
 
@@ -157,6 +157,24 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **EF Core migration** `AddApiKeyManagement` — `ApiKeys` table with unique index on `KeyHash`
 - **Tests** — `ApiKeyControllerTests` (11 tests): list, create, hash storage, revoke, rotate, hash determinism
 
+### Phase 15 — Collaboration & Real-time Sharing
+
+**Goal:** Support multiple operators monitoring the same device/proxy session simultaneously with role-aware views.
+
+- **Shared investigation sessions (15.1)** — `InvestigationSession` + `SessionCapture` models; `SessionsController` (15 endpoints); SignalR group `session:{id}`; named sessions with creator, description, active/closed state
+- **In-session annotations (15.2)** — `CaptureAnnotation` model; REST CRUD + SignalR `AddAnnotation`/`UpdateAnnotation`/`DeleteAnnotation` methods broadcast to session group; tags (comma-separated)
+- **Viewer role restrictions (15.3)** — `CollaborationHub` enforces Admin/Operator for all write methods (AddAnnotation, UpdateAnnotation, DeleteAnnotation); Viewers receive read-only events
+- **Presence indicators (15.4)** — In-memory `ConcurrentDictionary` per session in `CollaborationHub`; `JoinSession`/`LeaveSession`/`OnDisconnectedAsync` broadcast `PresenceUpdated` to group; `PresenceIndicator` component in dashboard header area
+- **Activity feed (15.5)** — `SessionActivity` model; stored in DB; broadcast via `CollaborationPublisher` from controller and hub; feed tab in `SessionsPanel`; REST `GET /api/sessions/{id}/activity`
+- **Session export (15.6)** — `GET /api/sessions/{id}/export` returns ZIP archive with `session.json`, `captures.json`, `annotations.json`, `activity.json`; browser download via `exportSession()` API helper
+- **AirDrop Sharing (15.7)** — `ShareToken` (64-hex random) stored on `InvestigationSession`; `POST /api/sessions/{id}/share` generates token + URL; `GET /api/sessions/share/{token}` is `[AllowAnonymous]` and returns portable `iotspy-session/v1` JSON payload; share link copied to clipboard in UI
+- **Models** — `InvestigationSession`, `SessionCapture`, `CaptureAnnotation`, `SessionActivity` (IoTSpy.Core)
+- **Repositories** — `IInvestigationSessionRepository`/`InvestigationSessionRepository`, `ICaptureAnnotationRepository`/`CaptureAnnotationRepository`, `ISessionActivityRepository`/`SessionActivityRepository`
+- **Hub** — `CollaborationHub` at `/hubs/collaboration`; `CollaborationPublisher` singleton for cross-controller broadcasting
+- **EF Core migration** — `AddPhase15Collaboration` — `InvestigationSessions`, `SessionCaptures`, `CaptureAnnotations`, `SessionActivities` tables
+- **Tests** — `SessionsControllerTests` (14 tests): list, create, viewer-forbid, update, add capture, conflict, annotation CRUD, share token, AirDrop endpoint
+- **Frontend** — `frontend/src/api/sessions.ts`, `frontend/src/types/sessions.ts`, `frontend/src/hooks/useSessions.ts`; `SessionsPanel` (list/create/detail), `AnnotationPanel` (per-capture notes + tags), `PresenceIndicator` (avatar chips); "Sessions" tab in DashboardPage
+
 ### Phase 18 — React Frontend Performance & Correctness
 
 **Goal:** Fix React best-practices issues identified in code audit; improve rendering performance and eliminate memory leaks.
@@ -216,27 +234,9 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 
 ---
 
-## Proposed phases (15-17) — not yet implemented, may be revisited
+## Proposed phases (16-17) — not yet implemented, may be revisited
 
 These phases were proposed in the original roadmap but deprioritized. They remain valid candidates for future implementation.
-
----
-
-### Phase 15 — Collaboration & Real-time Sharing
-
-**Goal:** Support multiple operators monitoring the same device/proxy session simultaneously with role-aware views.
-
-| # | Task | Priority | Details |
-|---|---|---|---|
-| 15.1 | Shared capture sessions | High | Named "investigation sessions" that multiple users can join; all captures within a session visible to all participants in real time |
-| 15.2 | In-session annotations | Medium | Users can annotate individual captures with notes/tags; annotations stored in DB, broadcast via SignalR |
-| 15.3 | Viewer role restrictions | High | Viewer role enforced at SignalR hub level: read-only groups, no rule/script application |
-| 15.4 | Presence indicators | Low | Show which users are currently active on which device/panel in the dashboard header |
-| 15.5 | Activity feed | Medium | Per-session activity log (user X started scan, user Y added rule) broadcast to all participants |
-| 15.6 | Session export | Medium | Export a complete investigation session (captures + annotations + scan findings + manipulation rules) as a ZIP archive |
-| 15.7 | AirDrop Sharing | Medium-High | AirDrop session sharing for Apple mobile and desktop devices - compatible with Proxyman |
-
-Backend: `IoTSpy.Core` — `InvestigationSession`, `CaptureAnnotation` models; `IoTSpy.Storage` — migration.
 
 ---
 

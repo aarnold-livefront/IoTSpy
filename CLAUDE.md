@@ -74,10 +74,10 @@ See `.dev/claude-skills/README.md` for full details.
 
 ## Current state
 
-All phases 1–11 plus OpenRTB inspection, TLS passthrough/SSL stripping, and API Spec Generation & Content-Aware Mocking are complete:
-- 350+ backend tests across 8 test projects; 11+ frontend component tests
-- 14 REST controllers, 80+ endpoints
-- 13 EF Core migrations up through `AddProxyAutoStart`
+All phases 1–15 plus OpenRTB inspection, TLS passthrough/SSL stripping, API Spec Generation & Content-Aware Mocking, and collaboration are complete:
+- 517 backend tests across 8 test projects; 11+ frontend component tests
+- 16 REST controllers, 120+ endpoints
+- 15 EF Core migrations up through `AddPhase15Collaboration`
 - GitHub Actions CI at `.github/workflows/ci.yml`
 
 ### Operational notes

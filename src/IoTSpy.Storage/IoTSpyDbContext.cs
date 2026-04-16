@@ -40,6 +40,12 @@ public DbSet<OpenRtbEvent> OpenRtbEvents => Set<OpenRtbEvent>();
     // Phase 14 — API key management
     public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
 
+    // Phase 15 — Collaboration & real-time sharing
+    public DbSet<InvestigationSession> InvestigationSessions => Set<InvestigationSession>();
+    public DbSet<SessionCapture> SessionCaptures => Set<SessionCapture>();
+    public DbSet<CaptureAnnotation> CaptureAnnotations => Set<CaptureAnnotation>();
+    public DbSet<SessionActivity> SessionActivities => Set<SessionActivity>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Device>(e =>
@@ -265,6 +271,61 @@ modelBuilder.Entity<OpenRtbPiiPolicy>(e =>
             e.HasOne(r => r.ApiSpecDocument)
              .WithMany(d => d.ReplacementRules)
              .HasForeignKey(r => r.ApiSpecDocumentId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Phase 15 — Collaboration
+        modelBuilder.Entity<InvestigationSession>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.HasIndex(s => s.IsActive);
+            e.HasIndex(s => s.CreatedByUserId);
+            e.HasIndex(s => s.ShareToken).IsUnique().HasFilter("ShareToken IS NOT NULL");
+            e.Property(s => s.Name).IsRequired().HasMaxLength(200);
+            e.Property(s => s.ShareToken).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<SessionCapture>(e =>
+        {
+            e.HasKey(sc => sc.Id);
+            e.HasIndex(sc => sc.SessionId);
+            e.HasIndex(sc => sc.CaptureId);
+            e.HasIndex(sc => new { sc.SessionId, sc.CaptureId }).IsUnique();
+            e.HasOne(sc => sc.Session)
+             .WithMany(s => s.SessionCaptures)
+             .HasForeignKey(sc => sc.SessionId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(sc => sc.Capture)
+             .WithMany()
+             .HasForeignKey(sc => sc.CaptureId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CaptureAnnotation>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasIndex(a => a.SessionId);
+            e.HasIndex(a => a.CaptureId);
+            e.HasIndex(a => a.UserId);
+            e.Property(a => a.Note).IsRequired().HasMaxLength(2000);
+            e.Property(a => a.Username).IsRequired().HasMaxLength(100);
+            e.Property(a => a.Tags).HasMaxLength(500);
+            e.HasOne(a => a.Session)
+             .WithMany(s => s.Annotations)
+             .HasForeignKey(a => a.SessionId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SessionActivity>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasIndex(a => a.SessionId);
+            e.HasIndex(a => a.Timestamp);
+            e.Property(a => a.Action).IsRequired().HasMaxLength(200);
+            e.Property(a => a.Username).IsRequired().HasMaxLength(100);
+            e.HasOne(a => a.Session)
+             .WithMany(s => s.Activities)
+             .HasForeignKey(a => a.SessionId)
              .OnDelete(DeleteBehavior.Cascade);
         });
 
