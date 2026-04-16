@@ -90,6 +90,7 @@ builder.Services.AddSignalR()
 builder.Services.AddSingleton<ICapturePublisher, SignalRCapturePublisher>();
 builder.Services.AddSingleton<IPacketCapturePublisher, SignalRPacketPublisher>();
 builder.Services.AddSingleton<IAnomalyAlertPublisher, SignalRAnomalyPublisher>();
+builder.Services.AddSingleton<CollaborationPublisher>();
 
 // ── Resilience ───────────────────────────────────────────────────────────────
 var resilienceOptions = builder.Configuration
@@ -242,6 +243,7 @@ if (rateLimitEnabled)
 app.MapControllers();
 app.MapHub<TrafficHub>("/hubs/traffic");
 app.MapHub<PacketCaptureHub>("/hubs/packets");
+app.MapHub<CollaborationHub>("/hubs/collaboration");
 
 // ── Health check endpoints (Phase 8.1) ───────────────────────────────────────
 app.MapHealthChecks("/health", new HealthCheckOptions
