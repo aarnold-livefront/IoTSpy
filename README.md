@@ -76,14 +76,14 @@ IoT network security platform: transparent MITM proxy, protocol analyzer, pen-te
 - **Freeze frame** — hex dump + layer-by-layer packet analysis
 - **PCAP export** — standard format for Wireshark analysis
 
-### Administration
+### Administration (Phase 20)
 
 - **System admin page** — `/admin` route accessible only to users with the `admin` role; wrench icon in the header
-- **Database tab** — view row counts and estimated sizes for captures, packets, and scan findings; purge by age/host or purge all; export captures/packets (JSON or CSV) and full configuration (JSON) — all downloads authenticated via Bearer token
-- **Certificates tab** — view root CA details (CN, serial, validity); download CA as DER or PEM; purge leaf certs; regenerate root CA (invalidates all leaf certs and writes an audit entry)
-- **Audit log tab** — paginated table of all audit entries (user, action, entity, details, IP, timestamp)
-- **Users tab** — list all users; create new users; update roles inline; delete users; confirm dialogs on destructive actions
-- **Safety guards** — cannot delete your own account; cannot delete or demote the last admin
+- **Database tab** — view row counts and estimated sizes for captures, packets, and scan findings; purge by date range or hostname; export captures/packets/configuration as JSON or CSV; purge-all confirmation guard
+- **Certificates tab** — view root CA metadata (CN, serial, validity); download CA as DER or PEM; regenerate root CA (audit-logged); purge leaf certificates
+- **Audit log tab** — paginated table of all audit entries with timestamp, user, action, entity type, details, source IP
+- **Users tab** — manage users with inline role selector; create new users; delete with confirmation guards; blocks self-delete and last-admin demotion/deletion
+- **Safety guards** — cannot delete your own account; cannot delete or demote the last admin; UI prevents destructive mistakes
 
 ### Anomaly detection
 - **Statistical baseline** — Welford online algorithm for per-host metrics (response time, size, status codes, request rate)
@@ -569,8 +569,16 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full implementation plan, identified 
 | 10 | Protocol expansion (WebSocket, MQTT proxy, gRPC, Modbus) | **Complete** |
 | — | TLS passthrough & SSL stripping (no-CA-install HTTPS visibility) | **Complete** |
 | 11 | UX polish & multi-user support | **Complete** |
-| — | API spec generation & content-aware mocking | **Complete** |
-| — | Admin UI (database, certificates, audit log, users) + body viewer stream rendering | **Complete** |
+| 12 | API spec generation & content-aware mocking | **Complete** |
+| 13 | PCAP import & offline analysis | **Complete** |
+| 14 | API key management & service accounts | **Complete** |
+| 15 | Collaboration & real-time sharing | **Complete** |
+| 18 | React frontend performance & correctness | **Complete** |
+| 18.5 | Frontend design & usability overhaul | **Complete** |
+| 19 | Bugfixes, UI polish, iOS TLS compatibility & proxy auto-start | **Complete** |
+| 20 | Admin UI & body viewer stream rendering | **Complete** |
+| 16–17 | Deployment/operations & protocol expansion (non-IP IoT) | **Deprioritized** |
+| 21 | Passive proxy mode (toggle-able observation) | **Proposed** |
 
 ---
 
