@@ -1,64 +1,173 @@
-# IoTSpy — Implementation Plan (Minimal Index)
+# IoTSpy — Implementation Plan
 
-This document is a navigation hub for all planning and implementation documentation.
-
-**→ [Start here: PLAN-INDEX.md](PLAN-INDEX.md)** for full navigation, links to all guides, and role-based recommendations.
+This is your entry point for all project documentation. Find what you need below.
 
 ---
 
-## Quick Links
+## 🎯 Pick Your Task
 
-| Document | Purpose |
-|---|---|
-| **[PLAN-INDEX.md](PLAN-INDEX.md)** | Main navigation hub (start here) |
-| **[AGENT-NOTES.md](AGENT-NOTES.md)** | Quick setup, testing, session handoff |
-| **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** | All implemented phases (1-15, 18-20) |
-| **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** | Future phases & deprioritized work |
-| **[DESIGN-DECISIONS.md](DESIGN-DECISIONS.md)** | Architecture, naming, patterns |
-| **[GAPS.md](GAPS.md)** | Known issues & technical debt |
-| **[architecture.md](architecture.md)** | Full technical architecture |
-| **[../README.md](../README.md)** | Features, quick start, API reference |
+### "I want to set up and start developing"
+→ **[AGENT-NOTES.md](AGENT-NOTES.md)** — Quick setup in 3 commands, testing procedures
 
----
-
-## Current Status
-
-- **Phases complete:** 1–15, 18–20 ✅
-- **Backend tests:** 517 (all passing)
-- **Controllers:** 16 REST + 3 SignalR hubs
-- **Protocols:** HTTP/HTTPS, MQTT, DNS, CoAP, WebSocket, gRPC, Modbus, OpenRTB
-- **Next phase:** 21 (Passive Proxy Mode) — see [PHASES-ROADMAP.md](PHASES-ROADMAP.md)
-
----
-
-## For Claude Code Sessions
-
-**→ [AGENT-NOTES.md](AGENT-NOTES.md)** — Contains setup, testing, feature checklist, debugging scenarios.
-
-Start with:
 ```bash
-export Auth__JwtSecret="your-32-char-secret"
-dotnet build
-dotnet test
-dotnet run --project src/IoTSpy.Api
+export Auth__JwtSecret="your-32-char-secret" && dotnet build && dotnet test
+```
+
+### "I need to add a new feature"
+→ **[CODE-PATTERNS.md](CODE-PATTERNS.md)** — Where to put code + examples (controller, repo, decoder, etc.)
+
+→ **[QUICK-REF.md](QUICK-REF.md)** — Common commands (migrations, git, build)
+
+### "Something is broken or not working"
+→ **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** — Solutions for 30+ common issues
+
+### "I want to understand the architecture"
+→ **[DESIGN-DECISIONS.md](DESIGN-DECISIONS.md)** — Why we chose X, naming rules, critical notes
+
+### "What should I work on next?"
+→ **[GAPS.md](GAPS.md)** — Known issues, tech debt, suggestions for next steps
+
+→ **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** — Phase 21+ and deprioritized work
+
+### "What's been completed?"
+→ **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** — All 20 phases with details and test counts
+
+### "Show me everything at once"
+→ **[PLAN-INDEX.md](PLAN-INDEX.md)** — Complete navigation hub with role-based guides
+
+---
+
+## 📊 Current Project Status
+
+| Metric | Value |
+|---|---|
+| **Phases complete** | 1–15, 18–20 (20 of 20 core features) ✅ |
+| **Backend tests** | 517 (all passing) |
+| **REST controllers** | 16 |
+| **SignalR hubs** | 3 |
+| **Protocols** | HTTP/HTTPS, MQTT, DNS, CoAP, WebSocket, gRPC, Modbus, OpenRTB |
+| **Next phase** | 21 — Passive Proxy Mode |
+
+---
+
+## 📚 Documentation Map
+
+### Getting Started (Start here if new)
+1. **[AGENT-NOTES.md](AGENT-NOTES.md)** (400 lines)
+   - Setup, testing, debugging, feature checklist
+   - Best for: "How do I get started?"
+
+2. **[QUICK-REF.md](QUICK-REF.md)** (200 lines)
+   - Command shortcuts, recipes, common operations
+   - Best for: "What's the command for X?"
+
+### Development
+3. **[CODE-PATTERNS.md](CODE-PATTERNS.md)** (400 lines)
+   - Where code goes + copy-paste examples
+   - Best for: "I'm adding a controller/decoder/hook"
+
+4. **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** (350 lines)
+   - Solutions for 30+ problems with step-by-step fixes
+   - Best for: "X is broken, how do I fix it?"
+
+### Planning & Design
+5. **[DESIGN-DECISIONS.md](DESIGN-DECISIONS.md)** (400 lines)
+   - Architecture decisions, naming, patterns, quirks
+   - Best for: "Why did we choose X?"
+
+6. **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** (500 lines)
+   - All 20 phases with descriptions
+   - Best for: "What did Phase 15 do?"
+
+7. **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** (150 lines)
+   - Future phases (21+) and deprioritized (16-17)
+   - Best for: "What's next?"
+
+8. **[GAPS.md](GAPS.md)** (200 lines)
+   - Known issues, tech debt, suggestions
+   - Best for: "What should I work on?"
+
+### Comprehensive Reference
+9. **[PLAN-INDEX.md](PLAN-INDEX.md)** (250 lines)
+   - Full navigation hub
+   - Best for: "I want to see everything"
+
+### External References
+- **[architecture.md](architecture.md)** — Full technical architecture
+- **[../README.md](../README.md)** — Features, API reference, quick start
+- **[../CLAUDE.md](../CLAUDE.md)** — Project-specific commands
+
+---
+
+## 🚀 For Agents: Recommended Workflow
+
+1. **First task?** Read [AGENT-NOTES.md](AGENT-NOTES.md#quick-setup) + [QUICK-REF.md](QUICK-REF.md)
+2. **Adding code?** Check [CODE-PATTERNS.md](CODE-PATTERNS.md#where-does-my-code-go)
+3. **Something wrong?** Search [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+4. **Need context?** Read [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md) + [GAPS.md](GAPS.md)
+5. **Want details?** See [PHASES-COMPLETED.md](PHASES-COMPLETED.md) + [PHASES-ROADMAP.md](PHASES-ROADMAP.md)
+
+---
+
+## 💡 Key Information
+
+**JWT Secret (required for running):**
+```bash
+export Auth__JwtSecret="minimum-32-characters-long-string"
+```
+
+**Run everything:**
+```bash
+# Terminal 1: Backend
+dotnet watch --project src/IoTSpy.Api
+
+# Terminal 2: Frontend
+cd frontend && npm run dev
+
+# Terminal 3: Tests (optional)
+dotnet test --watch
+```
+
+**Quick test before commit:**
+```bash
+dotnet build && dotnet test
+cd frontend && npm test && npm run build
 ```
 
 ---
 
-## For New Contributors
+## 📍 File Locations
 
-1. Read [PLAN-INDEX.md](PLAN-INDEX.md) (navigation)
-2. Follow [AGENT-NOTES.md](AGENT-NOTES.md) (setup & testing)
-3. Review [GAPS.md](GAPS.md) (what to work on)
-4. Check [PHASES-COMPLETED.md](PHASES-COMPLETED.md) for context
+| What | Where |
+|---|---|
+| API backend | `src/IoTSpy.Api` |
+| Domain models | `src/IoTSpy.Core` |
+| Database | `src/IoTSpy.Storage` |
+| Proxy servers | `src/IoTSpy.Proxy` |
+| Business logic | `src/IoTSpy.{Scanner,Manipulation,Protocols}` |
+| Tests | `src/IoTSpy.*.Tests` |
+| Frontend | `frontend/src` |
+| Documentation | `docs/` |
 
 ---
 
-## Key Project Information
+## ❓ FAQ
 
-**Location:** `docs/` directory  
-**Architecture:** [architecture.md](architecture.md)  
-**Features:** [../README.md](../README.md)  
-**Skills:** [../CLAUDE.md](../CLAUDE.md) for project-specific commands  
+**Q: Where do I add my new code?**  
+A: See [CODE-PATTERNS.md](CODE-PATTERNS.md#where-does-my-code-go) — it's a lookup table
 
-All documentation is cross-linked for easy navigation.
+**Q: How do I run tests?**  
+A: See [QUICK-REF.md](QUICK-REF.md#build--test)
+
+**Q: Something broke, how do I debug?**  
+A: See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+
+**Q: What's the architecture?**  
+A: See [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md) or [architecture.md](architecture.md)
+
+**Q: What should I work on next?**  
+A: See [GAPS.md](GAPS.md) or [PHASES-ROADMAP.md](PHASES-ROADMAP.md)
+
+---
+
+**Pro tip:** Bookmark [QUICK-REF.md](QUICK-REF.md) — you'll use it every day!
