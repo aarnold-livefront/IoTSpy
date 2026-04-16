@@ -37,6 +37,9 @@ public DbSet<OpenRtbEvent> OpenRtbEvents => Set<OpenRtbEvent>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
     public DbSet<DashboardLayout> DashboardLayouts => Set<DashboardLayout>();
 
+    // Phase 14 — API key management
+    public DbSet<ApiKey> ApiKeys => Set<ApiKey>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Device>(e =>
@@ -206,6 +209,16 @@ modelBuilder.Entity<OpenRtbPiiPolicy>(e =>
             e.HasKey(d => d.Id);
             e.HasIndex(d => d.UserId);
             e.Property(d => d.Name).IsRequired().HasMaxLength(100);
+        });
+
+        // Phase 14 — API key management
+        modelBuilder.Entity<ApiKey>(e =>
+        {
+            e.HasKey(k => k.Id);
+            e.HasIndex(k => k.KeyHash).IsUnique();
+            e.HasIndex(k => k.OwnerId);
+            e.Property(k => k.Name).IsRequired().HasMaxLength(200);
+            e.Property(k => k.KeyHash).IsRequired().HasMaxLength(64);
         });
 
         modelBuilder.Entity<CaptureDevice>(e =>

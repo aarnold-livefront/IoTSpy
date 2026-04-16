@@ -1,5 +1,6 @@
 using System.Text;
 using System.Threading.RateLimiting;
+using IoTSpy.Api.Authentication;
 using IoTSpy.Api.Hubs;
 using IoTSpy.Api.Services;
 using IoTSpy.Core.Enums;
@@ -41,7 +42,18 @@ var jwtSecret = builder.Configuration["Auth:JwtSecret"]
 if (jwtSecret.Length < 32)
     throw new InvalidOperationException("Auth:JwtSecret must be at least 32 characters (256 bits) for HS256.");
 
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+// Use a policy scheme that forwards to ApiKey handler when X-Api-Key header is present,
+// otherwise falls through to the standard JWT Bearer handler.
+builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultScheme = "SmartScheme";
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddPolicyScheme("SmartScheme", "JWT or API Key", opts =>
+        opts.ForwardDefaultSelector = ctx =>
+            ctx.Request.Headers.ContainsKey("X-Api-Key")
+                ? ApiKeyAuthenticationHandler.SchemeName
+                : JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opts =>
     {
         opts.TokenValidationParameters = new TokenValidationParameters
@@ -66,7 +78,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 return Task.CompletedTask;
             }
         };
-    });
+    })
+    .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
+        ApiKeyAuthenticationHandler.SchemeName, _ => { });
 builder.Services.AddAuthorization();
 
 // ── SignalR ──────────────────────────────────────────────────────────────────
