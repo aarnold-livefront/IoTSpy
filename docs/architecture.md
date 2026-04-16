@@ -4,7 +4,7 @@
 
 IoTSpy is a .NET 10 / C# solution that acts as a transparent MITM proxy, multi-protocol decoder, statistical anomaly detector, and lightweight pen-test suite for IoT network research. A REST + SignalR API exposes all functionality; the frontend is a Vite 6 + React 19 + TypeScript single-page application.
 
-All phases (1–11) plus OpenRTB inspection, TLS passthrough/SSL stripping, API Spec Generation & Content-Aware Mocking, and the Admin UI & Body Viewer update are complete.
+All phases (1–15) plus OpenRTB inspection, TLS passthrough/SSL stripping, API Spec Generation & Content-Aware Mocking, React Frontend Performance & Correctness, Frontend Design Overhaul, Bugfixes/iOS TLS/Proxy Auto-start, and Admin UI & Body Viewer Stream Rendering are complete. Phases 16–17 (Deployment/Operations and Protocol Expansion) were deprioritized but remain valid candidates for future work.
 
 ---
 
@@ -430,23 +430,25 @@ EF Core 10 data access layer; supports SQLite (default) and PostgreSQL.
 
 All repositories are **scoped** (one per HTTP request / DI scope) because they depend on the scoped EF Core `DbContext`.
 
-### Migrations (12)
+### Migrations (15)
 
-| Migration | Contents |
-|---|---|
-| `InitialCreate` | Devices, Captures, ProxySettings, CertificateEntries |
-| `AddPhase2ProxySettings` | TransparentProxyPort, TargetDeviceIp, GatewayIp columns |
-| `AddPhase3Scanner` | ScanJobs, ScanFindings |
-| `AddPhase4ManipulationFix` | ManipulationRules, Breakpoints, ReplaySessions, FuzzerJobs, FuzzerResults |
-| `AddOpenRtbInspection` | OpenRtbEvents, OpenRtbPiiPolicies, PiiStrippingLogs |
-| `AddPacketCapture` | CaptureDevices, Packets (with FK and indexes) |
-| `AddMissingPhase7Changes` | Schema fixes for Phase 7 test compatibility |
-| `AddPhase9ScheduledScans` | ScheduledScans table |
-| `AddBodyCaptureDefaults` | Body capture default column values |
-| `AddTlsPassthroughAndSslStrip` | `TlsMetadataJson` (TEXT) on Captures, `SslStrip` (BOOLEAN) on ProxySettings |
-| `AddPhase11MultiUserAndAudit` | `Users`, `AuditEntries`, `DashboardLayouts` tables |
-| `AddApiSpecAndContentReplacement` | `ApiSpecDocuments`, `ContentReplacementRules` tables with indexes and FK cascade delete |
-| `AddProxyAutoStart` | `AutoStart` (BOOLEAN DEFAULT 0) column on `ProxySettings` |
+| Migration | Contents | Phase |
+|---|---|---|
+| `InitialCreate` | Devices, Captures, ProxySettings, CertificateEntries | 1 |
+| `AddPhase2ProxySettings` | TransparentProxyPort, TargetDeviceIp, GatewayIp columns | 2 |
+| `AddPhase3Scanner` | ScanJobs, ScanFindings | 3 |
+| `AddPhase4ManipulationFix` | ManipulationRules, Breakpoints, ReplaySessions, FuzzerJobs, FuzzerResults | 4 |
+| `AddOpenRtbInspection` | OpenRtbEvents, OpenRtbPiiPolicies, PiiStrippingLogs | OpenRTB |
+| `AddPacketCapture` | CaptureDevices, Packets (with FK and indexes) | 6 |
+| `AddMissingPhase7Changes` | Schema fixes for Phase 7 test compatibility | 7 |
+| `AddPhase9ScheduledScans` | ScheduledScans table | 9 |
+| `AddBodyCaptureDefaults` | Body capture default column values | 9 |
+| `AddTlsPassthroughAndSslStrip` | `TlsMetadataJson` (TEXT) on Captures, `SslStrip` (BOOLEAN) on ProxySettings | TLS passthrough |
+| `AddPhase11MultiUserAndAudit` | `Users`, `AuditEntries`, `DashboardLayouts` tables | 11 |
+| `AddApiSpecAndContentReplacement` | `ApiSpecDocuments`, `ContentReplacementRules` tables with indexes and FK cascade delete | 12 |
+| `AddProxyAutoStart` | `AutoStart` (BOOLEAN DEFAULT 0) column on `ProxySettings` | 19 |
+| `AddApiKeyManagement` | `ApiKeys` table with unique index on `KeyHash` | 14 |
+| `AddPhase15Collaboration` | `InvestigationSessions`, `SessionCaptures`, `CaptureAnnotations`, `SessionActivities` tables | 15 |
 
 ---
 
@@ -462,7 +464,7 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 - **Scoped**: All EF Core repositories, `DbContext`
 - `ProxyService` is registered once as `IProxyService` and once as `IHostedService` via `AddHostedService(sp => sp.GetRequiredService<ProxyService>())` to prevent double instantiation.
 
-### Controllers (15)
+### Controllers (16)
 
 | Controller | Endpoints |
 |---|---|
@@ -471,26 +473,33 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 | `CapturesController` | `GET /api/captures` (paged + filtered), `GET /api/captures/{id}`, `DELETE /api/captures/{id}` |
 | `DevicesController` | `GET /api/devices`, `GET /api/devices/{id}`, `PUT /api/devices/{id}`, `DELETE /api/devices/{id}` |
 | `CertificatesController` | `GET /api/certificates`, `GET /api/certificates/root-ca`, download DER + PEM (no auth), `POST /api/certificates/root-ca/regenerate` (admin: purge all certs + recreate root CA), `DELETE /api/certificates/purge-leaf-certs`, `DELETE /api/certificates/{id}` |
-| `AdminController` | Admin-role gated: `GET /api/admin/stats`, `DELETE /api/admin/captures`, `DELETE /api/admin/packets`, `GET /api/admin/export/logs`, `GET /api/admin/export/packets`, `GET /api/admin/export/config` |
+| `AdminController` | Admin-role gated: `GET /api/admin/stats`, `DELETE /api/admin/captures`, `DELETE /api/admin/packets`, `GET /api/admin/export/logs`, `GET /api/admin/export/packets`, `GET /api/admin/export/config` (Phase 20) |
 | `ScannerController` | `POST /api/scanner/scan`, `GET /api/scanner/jobs`, `GET /api/scanner/jobs/{id}`, `GET /api/scanner/jobs/{id}/findings`, `POST /api/scanner/jobs/{id}/cancel`, `DELETE /api/scanner/jobs/{id}` |
 | `ManipulationController` | CRUD for rules, breakpoints; `POST /replay`, `POST /fuzzer`, `GET+DELETE /fuzzer/{id}`, `POST /ai-mock/generate`, `DELETE /ai-mock/{host}/cache` |
-| `PacketCaptureController` | Device list, start/stop capture, packet filtering, freeze frame (create/get), protocol distribution, communication patterns, suspicious activity, freeze/unfreeze analysis |
+| `PacketCaptureController` | Device list, start/stop capture, packet filtering, freeze frame (create/get), PCAP import with progress streaming, protocol distribution, communication patterns, suspicious activity |
 | `OpenRtbController` | OpenRTB events CRUD, PII policies CRUD, PII audit logs |
 | `ProtocolProxyController` | MQTT start/stop/status, CoAP start/stop/status |
 | `ReportController` | `GET /api/reports/devices/{id}/html`, `GET /api/reports/devices/{id}/pdf` — scan report generation |
 | `ScheduledScanController` | CRUD `GET/POST/PUT/DELETE /api/scheduled-scans` — cron-based recurring scan jobs |
 | `DashboardController` | Per-user dashboard layout CRUD (`GET/POST/PUT/DELETE /api/dashboard/layouts`) |
 | `ApiSpecController` | API spec CRUD, generate from traffic, import/export, LLM refine, activate/deactivate, replacement rules CRUD, asset upload/list/delete (20+ endpoints at `/api/apispec`) |
+| `SessionsController` | Investigation sessions CRUD, capture management, annotations, activity feed, AirDrop sharing (Phase 15) |
 
-### SignalR
+### SignalR (3 hubs)
 
-- Hub: `TrafficHub` at `/hubs/traffic`
-- Clients join device groups: `hubConnection.invoke("JoinDeviceGroup", deviceId)`
-- `SignalRCapturePublisher` broadcasts a `TrafficCapture` event to all clients and to the device's group on every captured request
-- Clients subscribe to anomaly alerts: `hubConnection.invoke("SubscribeToAnomalyAlerts")` → receives `AnomalyAlert` events on group `"anomaly-alerts"`; `SignalRAnomalyPublisher` sends alerts emitted by `AnomalyDetector` after each proxied request
-- Hub: `PacketCaptureHub` at `/hubs/packets` — clients auto-join `packet-capture-live` group
-- `SignalRPacketPublisher` broadcasts `PacketCaptured` and `CaptureStatus` events for live packet streaming
-- Token is accepted via `?access_token=` query parameter (standard SignalR pattern)
+- **TrafficHub** (`/hubs/traffic`): Real-time HTTP/HTTPS traffic capture streaming
+  - Clients join device groups: `hubConnection.invoke("JoinDeviceGroup", deviceId)`
+  - `SignalRCapturePublisher` broadcasts a `TrafficCapture` event to all clients and to the device's group on every captured request
+  - Clients subscribe to anomaly alerts: `hubConnection.invoke("SubscribeToAnomalyAlerts")` → receives `AnomalyAlert` events on group `"anomaly-alerts"`; `SignalRAnomalyPublisher` sends alerts emitted by `AnomalyDetector` after each proxied request
+  - Extended with WebSocket frame, MQTT message, and anomaly alert subscriptions
+- **PacketCaptureHub** (`/hubs/packets`): Live packet capture streaming
+  - Clients auto-join `packet-capture-live` group
+  - `SignalRPacketPublisher` broadcasts `PacketCaptured` and `CaptureStatus` events for live packet streaming; `PublishImportProgressAsync` broadcasts PCAP import progress (Phase 13)
+- **CollaborationHub** (`/hubs/collaboration`): Real-time collaboration (Phase 15)
+  - Clients join session groups: `hubConnection.invoke("JoinSession", sessionId)`
+  - `AddAnnotation`, `UpdateAnnotation`, `DeleteAnnotation` broadcasts to session group; `PresenceUpdated` and `ActivityCreated` events; viewer-role restrictions enforced on write methods
+
+All hubs accept JWT token via `?access_token=` query parameter (standard SignalR pattern).
 
 ### Observability & hardening (Phase 8)
 
@@ -554,25 +563,33 @@ Login response writes `user: { id, username, displayName, role }` to `localStora
 
 ### Layout & panels
 
-| Panel | Components |
-|---|---|
-| Captures | Split-pane list + detail (request / response / TLS tabs); `CaptureFilterBar`; `BodyViewer` with SSE/NDJSON stream rendering |
-| Devices | Device list with timeline swimlane view per device |
-| Scanner | `ScannerPanel` → `ScanJobList` + `ScanFindingsView` |
-| Manipulation | `ManipulationPanel` → `RulesEditor`, `BreakpointsEditor`, `ReplayPanel`, `FuzzerPanel`, `ApiSpecPanel` |
-| Packet Capture | `PanelPacketCapture` (tabbed: Packets / Protocols / Patterns / Suspicious) → `PacketListFilterable`, `PacketInspector` (Details / Hex Dump / Layers), `ProtocolDistributionView`, `PatternExplorer`, `SuspiciousActivityPanel` |
-| Live stream | `useTrafficStream` via SignalR; new captures prepended in real time |
-| Admin (`/admin`) | `AdminPage` — role-guarded (`admin` only); four tabs: DatabaseTab, CertificatesTab, AuditLogTab, UsersTab |
+| Panel | Components | Features |
+|---|---|---|
+| Captures | Split-pane list + detail (request / response / TLS tabs) | `CaptureFilterBar`; `BodyViewer` with three modes (Pretty/Raw/Hex); SSE/NDJSON stream rendering with collapsible per-event rows |
+| Devices | Device list with timeline swimlane view per device | Real-time sync via SignalR; swimlane labels resizable and ellipsis-truncated |
+| Scanner | `ScannerPanel` → `ScanJobList` + `ScanFindingsView` | Scan job progress tracking; detailed findings with severity classification |
+| Manipulation | `ManipulationPanel` → `RulesEditor`, `BreakpointsEditor`, `ReplayPanel`, `FuzzerPanel`, `ApiSpecPanel` | Full CRUD for rules and breakpoints; request replay with modifications; fuzzer job orchestration |
+| Packet Capture | `PanelPacketCapture` (tabbed: Packets / Protocols / Patterns / Suspicious) | `PacketListFilterable`, `PacketInspector` (Details / Hex Dump / Layers), `ProtocolDistributionView`, `PatternExplorer`, `SuspiciousActivityPanel`; drag-drop PCAP import with progress bar |
+| Live stream | `useTrafficStream` via SignalR | New captures prepended in real time with teal glow animation; alternating row stripes; HTTP method + status color coding |
+| Sessions (Phase 15) | `SessionsPanel` → list/create/detail views | `AnnotationPanel` for per-capture notes + tags; `PresenceIndicator` with avatar chips; session export (ZIP); AirDrop sharing |
+| Admin (`/admin`, Phase 20) | `AdminPage` — role-guarded (`admin` only) | Four management tabs: **Database** (stats, purge, export), **Certificates** (CA metadata, DER/PEM download, regenerate), **Audit** (paginated log), **Users** (CRUD with safety guards) |
 
-### BodyViewer stream rendering
+### BodyViewer (Phase 19–20)
 
-`BodyViewer` (used in capture detail and packet inspector) detects SSE and NDJSON bodies in Pretty mode:
+`BodyViewer` component (used in capture detail and packet inspector) provides three view modes and stream-aware rendering:
 
+**View modes:**
+- **Pretty** — Content-type-aware rendering: JSON with syntax highlighting, XML/HTML with formatting, images rendered as `<img>` via Blob URL, automatic decompression (gzip/deflate/Brotli) with indicator
+- **Raw** — Plain text view with copy-to-clipboard support
+- **Hex** — Wireshark-style offset/hex/ASCII dump (16 bytes per row, capped at 8 KiB) with line-by-line byte breakdown
+
+**Stream rendering (Pretty mode):**
 - `detectStream(body, contentType)` → `{ kind: 'sse' | 'ndjson'; events: StreamEvent[] } | null`
   - `text/event-stream` → `parseSSE()`: splits on double-newline, extracts `data:` / `event:` / `id:` / `retry:` fields
   - `application/x-ndjson`, `application/jsonl`, or sniffed (every line parses as JSON) → `parseNDJSON()`
-- `StreamEventRow` — collapsible row: chevron + index + label + byte count; optional SSE metadata strip; JSON syntax-highlighted body or plain text
-- Toolbar additions: `bv-badge--events` event count badge; Expand all / Collapse all toggle button (`bv-stream-toggle`)
+- `StreamEventRow` — collapsible per-event row: chevron + index + label + byte count; optional SSE metadata; JSON syntax-highlighted body or plain text
+- Toolbar: event count badge; Expand all / Collapse all toggle
+- Info toolbar shows Content-Type, Content-Encoding (e.g. `gzip ✓ decoded`), byte size
 
 ### Source structure
 
@@ -604,11 +621,38 @@ frontend/src/
   styles/                    # CSS custom properties + per-component sheets
 ```
 
+### Frontend design (Phase 18.5)
+
+**Typography & branding:**
+- Primary font: **Space Grotesk** (headings, bold text)
+- Secondary font: **IBM Plex Sans** (body text, fallback)
+- Accent color: **Teal** (`#00c9b1`) replacing generic blue (`#4e7aff`)
+- Logo: Radar/signal SVG icon (two concentric arcs + dot) replacing placeholder 'I'
+
+**UI components & styling:**
+- Start/Stop buttons: Solid filled (green/red with white text) with subtle depth shadow
+- Capture rows: 40px min-height; alternating row stripes; 4xx/5xx left-border color coding; real-time flash animation (1.4s teal glow on new captures)
+- Badges: 2px 5px padding (increased from 1px); DELETE badge solid red + white text; letter-spacing for readability
+- Empty states: Inline SVGs (magnifying glass, document outline) replacing emoji icons
+- Border radius tokens: `sm` 5px (4→5), `lg` 10px (8→10)
+- Scrollbars: 4px width (6→4), transparent track, semi-transparent thumb
+- Focus rings: Global `:focus-visible` with teal outline
+
+**Responsive design:**
+- Breakpoints: 480px (mobile), 768px (tablet), 1024px (desktop)
+- Stacked split panes on mobile; scrollable view toggles
+- Timeline swimlane labels resizable (100–320 px range)
+
+**Dark/light theme:**
+- CSS custom properties with `[data-theme="dark"|"light"]` attribute
+- `useTheme` hook; persisted in localStorage
+- Theme toggle in header
+
 ---
 
 ## Test projects
 
-370+ backend tests + 11 frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI.
+**517 backend tests** across 8 test projects + 11+ frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI. Test coverage includes Phase 10 decoders, Phase 11 multi-user/TLS/tests, Phase 12 API spec generation, Phase 14 API keys, Phase 15 collaboration, and Phase 20 admin/integration tests.
 
 | Project | Test classes | Coverage |
 |---|---|---|
