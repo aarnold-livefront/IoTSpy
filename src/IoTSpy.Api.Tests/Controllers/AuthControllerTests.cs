@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using NSubstitute;
 using Xunit;
+using IoTSpy.Core.Enums;
 
 namespace IoTSpy.Api.Tests.Controllers;
 
@@ -38,8 +39,9 @@ public class AuthControllerTests
         userRepo.CountAsync(Arg.Any<CancellationToken>()).Returns(0);
 
         var auditRepo = Substitute.For<IAuditRepository>();
+        var apiKeyRepo = Substitute.For<IApiKeyRepository>();
 
-        var controller = new AuthController(auth, settingsRepo, userRepo, auditRepo);
+        var controller = new AuthController(auth, settingsRepo, userRepo, auditRepo, apiKeyRepo);
         controller.ControllerContext = new ControllerContext
         {
             HttpContext = new DefaultHttpContext()

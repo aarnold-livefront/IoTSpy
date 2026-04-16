@@ -6,18 +6,20 @@ import DatabaseTab from '../components/admin/DatabaseTab'
 import CertificatesTab from '../components/admin/CertificatesTab'
 import AuditLogTab from '../components/admin/AuditLogTab'
 import UsersTab from '../components/admin/UsersTab'
+import ApiKeysTab from '../components/admin/ApiKeysTab'
 import { useCurrentUser } from '../hooks/useAuth'
 import { useProxy } from '../hooks/useProxy'
 import { useTheme } from '../hooks/useTheme'
 import '../styles/admin.css'
 
-type AdminTab = 'database' | 'certificates' | 'audit' | 'users'
+type AdminTab = 'database' | 'certificates' | 'audit' | 'users' | 'apikeys'
 
 const TABS: { key: AdminTab; label: string }[] = [
   { key: 'database', label: 'Database' },
   { key: 'certificates', label: 'Certificates' },
   { key: 'audit', label: 'Audit Log' },
   { key: 'users', label: 'Users' },
+  { key: 'apikeys', label: 'API Keys' },
 ]
 
 export default function AdminPage() {
@@ -72,6 +74,7 @@ export default function AdminPage() {
           {activeTab === 'certificates' && <CertificatesTab />}
           {activeTab === 'audit' && <AuditLogTab />}
           {activeTab === 'users' && <UsersTab currentUsername={currentUser.username} />}
+          {activeTab === 'apikeys' && <ApiKeysTab />}
         </div>
       </div>
     </AppShell>

@@ -58,6 +58,9 @@ services.AddScoped<IOpenRtbEventRepository, OpenRtbEventRepository>();
         services.AddScoped<IAuditRepository, AuditRepository>();
         services.AddScoped<IDashboardLayoutRepository, DashboardLayoutRepository>();
 
+        // Phase 14 — API key management
+        services.AddScoped<IApiKeyRepository, ApiKeyRepository>();
+
         return services;
     }
 

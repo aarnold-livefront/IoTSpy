@@ -19,12 +19,12 @@ README / quick start: [`README.md`](../README.md)
 |---|---|
 | Backend projects | 7 (Core, Proxy, Protocols, Scanner, Manipulation, Storage, Api) |
 | Test projects | 8 (Core.Tests, Protocols.Tests, Manipulation.Tests, Scanner.Tests, Api.Tests, Proxy.Tests, Storage.Tests, Api.IntegrationTests) |
-| Backend tests | 479 (all passing) — includes Phase 10 decoders + Phase 11 multi-user/TLS/tests + Phase 12 API spec generation + Phase 20 admin/integration tests |
+| Backend tests | 503 (all passing) — includes Phase 10 decoders + Phase 11 multi-user/TLS/tests + Phase 12 API spec generation + Phase 14 API keys + Phase 20 admin/integration tests |
 | Frontend tests | 11+ component tests via Vitest + React Testing Library |
 | REST controllers | 15 (Auth, Proxy, Captures, Devices, Certificates, Scanner, Manipulation, PacketCapture, OpenRtb, ProtocolProxy, Report, ScheduledScan, Dashboard, ApiSpec, Admin) |
-| HTTP endpoints | 100+ |
+| HTTP endpoints | 105+ |
 | SignalR hubs | 2 (TrafficHub, PacketCaptureHub) — TrafficHub extended with WebSocket frame + MQTT message + anomaly alert subscriptions |
-| EF Core migrations | 13 (InitialCreate → AddProxyAutoStart) |
+| EF Core migrations | 14 (InitialCreate → AddApiKeyManagement) |
 | Frontend components | 82 TypeScript files across 16+ component directories |
 | Protocols supported | HTTP/HTTPS, TLS passthrough (JA3/JA3S), WebSocket, MQTT 3.1.1/5.0 (passive decode + active proxy), DNS/mDNS, CoAP (passive decode + active proxy), gRPC/Protobuf, Modbus TCP, OpenRTB 2.5, Datadog, Firehose, Splunk HEC, Azure Monitor |
 | Frontend design | Space Grotesk + IBM Plex Sans typography; teal (`#00c9b1`) accent color; radar SVG logo; responsive design (480px, 768px, 1024px breakpoints); dark/light theme toggle |
@@ -36,7 +36,7 @@ README / quick start: [`README.md`](../README.md)
 
 ## What has been built
 
-Phases 1–13 and 18–20 are complete. Phases 14–17 were deprioritized in favor of Phases 18–20 (frontend correctness, UX polish, admin operations) and remain valid candidates for future implementation. See the "Proposed phases" section below.
+Phases 1–14 and 18–20 are complete. Phases 15–17 were deprioritized in favor of Phases 18–20 (frontend correctness, UX polish, admin operations) and remain valid candidates for future implementation. See the "Proposed phases" section below.
 
 ### Phase 1 — Foundation
 
@@ -199,25 +199,26 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 
 ---
 
-## Proposed phases (14-17) — not yet implemented, may be revisited
-
-These phases were proposed in the original roadmap but deprioritized in favor of Phase 18-20 work (frontend correctness, UX polish, admin operations). They remain valid candidates for future implementation.
-
----
-
-### Phase 14 — API Key Management & Service Accounts
+### Phase 14 — API Key Management & Service Accounts ✅
 
 **Goal:** Enable programmatic/CI access to IoTSpy without sharing user credentials.
 
-| # | Task | Priority | Details |
-|---|---|---|---|
-| 14.1 | `ApiKey` model & repository | High | `ApiKey` entity: name, hashed secret, scopes, expiry, last-used timestamp, owner user ID; `IApiKeyRepository` |
-| 14.2 | API key issuance endpoint | High | `POST /api/auth/api-keys` (admin/operator) — generates a random 32-byte key, returns it once in plaintext, stores PBKDF2 hash |
-| 14.3 | API key authentication middleware | High | `ApiKeyAuthenticationHandler` — accepts `X-Api-Key` header; resolves key → user principal with role claims |
-| 14.4 | Scope enforcement | Medium | Fine-grained scope strings (`captures:read`, `scanner:write`, etc.) validated per endpoint via policy attribute |
-| 14.5 | Key rotation & revocation | Medium | `DELETE /api/auth/api-keys/{id}`, `POST /api/auth/api-keys/{id}/rotate`; rotation issues replacement and revokes old key |
-| 14.6 | API key frontend management | Medium | Admin panel for listing/creating/revoking keys; copy-to-clipboard on creation |
-| 14.7 | EF Core migration | High | `AddApiKeyManagement` migration — `ApiKeys` table |
+- **`ApiKey` model** — `Id`, `Name`, `KeyHash` (SHA-256 Base64, unique), `Scopes` (space-delimited), `ExpiresAt`, `LastUsedAt`, `OwnerId`, `IsRevoked`, `CreatedAt`
+- **`IApiKeyRepository` / `ApiKeyRepository`** — CRUD + `GetByHashAsync` for O(1) lookup at auth time
+- **API key issuance** — `POST /api/auth/api-keys` (admin/operator); generates `iotspy_<64-hex>` key, returns plaintext once, stores SHA-256 hash
+- **`ApiKeyAuthenticationHandler`** — ASP.NET Core custom scheme (`ApiKey`); reads `X-Api-Key` header, hashes it, looks up in DB, builds `ClaimsPrincipal` with owner's role + scope claims; fires and forgets `LastUsedAt` update
+- **Policy scheme forwarding** — `SmartScheme` auto-selects `ApiKey` scheme when `X-Api-Key` header is present, `JwtBearer` otherwise — all existing `[Authorize]` attributes work unchanged
+- **Scope enforcement** — `RequireScopeAttribute : IAuthorizationFilter`; JWT users bypass scope check; API key users must carry the required `scope` claim; 9 predefined scopes: `captures:read/write`, `scanner:read/write`, `manipulation:read/write`, `packets:read/write`, `admin`
+- **Key rotation** — `POST /api/auth/api-keys/{id}/rotate`; revokes old key, creates replacement with same name/scopes/expiry, returns new plaintext key once
+- **Key revocation** — `DELETE /api/auth/api-keys/{id}` sets `IsRevoked=true`; admins can revoke any key, operators only their own
+- **All operations audit-logged** via `AuditEntry`
+- **Frontend** — `ApiKeysTab` in Admin panel: table of all keys, scope badges, status, last-used; create dialog with scope checkboxes + optional expiry; copy-to-clipboard banner after creation/rotation; revoke/rotate per-row; confirmation guard on revoke
+- **EF Core migration** `AddApiKeyManagement` — `ApiKeys` table with unique index on `KeyHash`
+- **Tests** — `ApiKeyControllerTests` (11 tests): list, create, hash storage, revoke, rotate, hash determinism
+
+## Proposed phases (15-17) — not yet implemented, may be revisited
+
+These phases were proposed in the original roadmap but deprioritized. They remain valid candidates for future implementation.
 
 ---
 
@@ -392,7 +393,7 @@ dotnet run --project src/IoTSpy.Api
 - `IoTSpy.Protocols` has MQTT, DNS/mDNS, CoAP, WebSocket, gRPC/Protobuf, Modbus TCP, OpenRTB, and four telemetry decoders (Datadog, Firehose, Splunk HEC, Azure Monitor).
 - `IoTSpy.Scanner` has port scan, fingerprinting, credential testing, CVE lookup, config audit, and packet capture.
 - `IoTSpy.Manipulation` has rules engine, scripted breakpoints (C#/JS), replay, fuzzer, AI mock engine, packet capture analyzer, OpenRTB PII service, API spec generation, content replacement, and LLM-enhanced spec refinement.
-- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` — 13 migrations applied: InitialCreate, AddPhase2ProxySettings, AddPhase3Scanner, AddPhase4ManipulationFix, AddOpenRtbInspection, AddPacketCapture, AddMissingPhase7Changes, AddPhase9ScheduledScans, AddBodyCaptureDefaults, AddTlsPassthroughAndSslStrip, AddPhase11MultiUserAndAudit, AddApiSpecAndContentReplacement, AddProxyAutoStart. Run `dotnet ef migrations add <Name> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api` from the repo root.
+- EF Core migrations are in `src/IoTSpy.Storage/Migrations/` — 14 migrations applied: InitialCreate, AddPhase2ProxySettings, AddPhase3Scanner, AddPhase4ManipulationFix, AddOpenRtbInspection, AddPacketCapture, AddMissingPhase7Changes, AddPhase9ScheduledScans, AddBodyCaptureDefaults, AddTlsPassthroughAndSslStrip, AddPhase11MultiUserAndAudit, AddApiSpecAndContentReplacement, AddProxyAutoStart, AddApiKeyManagement. Run `dotnet ef migrations add <Name> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api` from the repo root.
 - **Multi-user RBAC** — `User` model with `UserRole` enum (Admin/Operator/Viewer); `IUserRepository`; JWT claims include `sub` (user ID) + `role`; admin-only user CRUD in `AuthController`; backward-compatible with legacy single-user auth (falls back to `ProxySettings.PasswordHash` when no `User` record matches).
 - **Audit log** — `AuditEntry` model + `IAuditRepository`; tracks login, user CRUD; admin-only GET `/api/auth/audit`.
 - **Dashboard customization** — `DashboardLayout` model + `IDashboardLayoutRepository`; per-user saved layouts with JSON config; `DashboardController` CRUD.

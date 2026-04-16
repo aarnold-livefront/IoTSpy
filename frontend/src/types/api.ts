@@ -220,6 +220,22 @@ export interface UserSummary {
   lastLoginAt: string | null
 }
 
+export interface ApiKeySummary {
+  id: string
+  name: string
+  scopes: string[]
+  expiresAt: string | null
+  lastUsedAt: string | null
+  ownerId: string
+  isRevoked: boolean
+  createdAt: string
+}
+
+export interface ApiKeyCreated extends ApiKeySummary {
+  /** Plaintext key — returned once at creation/rotation only. */
+  key: string
+}
+
 export interface RootCaSummary {
   id: string
   commonName: string

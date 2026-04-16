@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using IoTSpy.Api.Authentication;
 using IoTSpy.Api.Services;
 using IoTSpy.Core.Enums;
 using IoTSpy.Core.Interfaces;
@@ -13,12 +15,14 @@ public class AuthController(
     AuthService auth,
     IProxySettingsRepository settingsRepo,
     IUserRepository userRepo,
-    IAuditRepository auditRepo) : ControllerBase
+    IAuditRepository auditRepo,
+    IApiKeyRepository apiKeyRepo) : ControllerBase
 {
     public record LoginRequest(string Username, string Password);
     public record SetupRequest(string Password);
     public record CreateUserRequest(string Username, string Password, string? DisplayName, UserRole Role = UserRole.Viewer);
     public record UpdateUserRequest(string? DisplayName, UserRole? Role, bool? IsEnabled, string? Password);
+    public record CreateApiKeyRequest(string Name, string Scopes, DateTimeOffset? ExpiresAt);
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest req)
@@ -244,5 +248,164 @@ public class AuthController(
     {
         var entries = await auditRepo.GetRecentAsync(Math.Min(count, 500));
         return Ok(entries);
+    }
+
+    // ── API Key Management (Admin / Operator) ──────────────────
+
+    [Authorize(Roles = "admin,operator")]
+    [HttpGet("api-keys")]
+    public async Task<IActionResult> ListApiKeys()
+    {
+        // Admins see all keys; operators see only their own.
+        var isAdmin = User.IsInRole("admin");
+        List<ApiKey> keys;
+        if (isAdmin)
+        {
+            keys = await apiKeyRepo.GetAllAsync();
+        }
+        else
+        {
+            var userId = GetCurrentUserId();
+            if (userId == Guid.Empty) return Unauthorized();
+            keys = await apiKeyRepo.GetByOwnerAsync(userId);
+        }
+
+        return Ok(keys.Select(k => new
+        {
+            k.Id, k.Name,
+            scopes = k.Scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries),
+            k.ExpiresAt, k.LastUsedAt, k.OwnerId, k.IsRevoked, k.CreatedAt
+        }));
+    }
+
+    [Authorize(Roles = "admin,operator")]
+    [HttpPost("api-keys")]
+    public async Task<IActionResult> CreateApiKey([FromBody] CreateApiKeyRequest req)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == Guid.Empty)
+            return Unauthorized(new { error = "Cannot resolve current user ID" });
+
+        // Generate a 32-byte random key with the "iotspy_" prefix for easy identification.
+        var rawBytes = RandomNumberGenerator.GetBytes(32);
+        var plaintext = $"iotspy_{Convert.ToHexString(rawBytes).ToLowerInvariant()}";
+        var hash = ApiKeyAuthenticationHandler.HashKey(plaintext);
+
+        var key = new ApiKey
+        {
+            Name = req.Name,
+            KeyHash = hash,
+            Scopes = req.Scopes,
+            ExpiresAt = req.ExpiresAt,
+            OwnerId = userId,
+        };
+        await apiKeyRepo.CreateAsync(key);
+
+        await auditRepo.AddAsync(new AuditEntry
+        {
+            UserId = userId,
+            Username = User.Identity?.Name ?? "system",
+            Action = "CreateApiKey",
+            EntityType = "ApiKey",
+            EntityId = key.Id.ToString(),
+            Details = $"Created API key '{key.Name}' with scopes [{key.Scopes}]",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? ""
+        });
+
+        return Created($"/api/auth/api-keys/{key.Id}", new
+        {
+            key.Id, key.Name,
+            // Return the plaintext key ONCE — it is never retrievable after this response.
+            key = plaintext,
+            scopes = key.Scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries),
+            key.ExpiresAt, key.OwnerId, key.CreatedAt
+        });
+    }
+
+    [Authorize(Roles = "admin,operator")]
+    [HttpDelete("api-keys/{id:guid}")]
+    public async Task<IActionResult> RevokeApiKey(Guid id)
+    {
+        var existing = await apiKeyRepo.GetByIdAsync(id);
+        if (existing is null) return NotFound();
+
+        // Operators can only revoke their own keys.
+        if (!User.IsInRole("admin") && existing.OwnerId != GetCurrentUserId())
+            return Forbid();
+
+        existing.IsRevoked = true;
+        await apiKeyRepo.UpdateAsync(existing);
+
+        await auditRepo.AddAsync(new AuditEntry
+        {
+            UserId = GetCurrentUserId(),
+            Username = User.Identity?.Name ?? "system",
+            Action = "RevokeApiKey",
+            EntityType = "ApiKey",
+            EntityId = id.ToString(),
+            Details = $"Revoked API key '{existing.Name}'",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? ""
+        });
+
+        return NoContent();
+    }
+
+    [Authorize(Roles = "admin,operator")]
+    [HttpPost("api-keys/{id:guid}/rotate")]
+    public async Task<IActionResult> RotateApiKey(Guid id)
+    {
+        var existing = await apiKeyRepo.GetByIdAsync(id);
+        if (existing is null) return NotFound();
+
+        // Operators can only rotate their own keys.
+        if (!User.IsInRole("admin") && existing.OwnerId != GetCurrentUserId())
+            return Forbid();
+
+        // Revoke the old key.
+        existing.IsRevoked = true;
+        await apiKeyRepo.UpdateAsync(existing);
+
+        // Issue a new key with the same name, scopes, and expiry as the old one.
+        var rawBytes = RandomNumberGenerator.GetBytes(32);
+        var plaintext = $"iotspy_{Convert.ToHexString(rawBytes).ToLowerInvariant()}";
+        var hash = ApiKeyAuthenticationHandler.HashKey(plaintext);
+
+        var replacement = new ApiKey
+        {
+            Name = existing.Name,
+            KeyHash = hash,
+            Scopes = existing.Scopes,
+            ExpiresAt = existing.ExpiresAt,
+            OwnerId = existing.OwnerId,
+        };
+        await apiKeyRepo.CreateAsync(replacement);
+
+        await auditRepo.AddAsync(new AuditEntry
+        {
+            UserId = GetCurrentUserId(),
+            Username = User.Identity?.Name ?? "system",
+            Action = "RotateApiKey",
+            EntityType = "ApiKey",
+            EntityId = id.ToString(),
+            Details = $"Rotated API key '{existing.Name}' → new key {replacement.Id}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? ""
+        });
+
+        return Ok(new
+        {
+            replacement.Id, replacement.Name,
+            key = plaintext,
+            scopes = replacement.Scopes.Split(' ', StringSplitOptions.RemoveEmptyEntries),
+            replacement.ExpiresAt, replacement.OwnerId, replacement.CreatedAt,
+            revokedId = existing.Id
+        });
+    }
+
+    // ── Helpers ─────────────────────────────────────────────────
+
+    private Guid GetCurrentUserId()
+    {
+        var idClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(idClaim, out var id) ? id : Guid.Empty;
     }
 }
