@@ -54,7 +54,7 @@ src/
   IoTSpy.Api.IntegrationTests/ WebApplicationFactory integration tests
 frontend/                      Vite + React + TypeScript dashboard
 docs/
-  architecture.md              Full architecture spec
+  ARCHITECTURE.md              Full architecture spec
   PLAN.md                      Phased task list and roadmap
 ```
 
