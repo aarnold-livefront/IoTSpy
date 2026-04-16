@@ -183,7 +183,7 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Rich body viewer** — New `BodyViewer` component with three view modes: Pretty (content-type-aware JSON/XML/HTML with syntax highlighting), Raw (plain text), Hex (Wireshark-style offset/hex/ASCII dump, 16 bytes per row, capped at 8 KiB)
 - **Body viewer features** — Info toolbar shows Content-Type, Content-Encoding (e.g. `gzip ✓ decoded`), byte size; copy-to-clipboard button; unknown content types sniff JSON; images rendered as `<img>` via Blob URL
 - **Backend decompression** — Both proxy servers now decompress gzip/deflate/Brotli response bodies before DB write (original compressed bytes forwarded to client), making IoT JSON/HTML responses readable in UI
-- **Documentation updates** — README, AGENT.md, CLAUDE.md, PLAN.md, architecture.md updated with Linux `setcap` procedure, JSON enum serialization requirement, iOS TLS cert requirements, EF Core SQLite migration quirks
+- **Documentation updates** — README, AGENT.md, CLAUDE.md, PLAN.md, ARCHITECTURE.md updated with Linux `setcap` procedure, JSON enum serialization requirement, iOS TLS cert requirements, EF Core SQLite migration quirks
 
 ## Phase 20 — Admin UI & Body Viewer Stream Rendering
 

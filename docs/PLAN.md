@@ -100,7 +100,7 @@ export Auth__JwtSecret="your-32-char-secret" && dotnet build && dotnet test
     - Best for: "I want to see everything"
 
 ### External References
-- **[architecture.md](architecture.md)** — Full technical architecture
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** — Full technical architecture
 - **[../README.md](../README.md)** — Features, API reference, quick start
 - **[../CLAUDE.md](../CLAUDE.md)** — Project-specific commands
 
@@ -170,7 +170,7 @@ A: See [QUICK-REF.md](QUICK-REF.md#build--test)
 A: See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
 **Q: What's the architecture?**  
-A: See [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md) or [architecture.md](architecture.md)
+A: See [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md) or [ARCHITECTURE.md](ARCHITECTURE.md)
 
 **Q: What should I work on next?**  
 A: See [GAPS.md](GAPS.md) or [PHASES-ROADMAP.md](PHASES-ROADMAP.md)

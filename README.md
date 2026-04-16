@@ -521,7 +521,7 @@ src/
   IoTSpy.Api/           # ASP.NET Core host, 15 controllers, 2 SignalR hubs
 frontend/               # Vite 6 + React 19 + TypeScript dashboard
 docs/
-  architecture.md       # Full architecture spec
+  ARCHITECTURE.md       # Full architecture spec
   PLAN.md               # Implementation plan, gaps, and roadmap
 ```
 

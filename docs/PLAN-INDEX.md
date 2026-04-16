@@ -18,7 +18,7 @@ This is the primary navigation hub for all project planning, architecture, and i
 → **[README.md](../README.md)** — Feature list, quick start, API reference
 
 ### For Technical Deep Dives
-→ **[docs/architecture.md](architecture.md)** — Full architecture spec, data flow, project structure
+→ **[docs/ARCHITECTURE.md](ARCHITECTURE.md)** — Full architecture spec, data flow, project structure
 
 ### For Future Planning
 → **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** — Phase 21+, deprioritized phases, long-term vision
@@ -60,7 +60,7 @@ This is the primary navigation hub for all project planning, architecture, and i
 
 | Document | Purpose |
 |---|---|
-| **[architecture.md](architecture.md)** | Full technical architecture (in-depth) |
+| **[ARCHITECTURE.md](ARCHITECTURE.md)** | Full technical architecture (in-depth) |
 | **[README.md](../README.md)** | Feature list, quick start, API reference |
 | **[CLAUDE.md](../CLAUDE.md)** | Project-specific Claude Code skills & commands |
 
@@ -106,7 +106,7 @@ PHASES-COMPLETED.md     ~500 lines (all 20 phases)
 PHASES-ROADMAP.md       ~150 lines (future work)
 GAPS.md                 ~200 lines (issues + debt)
 DESIGN-DECISIONS.md     ~400 lines (patterns + rationale)
-architecture.md         ~700 lines (full architecture)
+ARCHITECTURE.md         ~700 lines (full architecture)
 README.md              ~590 lines (features + API ref)
 CLAUDE.md              ~100 lines (skills + commands)
 ```

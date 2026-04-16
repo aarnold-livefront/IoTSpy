@@ -38,7 +38,7 @@ IoTSpy.Scanner      Port scan, fingerprinting, CVE lookup, packet capture
 IoTSpy.Manipulation Rules engine, scripted breakpoints, replay, fuzzer, AI mock, OpenRTB PII, API spec generation, content replacement
 IoTSpy.*.Tests      Unit + integration tests
 frontend/           Vite 6 + React 19 + TypeScript dashboard
-docs/               architecture.md, PLAN.md
+docs/               ARCHITECTURE.md, PLAN.md
 ```
 
 ## Available skills
@@ -91,4 +91,4 @@ Restart the API after running `setcap`. See AGENT.md for full details.
 **JSON enum serialization:** `Program.cs` must configure `JsonStringEnumConverter` on *both* `AddControllers().AddJsonOptions(...)` and `AddSignalR().AddJsonProtocol(...)`. Missing the SignalR call causes numeric enum values in live-streamed captures, which crashes the frontend timeline.
 
 See `docs/PLAN.md` for the full phased task list, per-phase details, and roadmap.
-See `docs/architecture.md` for the full architecture spec.
+See `docs/ARCHITECTURE.md` for the full architecture spec.

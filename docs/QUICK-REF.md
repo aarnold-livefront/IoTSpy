@@ -244,7 +244,7 @@ curl http://localhost:5000/api/proxy/status \
 
 # I need to understand the architecture
 → See docs/DESIGN-DECISIONS.md
-→ See docs/architecture.md
+→ See docs/ARCHITECTURE.md
 
 # What's the current status?
 → See docs/PLAN-INDEX.md (quick status table)

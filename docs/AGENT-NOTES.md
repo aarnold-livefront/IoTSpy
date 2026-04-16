@@ -52,7 +52,7 @@ IoTSpy.Storage        — EF Core DbContext + repositories (SQLite/Postgres)
 IoTSpy.Api            — ASP.NET Core host (16 controllers, 3 SignalR hubs)
 IoTSpy.*.Tests        — Unit + integration tests (517 total)
 frontend/             — Vite 6 + React 19 + TypeScript dashboard
-docs/                 — architecture.md, PLAN.md, PHASES-*.md, GAPS.md, etc.
+docs/                 — ARCHITECTURE.md, PLAN.md, PHASES-*.md, GAPS.md, etc.
 ```
 
 ---
@@ -125,7 +125,7 @@ cd frontend && npm test
 7. **Register in DI** — `Program.cs`
 8. **Write tests** — `IoTSpy.*.Tests` (unit + integration)
 9. **Test locally** — `dotnet test` + manual via Scalar/frontend
-10. **Document** — Update README.md, architecture.md, PHASES-*.md as needed
+10. **Document** — Update README.md, ARCHITECTURE.md, PHASES-*.md as needed
 
 ### Frontend feature
 1. **Add API client** in `frontend/src/api/*.ts`
@@ -270,7 +270,7 @@ Changes to `.tsx`/`.ts`/`.css` files hot-reload in browser.
 1. **Branch name:** `claude/<feature>-X39rc` or match the existing convention
 2. **Commit message:** Clear, concise, past tense ("Added...", "Fixed...", "Updated...")
 3. **Run tests locally:** `dotnet test` + `npm test` (frontend)
-4. **Update docs:** README.md, architecture.md, PHASES-*.md as needed
+4. **Update docs:** README.md, ARCHITECTURE.md, PHASES-*.md as needed
 5. **No force pushes** unless explicitly authorized
 6. **Reference issues:** Link to related GitHub issues if applicable
 
@@ -292,7 +292,7 @@ Changes to `.tsx`/`.ts`/`.css` files hot-reload in browser.
 ## Documentation Index
 
 - **README.md** — Quick start, feature list, API reference
-- **docs/architecture.md** — Technical architecture, project structure, data flow
+- **docs/ARCHITECTURE.md** — Technical architecture, project structure, data flow
 - **docs/PLAN.md** — High-level overview and navigation hub
 - **docs/PHASES-COMPLETED.md** — All implemented phases (1-15, 18-20)
 - **docs/PHASES-ROADMAP.md** — Deprioritized phases (16-17), future work (Phase 21+)
@@ -304,7 +304,7 @@ Changes to `.tsx`/`.ts`/`.css` files hot-reload in browser.
 
 ## Need Help?
 
-1. **Architecture questions** — See `docs/architecture.md` and `docs/DESIGN-DECISIONS.md`
+1. **Architecture questions** — See `docs/ARCHITECTURE.md` and `docs/DESIGN-DECISIONS.md`
 2. **What to build next** — Check `docs/PHASES-ROADMAP.md` (Phase 21 recommended)
 3. **Known issues** — See `docs/GAPS.md` for open bugs and technical debt
 4. **Phase details** — `docs/PHASES-COMPLETED.md` has full descriptions with test counts
