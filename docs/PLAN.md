@@ -140,6 +140,23 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Frontend** — Drag-and-drop upload zone in `PanelPacketCapture` left panel; animated progress bar and packet count display during import; result summary (imported/skipped/sessions) shown after completion; Export PCAP button uses authenticated `fetch` → Blob download
 - **No migration required** — `Source` field is `[NotMapped]` consistent with `RawData`; no DB schema changes needed
 
+### Phase 14 — API Key Management & Service Accounts
+
+**Goal:** Enable programmatic/CI access to IoTSpy without sharing user credentials.
+
+- **`ApiKey` model** — `Id`, `Name`, `KeyHash` (SHA-256 Base64, unique), `Scopes` (space-delimited), `ExpiresAt`, `LastUsedAt`, `OwnerId`, `IsRevoked`, `CreatedAt`
+- **`IApiKeyRepository` / `ApiKeyRepository`** — CRUD + `GetByHashAsync` for O(1) lookup at auth time
+- **API key issuance** — `POST /api/auth/api-keys` (admin/operator); generates `iotspy_<64-hex>` key, returns plaintext once, stores SHA-256 hash
+- **`ApiKeyAuthenticationHandler`** — ASP.NET Core custom scheme (`ApiKey`); reads `X-Api-Key` header, hashes it, looks up in DB, builds `ClaimsPrincipal` with owner's role + scope claims; fires and forgets `LastUsedAt` update
+- **Policy scheme forwarding** — `SmartScheme` auto-selects `ApiKey` scheme when `X-Api-Key` header is present, `JwtBearer` otherwise — all existing `[Authorize]` attributes work unchanged
+- **Scope enforcement** — `RequireScopeAttribute : IAuthorizationFilter`; JWT users bypass scope check; API key users must carry the required `scope` claim; 9 predefined scopes: `captures:read/write`, `scanner:read/write`, `manipulation:read/write`, `packets:read/write`, `admin`
+- **Key rotation** — `POST /api/auth/api-keys/{id}/rotate`; revokes old key, creates replacement with same name/scopes/expiry, returns new plaintext key once
+- **Key revocation** — `DELETE /api/auth/api-keys/{id}` sets `IsRevoked=true`; admins can revoke any key, operators only their own
+- **All operations audit-logged** via `AuditEntry`
+- **Frontend** — `ApiKeysTab` in Admin panel: table of all keys, scope badges, status, last-used; create dialog with scope checkboxes + optional expiry; copy-to-clipboard banner after creation/rotation; revoke/rotate per-row; confirmation guard on revoke
+- **EF Core migration** `AddApiKeyManagement` — `ApiKeys` table with unique index on `KeyHash`
+- **Tests** — `ApiKeyControllerTests` (11 tests): list, create, hash storage, revoke, rotate, hash determinism
+
 ### Phase 18 — React Frontend Performance & Correctness
 
 **Goal:** Fix React best-practices issues identified in code audit; improve rendering performance and eliminate memory leaks.
@@ -198,23 +215,6 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Integration tests** — `AdminControllerTests` (10 tests), `CertificatesControllerTests` (2 tests), `UserSafetyGuardsTests` (3 tests)
 
 ---
-
-### Phase 14 — API Key Management & Service Accounts ✅
-
-**Goal:** Enable programmatic/CI access to IoTSpy without sharing user credentials.
-
-- **`ApiKey` model** — `Id`, `Name`, `KeyHash` (SHA-256 Base64, unique), `Scopes` (space-delimited), `ExpiresAt`, `LastUsedAt`, `OwnerId`, `IsRevoked`, `CreatedAt`
-- **`IApiKeyRepository` / `ApiKeyRepository`** — CRUD + `GetByHashAsync` for O(1) lookup at auth time
-- **API key issuance** — `POST /api/auth/api-keys` (admin/operator); generates `iotspy_<64-hex>` key, returns plaintext once, stores SHA-256 hash
-- **`ApiKeyAuthenticationHandler`** — ASP.NET Core custom scheme (`ApiKey`); reads `X-Api-Key` header, hashes it, looks up in DB, builds `ClaimsPrincipal` with owner's role + scope claims; fires and forgets `LastUsedAt` update
-- **Policy scheme forwarding** — `SmartScheme` auto-selects `ApiKey` scheme when `X-Api-Key` header is present, `JwtBearer` otherwise — all existing `[Authorize]` attributes work unchanged
-- **Scope enforcement** — `RequireScopeAttribute : IAuthorizationFilter`; JWT users bypass scope check; API key users must carry the required `scope` claim; 9 predefined scopes: `captures:read/write`, `scanner:read/write`, `manipulation:read/write`, `packets:read/write`, `admin`
-- **Key rotation** — `POST /api/auth/api-keys/{id}/rotate`; revokes old key, creates replacement with same name/scopes/expiry, returns new plaintext key once
-- **Key revocation** — `DELETE /api/auth/api-keys/{id}` sets `IsRevoked=true`; admins can revoke any key, operators only their own
-- **All operations audit-logged** via `AuditEntry`
-- **Frontend** — `ApiKeysTab` in Admin panel: table of all keys, scope badges, status, last-used; create dialog with scope checkboxes + optional expiry; copy-to-clipboard banner after creation/rotation; revoke/rotate per-row; confirmation guard on revoke
-- **EF Core migration** `AddApiKeyManagement` — `ApiKeys` table with unique index on `KeyHash`
-- **Tests** — `ApiKeyControllerTests` (11 tests): list, create, hash storage, revoke, rotate, hash determinism
 
 ## Proposed phases (15-17) — not yet implemented, may be revisited
 
