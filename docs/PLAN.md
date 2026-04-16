@@ -234,6 +234,7 @@ These phases were proposed in the original roadmap but deprioritized. They remai
 | 15.4 | Presence indicators | Low | Show which users are currently active on which device/panel in the dashboard header |
 | 15.5 | Activity feed | Medium | Per-session activity log (user X started scan, user Y added rule) broadcast to all participants |
 | 15.6 | Session export | Medium | Export a complete investigation session (captures + annotations + scan findings + manipulation rules) as a ZIP archive |
+| 15.7 | AirDrop Sharing | Medium-High | AirDrop session sharing for Apple mobile and desktop devices - compatible with Proxyman |
 
 Backend: `IoTSpy.Core` — `InvestigationSession`, `CaptureAnnotation` models; `IoTSpy.Storage` — migration.
 
