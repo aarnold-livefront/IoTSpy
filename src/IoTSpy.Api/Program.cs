@@ -1,3 +1,4 @@
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.RateLimiting;
 using IoTSpy.Api.Authentication;
@@ -18,6 +19,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
+using Prometheus;
 using Scalar.AspNetCore;
 using Serilog;
 
@@ -27,6 +29,38 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((ctx, cfg) =>
     cfg.ReadFrom.Configuration(ctx.Configuration)
        .Enrich.FromLogContext());
+
+// ── Kestrel HTTPS (Phase 16.1) ────────────────────────────────────────────────
+builder.Services.AddSingleton<HttpsCertificateHolder>();
+
+var certPath = builder.Configuration["Kestrel:Certificate:Path"];
+var certPassword = builder.Configuration["Kestrel:Certificate:Password"];
+var leEnabled = builder.Configuration.GetValue<bool>("Kestrel:LetsEncrypt:Enabled");
+
+if (leEnabled || !string.IsNullOrEmpty(certPath))
+{
+    builder.WebHost.UseKestrel((ctx, opts) =>
+    {
+        opts.ListenAnyIP(5000);
+        opts.ListenAnyIP(5001, listen =>
+        {
+            if (!string.IsNullOrEmpty(certPath) && File.Exists(certPath))
+            {
+                listen.UseHttps(certPath, certPassword);
+            }
+            else
+            {
+                // Let's Encrypt: cert populated by CertesLetsEncryptService after startup
+                var holder = opts.ApplicationServices.GetRequiredService<HttpsCertificateHolder>();
+                listen.UseHttps(https =>
+                    https.ServerCertificateSelector = (_, _) => holder.Certificate);
+            }
+        });
+    });
+}
+
+if (leEnabled)
+    builder.Services.AddHostedService<CertesLetsEncryptService>();
 
 // ── Storage ─────────────────────────────────────────────────────────────────
 var dbProvider = builder.Configuration["Database:Provider"] ?? "sqlite";
@@ -179,6 +213,15 @@ builder.Services.AddSingleton<IAlertingService, AlertingService>();
 // ── Scheduled Scans (Phase 9.5) ───────────────────────────────────────────────
 builder.Services.AddHostedService<ScheduledScanService>();
 
+// ── Plugin system (Phase 16.4) ────────────────────────────────────────────────
+builder.Services.AddSingleton<PluginLoaderService>();
+builder.Services.AddSingleton<IPluginRegistry>(sp =>
+{
+    var svc = sp.GetRequiredService<PluginLoaderService>();
+    svc.Initialize();
+    return svc;
+});
+
 // ── CORS (for Vite dev server) ─────────────────────────────────────────────
 builder.Services.AddCors(opts => opts.AddDefaultPolicy(policy =>
     policy.WithOrigins(
@@ -214,6 +257,16 @@ await using (var scope = app.Services.CreateAsyncScope())
 }
 
 // ── Middleware ────────────────────────────────────────────────────────────────
+
+// ACME HTTP-01 challenge endpoint (Let's Encrypt)
+if (leEnabled)
+{
+    app.Map("/.well-known/acme-challenge/{token}", (string token, CertesLetsEncryptService le) =>
+        le.TryGetChallenge(token, out var keyAuth)
+            ? Results.Text(keyAuth, "text/plain")
+            : Results.NotFound());
+}
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -275,6 +328,9 @@ app.MapHealthChecks("/ready", new HealthCheckOptions
         await ctx.Response.WriteAsync(result);
     }
 });
+
+// ── Prometheus metrics endpoint (Phase 16.6) ─────────────────────────────────
+app.MapMetrics("/metrics").RequireAuthorization();
 
 // SPA fallback — any unmatched route serves index.html for client-side routing
 app.MapFallbackToFile("index.html");

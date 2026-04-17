@@ -1,29 +1,32 @@
 # IoTSpy — Roadmap & Future Phases
 
-This document covers deprioritized phases (16–17), proposed future work (Phase 21+), and long-term enhancement candidates.
+This document covers proposed future work (Phase 17, Phase 21+) and long-term enhancement candidates.
 
-See [PHASES-COMPLETED.md](PHASES-COMPLETED.md) for all implemented phases 1–15 and 18–20.
+See [PHASES-COMPLETED.md](PHASES-COMPLETED.md) for all implemented phases 1–16 and 18–20.
 
 ---
 
-## Proposed Phases (16–17) — Deprioritized
-
-These phases were proposed in the original roadmap but deprioritized. They remain valid candidates for future implementation if team needs change.
-
-### Phase 16 — Deployment & Operations
+## Phase 16 — Deployment & Operations ✅ COMPLETE
 
 **Goal:** Make IoTSpy production-ready for team deployments with proper TLS, container orchestration, and operational tooling.
 
-| # | Task | Priority | Details |
+| # | Task | Status | Details |
 |---|---|---|---|
-| 16.1 | Kestrel HTTPS for the API | High | Configure Kestrel to serve the REST + SignalR API over TLS; support certificate path + password config or Let's Encrypt via `Certes` |
-| 16.2 | Kubernetes Helm chart | Medium | Helm chart in `deploy/helm/iotspy/`; values for replica count, image tag, DB connection, secret management; Ingress with TLS annotation |
-| 16.3 | Docker Compose improvements | Medium | Add a `docker-compose.prod.yml` with Postgres, pgAdmin, and Traefik reverse proxy; separate from dev compose |
-| 16.4 | Plugin system for protocol decoders | Medium | `IPluginDecoder` interface loaded from a `plugins/` directory via MEF/AssemblyLoadContext; allows community-contributed decoders without rebuilding |
-| 16.5 | LDAP / SAML SSO | Low | External identity provider integration; map LDAP groups to `UserRole`; `ExternalAuthController` |
-| 16.6 | Metrics endpoint (Prometheus) | Medium | `GET /metrics` via `prometheus-net.AspNetCore`; expose proxy request counts, scan durations, anomaly alert rates, capture queue depth |
-| 16.7 | Alerting integrations | Medium | Webhook targets for Slack, Teams, and PagerDuty; triggered on high-severity scan findings and anomaly alerts |
-| 16.8 | Distributed mode (multi-node) | Low | Redis-backed SignalR backplane; shared Postgres; multiple IoTSpy nodes behind a load balancer covering different network segments |
+| 16.1 | Kestrel HTTPS for the API | ✅ | `HttpsCertificateHolder` singleton + `CertesLetsEncryptService`; cert file or Let's Encrypt via `Certes`; HTTPS on port 5001 |
+| 16.2 | Kubernetes Helm chart | ✅ | `deploy/helm/iotspy/` — Chart.yaml, values.yaml, Deployment, Service, ConfigMap, Secret, Ingress, PVC, HPA, ServiceAccount |
+| 16.3 | Docker Compose improvements | ✅ | `docker-compose.prod.yml` with Postgres 17, pgAdmin, Traefik v3 reverse proxy with automatic TLS |
+| 16.4 | Plugin system for protocol decoders | ✅ | `IPluginDecoder` + `IPluginRegistry` in Core; `PluginLoaderService` via `AssemblyLoadContext`; `PluginsController` REST API |
+| 16.5 | LDAP / SAML SSO | — | Deprioritized (Low) |
+| 16.6 | Metrics endpoint (Prometheus) | ✅ | `/metrics` via `prometheus-net.AspNetCore`; `IoTSpyMetrics` with proxy requests, scan durations, anomaly alerts, capture queue depth |
+| 16.7 | Alerting integrations | ✅ | Slack (blocks API), Teams (MessageCard), PagerDuty Events API v2; severity threshold filtering |
+| 16.8 | Distributed mode (multi-node) | — | Deprioritized (Low) |
+| 16.9 | NAS APK package support | ✅ | `docker-compose.nas.yml`; `deploy/nas/asustor/` APK (apkg.info, lifecycle scripts, webman CGI); `scripts/build-asustor-apk.sh`; multi-arch `release.yml` CI publishing to GHCR |
+
+---
+
+## Proposed Phase (17) — Deprioritized
+
+These phases were proposed in the original roadmap but deprioritized. They remain valid candidates for future implementation if team needs change.
 
 ### Phase 17 — Protocol Expansion (Non-IP IoT)
 

@@ -1,0 +1,49 @@
+# docker-compose.nas.yml — IoTSpy for Asustor NAS (and other ARM/x86 NAS devices)
+#
+# This file is managed by the Asustor APK lifecycle scripts.
+# To run manually:
+#   docker compose -f /volume1/IoTSpy/docker-compose.yml --env-file /volume1/IoTSpy/.env up -d
+#
+# Key differences from docker-compose.yml (dev):
+#   • Pre-built GHCR image (no local build)
+#   • Bind mounts to /volume1/IoTSpy/ (Asustor storage convention)
+#   • network_mode: host — required for ARP spoofing / transparent proxy
+#     (comment out and add port mappings below if you only need the explicit proxy on :8888)
+#   • cap_add NET_RAW + NET_ADMIN — required for SharpPcap / packet injection
+#   • Resource limits tuned for ARM NAS hardware (1 CPU / 512 MB)
+
+services:
+  iotspy:
+    image: ghcr.io/aarnold-livefront/iotspy:${IOTSPY_VERSION:-latest}
+    container_name: iotspy
+    environment:
+      - Auth__JwtSecret=${AUTH_JWT_SECRET}
+      - Database__Provider=sqlite
+      - Database__ConnectionString=Data Source=/data/iotspy.db
+      - Frontend__Origin=http://${NAS_HOST:-localhost}:5000
+      - ASPNETCORE_ENVIRONMENT=Production
+    volumes:
+      - /volume1/IoTSpy/data:/data
+      - /volume1/IoTSpy/logs:/app/logs
+      - /volume1/IoTSpy/plugins:/app/plugins
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    # host networking is required for transparent proxy / ARP spoofing.
+    # In host mode the container shares the NAS network stack, so ports 5000 and 8888
+    # are accessible directly without port mapping.
+    # Comment out network_mode and uncomment the ports block below for bridge mode
+    # (explicit proxy on :8888 still works; transparent proxy / ARP spoof will not).
+    network_mode: host
+    # ports:
+    #   - "5000:5000"
+    #   - "8888:8888"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M

@@ -1,0 +1,14 @@
+apiVersion: v2
+name: iotspy
+description: IoT network security research platform — transparent MITM proxy, protocol analyzer, pen-test suite.
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - iot
+  - security
+  - network
+  - proxy
+home: https://github.com/anthropics/iotspy
+maintainers:
+  - name: IoTSpy Team

@@ -24,14 +24,20 @@ RUN dotnet publish src/IoTSpy.Api/IoTSpy.Api.csproj \
 # ── Stage 3: Runtime ──────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 
+# SharpPcap / PacketDotNet require libpcap at runtime on Linux
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpcap0.8 \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY --from=backend-build /publish ./
 COPY --from=frontend-build /app/frontend/dist ./wwwroot
 
-# 5000 = REST API / SignalR / static frontend
+# 5000 = REST API / SignalR / static frontend (HTTP)
+# 5001 = REST API / SignalR (HTTPS — requires Kestrel:Certificate or LetsEncrypt config)
 # 8888 = explicit HTTP/HTTPS proxy listener
-EXPOSE 5000 8888
+EXPOSE 5000 5001 8888
 
 ENV ASPNETCORE_URLS=http://+:5000
 ENV ASPNETCORE_ENVIRONMENT=Production
