@@ -74,11 +74,12 @@ See `.dev/claude-skills/README.md` for full details.
 
 ## Current state
 
-All phases 1–15 plus OpenRTB inspection, TLS passthrough/SSL stripping, API Spec Generation & Content-Aware Mocking, and collaboration are complete:
+All phases 1–16 plus OpenRTB inspection, TLS passthrough/SSL stripping, API Spec Generation & Content-Aware Mocking, and collaboration are complete:
 - 517 backend tests across 8 test projects; 11+ frontend component tests
-- 16 REST controllers, 120+ endpoints
+- 17 REST controllers, 120+ endpoints (added `PluginsController`)
 - 15 EF Core migrations up through `AddPhase15Collaboration`
 - GitHub Actions CI at `.github/workflows/ci.yml`
+- Helm chart at `deploy/helm/iotspy/`; production Docker Compose at `docker-compose.prod.yml`
 
 ### Operational notes
 

@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "iotspy.fullname" . }}-config
+  labels:
+    {{- include "iotspy.labels" . | nindent 4 }}
+data:
+  ASPNETCORE_ENVIRONMENT: "Production"
+  Database__Provider: {{ .Values.database.provider | quote }}
+  {{- if .Values.database.connectionString }}
+  Database__ConnectionString: {{ .Values.database.connectionString | quote }}
+  {{- else if eq .Values.database.provider "sqlite" }}
+  Database__ConnectionString: "Data Source=/data/iotspy.db"
+  {{- end }}
+  {{- if .Values.frontend.origin }}
+  Frontend__Origin: {{ .Values.frontend.origin | quote }}
+  {{- end }}
+  Alerting__Enabled: {{ .Values.alerting.enabled | quote }}
+  {{- if .Values.alerting.slack.webhookUrl }}
+  Alerting__Slack__WebhookUrl: {{ .Values.alerting.slack.webhookUrl | quote }}
+  {{- end }}
+  {{- if .Values.alerting.teams.webhookUrl }}
+  Alerting__Teams__WebhookUrl: {{ .Values.alerting.teams.webhookUrl | quote }}
+  {{- end }}
+  {{- if .Values.alerting.pagerduty.integrationKey }}
+  Alerting__PagerDuty__IntegrationKey: {{ .Values.alerting.pagerduty.integrationKey | quote }}
+  Alerting__PagerDuty__MinimumSeverity: {{ .Values.alerting.pagerduty.minimumSeverity | quote }}
+  {{- end }}

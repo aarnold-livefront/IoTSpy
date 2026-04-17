@@ -1,0 +1,106 @@
+services:
+
+  # ── Traefik reverse proxy ──────────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.3
+    command:
+      - --api.dashboard=false
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --certificatesresolvers.le.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.le.acme.storage=/acme/acme.json
+      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-acme:/acme
+    restart: unless-stopped
+    networks:
+      - iotspy-net
+
+  # ── IoTSpy application ─────────────────────────────────────────────────────
+  iotspy:
+    build: .
+    expose:
+      - "5000"   # internal only — Traefik routes from 443
+      - "8888"
+    ports:
+      - "8888:8888"   # proxy listener exposed directly
+    environment:
+      - Auth__JwtSecret=${AUTH_JWT_SECRET:?AUTH_JWT_SECRET must be set (min 32 chars)}
+      - Database__Provider=postgres
+      - Database__ConnectionString=Host=postgres;Port=5432;Database=iotspy;Username=iotspy;Password=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      - Frontend__Origin=https://${IOTSPY_DOMAIN:?IOTSPY_DOMAIN must be set}
+      - ASPNETCORE_ENVIRONMENT=Production
+    volumes:
+      - iotspy-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - iotspy-net
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.iotspy.rule=Host(`${IOTSPY_DOMAIN}`)
+      - traefik.http.routers.iotspy.entrypoints=websecure
+      - traefik.http.routers.iotspy.tls.certresolver=le
+      - traefik.http.services.iotspy.loadbalancer.server.port=5000
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      - POSTGRES_DB=iotspy
+      - POSTGRES_USER=iotspy
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - iotspy-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U iotspy -d iotspy"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── pgAdmin ────────────────────────────────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_EMAIL:-admin@iotspy.local}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PASSWORD:-changeme}
+      - PGADMIN_CONFIG_SERVER_MODE=True
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=True
+    expose:
+      - "80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - iotspy-net
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pgadmin.rule=Host(`pgadmin.${IOTSPY_DOMAIN}`)
+      - traefik.http.routers.pgadmin.entrypoints=websecure
+      - traefik.http.routers.pgadmin.tls.certresolver=le
+      - traefik.http.services.pgadmin.loadbalancer.server.port=80
+
+volumes:
+  iotspy-data:
+  postgres-data:
+  pgadmin-data:
+  traefik-acme:
+
+networks:
+  iotspy-net:
+    driver: bridge

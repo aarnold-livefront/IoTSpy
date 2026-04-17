@@ -1,0 +1,20 @@
+{
+  "package": "IoTSpy",
+  "version": "IOTSPY_VERSION",
+  "depends": "",
+  "conflicts": "",
+  "description": "IoT network security research platform — transparent MITM proxy, protocol analyzer, and pen-test suite.",
+  "maintainer": "IoTSpy Team",
+  "email": "annalise@annagram.io",
+  "website": "https://github.com/aarnold-livefront/IoTSpy",
+  "packer": "IoTSpy Team",
+  "architecture": "IOTSPY_ARCH",
+  "firmware": "3.0.0",
+  "model": "",
+  "port_forward": [
+    { "protocol": "tcp", "src": "5000", "desc": "IoTSpy Web UI & API" },
+    { "protocol": "tcp", "src": "8888", "desc": "IoTSpy Proxy Listener" }
+  ],
+  "dsmuidir": "webman/3rdparty/IoTSpy",
+  "dsmuidirname": "IoTSpy"
+}

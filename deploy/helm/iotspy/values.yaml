@@ -1,0 +1,144 @@
+# Default values for iotspy Helm chart.
+# Override with --values or --set on helm install/upgrade.
+
+replicaCount: 1
+
+image:
+  repository: iotspy
+  tag: "latest"
+  pullPolicy: IfNotPresent
+
+# Container name overrides
+nameOverride: ""
+fullnameOverride: ""
+
+# ── Service account ─────────────────────────────────────────────────────────
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# ── Pod annotations / labels ────────────────────────────────────────────────
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "5000"
+  prometheus.io/path: "/metrics"
+
+podLabels: {}
+
+# ── Security context ────────────────────────────────────────────────────────
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false   # needs /tmp and /data writes
+
+# ── Services ────────────────────────────────────────────────────────────────
+service:
+  type: ClusterIP
+  port: 5000
+  httpsPort: 5001
+  proxyPort: 8888
+
+# ── Ingress ─────────────────────────────────────────────────────────────────
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+  hosts:
+    - host: iotspy.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: iotspy-tls
+      hosts:
+        - iotspy.example.com
+
+# ── Persistent storage ───────────────────────────────────────────────────────
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  # Existing PVC name (leave blank to create a new one)
+  existingClaim: ""
+
+# ── Database ────────────────────────────────────────────────────────────────
+database:
+  # provider: sqlite | postgres
+  provider: sqlite
+  # For postgres, set connectionString explicitly or use the bundled postgres sub-chart
+  connectionString: ""
+
+# ── Authentication ───────────────────────────────────────────────────────────
+auth:
+  # Required — set via --set auth.jwtSecret=... or a pre-existing secret
+  jwtSecret: ""
+  existingSecret: ""
+  existingSecretKey: "jwt-secret"
+
+# ── HTTPS / TLS (Kestrel direct — alternative to Ingress TLS) ───────────────
+https:
+  enabled: false
+  certSecretName: ""   # K8s TLS secret: data.tls.crt + data.tls.key
+
+# ── Frontend origin for CORS ────────────────────────────────────────────────
+frontend:
+  origin: ""
+
+# ── Alerting ─────────────────────────────────────────────────────────────────
+alerting:
+  enabled: false
+  slack:
+    webhookUrl: ""
+  teams:
+    webhookUrl: ""
+  pagerduty:
+    integrationKey: ""
+    minimumSeverity: "Critical"
+
+# ── Resource limits ──────────────────────────────────────────────────────────
+resources:
+  requests:
+    cpu: "250m"
+    memory: "256Mi"
+  limits:
+    cpu: "2000m"
+    memory: "1Gi"
+
+# ── Horizontal Pod Autoscaler ────────────────────────────────────────────────
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 75
+  targetMemoryUtilizationPercentage: 80
+
+# ── Liveness / readiness probes ──────────────────────────────────────────────
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 5000
+  initialDelaySeconds: 15
+  periodSeconds: 20
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 5000
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  failureThreshold: 5
+
+# ── Node selector / tolerations / affinity ──────────────────────────────────
+nodeSelector: {}
+tolerations: []
+affinity: {}

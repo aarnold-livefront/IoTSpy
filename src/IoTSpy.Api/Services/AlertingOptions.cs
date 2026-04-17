@@ -7,6 +7,9 @@ public class AlertingOptions
     public bool Enabled { get; set; } = false;
     public WebhookOptions? Webhook { get; set; }
     public EmailOptions? Email { get; set; }
+    public SlackOptions? Slack { get; set; }
+    public TeamsOptions? Teams { get; set; }
+    public PagerDutyOptions? PagerDuty { get; set; }
 }
 
 public class WebhookOptions
@@ -24,4 +27,26 @@ public class EmailOptions
     public string? To { get; set; }
     public string? Username { get; set; }
     public string? Password { get; set; }
+}
+
+public class SlackOptions
+{
+    /// <summary>Slack Incoming Webhook URL from api.slack.com/apps.</summary>
+    public string? WebhookUrl { get; set; }
+    /// <summary>Optional channel override (e.g. #alerts). Leave blank to use the webhook default.</summary>
+    public string? Channel { get; set; }
+}
+
+public class TeamsOptions
+{
+    /// <summary>Microsoft Teams Incoming Webhook connector URL.</summary>
+    public string? WebhookUrl { get; set; }
+}
+
+public class PagerDutyOptions
+{
+    /// <summary>PagerDuty Events API v2 integration key (routing_key).</summary>
+    public string? IntegrationKey { get; set; }
+    /// <summary>Minimum severity that triggers a PagerDuty incident. Defaults to Critical.</summary>
+    public string MinimumSeverity { get; set; } = "Critical";
 }

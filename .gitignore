@@ -496,3 +496,6 @@ $RECYCLE.BIN/
 *.swp
 .claude/
 .superpowers/
+
+# Built APK artifacts
+dist/
