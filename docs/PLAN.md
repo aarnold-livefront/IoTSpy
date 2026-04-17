@@ -28,9 +28,9 @@ export Auth__JwtSecret="your-32-char-secret" && dotnet build && dotnet test
 → **[SKILLS-PLUGINS.md](SKILLS-PLUGINS.md)** — When/how to use `/dotnet-engineer`, `/security-code-review`, `/threat-modeling`, etc.
 
 ### "What should I work on next?"
-→ **[GAPS.md](GAPS.md)** — Known issues, tech debt, suggestions for next steps
+→ **[GAPS.md](GAPS.md)** — Known issues, API gaps, security hardening, tech debt
 
-→ **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** — Phase 21+ and deprioritized Phase 17
+→ **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** — Phases 21–22+, deprioritized Phase 17
 
 ### "What's been completed?"
 → **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** — All 21 active phases with details and test counts
@@ -90,8 +90,8 @@ export Auth__JwtSecret="your-32-char-secret" && dotnet build && dotnet test
    - Future phases (21+) and deprioritized Phase 17
    - Best for: "What's next?"
 
-9. **[GAPS.md](GAPS.md)** (200 lines)
-   - Known issues, tech debt, suggestions
+9. **[GAPS.md](GAPS.md)** (350 lines)
+   - Known issues, API gaps, security hardening, tech debt, suggestions
    - Best for: "What should I work on?"
 
 ### Comprehensive Reference
