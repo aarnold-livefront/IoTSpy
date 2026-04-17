@@ -1,6 +1,6 @@
 # IoTSpy — Completed Phases (1–15, 18–20)
 
-This document details all implemented phases. Phases 1–15 and 18–20 are complete and production-ready. Phases 16–17 were deprioritized; see [PHASES-ROADMAP.md](PHASES-ROADMAP.md) for future work.
+This document details all implemented phases. Phases 1–16 and 18–20 are complete and production-ready. Phase 17 remains deprioritized; see [PHASES-ROADMAP.md](PHASES-ROADMAP.md) for the future roadmap.
 
 ---
 
@@ -197,3 +197,16 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Admin controller** — `POST /api/admin/purge`, `GET /api/admin/export`, `POST /api/certificates/root-ca/regenerate`; admin-role gated; all destructive operations audit-logged
 - **Stream rendering** — `detectStream()` identifies SSE (`text/event-stream`) and NDJSON (`application/x-ndjson`, `application/jsonl`); `StreamEventRow` component renders collapsible per-event rows with chevron, index, label, byte count, optional SSE metadata; expand/collapse-all toggle
 - **Integration tests** — `AdminControllerTests` (10 tests), `CertificatesControllerTests` (2 tests), `UserSafetyGuardsTests` (3 tests)
+
+## Phase 16 — Deployment & Operations
+
+**Goal:** Make IoTSpy production-ready for team deployments with proper TLS, container orchestration, observability, alerting, and package distribution.
+
+- **Kestrel HTTPS (16.1)** — `HttpsCertificateHolder` singleton + `CertesLetsEncryptService`; certificate file or Let's Encrypt via `Certes`; HTTPS on port 5001
+- **Kubernetes Helm chart (16.2)** — `deploy/helm/iotspy/` — Chart.yaml, values.yaml, Deployment, Service, ConfigMap, Secret, Ingress, PVC, HPA, ServiceAccount
+- **Docker Compose improvements (16.3)** — `docker-compose.prod.yml` with Postgres 17, pgAdmin, Traefik v3 reverse proxy with automatic TLS
+- **Plugin system for protocol decoders (16.4)** — `IPluginDecoder` + `IPluginRegistry` in Core; `PluginLoaderService` via `AssemblyLoadContext`; `PluginsController` REST API
+- **Metrics endpoint (16.6)** — `/metrics` via `prometheus-net.AspNetCore`; `IoTSpyMetrics` with proxy requests, scan durations, anomaly alerts, capture queue depth
+- **Alerting integrations (16.7)** — Slack (blocks API), Teams (MessageCard), PagerDuty Events API v2; severity threshold filtering
+- **NAS APK package support (16.9)** — `docker-compose.nas.yml`; `deploy/nas/asustor/` APK (apkg.info, lifecycle scripts, webman CGI); `scripts/build-asustor-apk.sh`; multi-arch `release.yml` CI publishing to GHCR
+- **Deprioritized within Phase 16** — LDAP/SAML SSO (16.5) and distributed multi-node mode (16.8) remain out of scope; see [GAPS.md](GAPS.md)

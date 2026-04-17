@@ -8,13 +8,17 @@ This document tracks remaining gaps, known limitations, and technical debt. Item
 
 | Gap | Description | Severity | Status | Notes |
 |---|---|---|---|---|
-| No HTTPS for the API itself | The API serves on plain HTTP; TLS termination is assumed external (reverse proxy, k8s ingress) | Low | Open | See Phase 16.1 for future work |
 | No Bluetooth/Zigbee/Z-Wave | IoT protocols beyond IP-based networking are not supported | Low | Open | See Phase 17 for future work |
 | Customization of CA Certificate | Add support for customizing Name, Organization, and other properties on the proxy CA certificate | Medium | Open | UX enhancement; currently uses hardcoded values |
+| No LDAP / SAML SSO | Enterprise single sign-on not implemented | Low | Open | Deprioritized in Phase 16.5; valid candidate for future work |
+| No distributed / multi-node mode | Single-instance proxy per deployment; horizontal scaling requires Redis backplane | Low | Open | Deprioritized in Phase 16.8; see Design Assumptions |
 
 ---
 
 ## Resolved Items
+
+### Phase 16 (Deployment & Operations)
+- ~~No HTTPS for the API itself~~ — `HttpsCertificateHolder` + `CertesLetsEncryptService` added in Phase 16.1; HTTPS on port 5001 with cert file or Let's Encrypt via `Certes`
 
 ### Phase 20 (Admin UI & Body Viewer)
 - ~~Stray draft components in `src/IoTSpy.React/`~~ — `PacketAnalysisView.tsx` and `NetworkDeviceSelector.tsx` deleted; unique functionality (`showOnlyErrors` / `showOnlyRetransmissions` filters) migrated into `PacketListFilterable.tsx`
@@ -33,7 +37,7 @@ This document tracks remaining gaps, known limitations, and technical debt. Item
 
 | Item | Description | Effort | Impact |
 |---|---|---|---|
-| Upgrade to .NET 11 | .NET 11 releases Spring 2026; plan for compatibility review and security updates | Medium | Maintenance |
+| Upgrade to .NET 11 | .NET 11 expected November 2026; plan for compatibility review and security updates | Medium | Maintenance |
 | Frontend dependency updates | React 20 and TypeScript 5.7+ may have breaking changes; monitor release notes | Medium | Stability |
 | Serilog configuration | Move from code-based to JSON config file for easier environment-specific logging | Low | Operational |
 
@@ -55,7 +59,7 @@ These assumptions should be revisited if requirements change:
 1. **Single-instance proxy per deployment** — Assumes one API process and one pair of proxy servers (explicit + transparent). Horizontal scaling requires Redis backplane (Phase 16.8).
 2. **SQLite for development, Postgres for production** — Current schema and migrations support both, but testing is primary on SQLite.
 3. **Browser-based dashboard** — Assumes web client; no native mobile apps or CLI tools planned.
-4. **JWT + API key auth only** — No SAML/LDAP support yet (Phase 16.5).
+4. **JWT + API key auth only** — No SAML/LDAP support (Phase 16.5 deprioritized; see Active Gaps).
 5. **In-memory anomaly detector** — Resets on restart; no persistent baseline learning.
 6. **Request-scoped repositories** — Each HTTP request gets a fresh EF Core DbContext; not suitable for long-running background tasks without scope management.
 
@@ -115,7 +119,7 @@ These assumptions should be revisited if requirements change:
 ## Suggestions for Next Contributors
 
 1. **Start with Phase 21** (Passive Mode) — Well-scoped, clear requirements, minimal API changes
-2. **Or Phase 16.1** (API HTTPS) — Short PR, improves production readiness
+2. **Or the CA certificate customization gap** — Medium-severity UX improvement, self-contained
 3. **Avoid Phase 17.3+** (Zigbee/BLE) — Requires specialized hardware; hard to test in CI
 4. **Keep `IoTSpy.Core` dep-free** — New models/interfaces should go there; no infrastructure references
 

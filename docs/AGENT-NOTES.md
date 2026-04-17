@@ -49,7 +49,7 @@ IoTSpy.Protocols      — MQTT, DNS, CoAP, WebSocket, gRPC, Modbus, OpenRTB, tel
 IoTSpy.Scanner        — Port scan, fingerprinting, CVE lookup, packet capture
 IoTSpy.Manipulation   — Rules engine, scripts, replay, fuzzer, AI mock, API spec, content replacement
 IoTSpy.Storage        — EF Core DbContext + repositories (SQLite/Postgres)
-IoTSpy.Api            — ASP.NET Core host (16 controllers, 3 SignalR hubs)
+IoTSpy.Api            — ASP.NET Core host (17 controllers, 3 SignalR hubs)
 IoTSpy.*.Tests        — Unit + integration tests (517 total)
 frontend/             — Vite 6 + React 19 + TypeScript dashboard
 docs/                 — ARCHITECTURE.md, PLAN.md, PHASES-*.md, GAPS.md, etc.

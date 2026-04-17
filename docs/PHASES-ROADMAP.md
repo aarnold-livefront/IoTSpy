@@ -1,34 +1,12 @@
 # IoTSpy — Roadmap & Future Phases
 
-This document covers proposed future work (Phase 17, Phase 21+) and long-term enhancement candidates.
+This document covers deprioritized work (Phase 17) and planned future phases (Phase 21+).
 
 See [PHASES-COMPLETED.md](PHASES-COMPLETED.md) for all implemented phases 1–16 and 18–20.
 
 ---
 
-## Phase 16 — Deployment & Operations ✅ COMPLETE
-
-**Goal:** Make IoTSpy production-ready for team deployments with proper TLS, container orchestration, and operational tooling.
-
-| # | Task | Status | Details |
-|---|---|---|---|
-| 16.1 | Kestrel HTTPS for the API | ✅ | `HttpsCertificateHolder` singleton + `CertesLetsEncryptService`; cert file or Let's Encrypt via `Certes`; HTTPS on port 5001 |
-| 16.2 | Kubernetes Helm chart | ✅ | `deploy/helm/iotspy/` — Chart.yaml, values.yaml, Deployment, Service, ConfigMap, Secret, Ingress, PVC, HPA, ServiceAccount |
-| 16.3 | Docker Compose improvements | ✅ | `docker-compose.prod.yml` with Postgres 17, pgAdmin, Traefik v3 reverse proxy with automatic TLS |
-| 16.4 | Plugin system for protocol decoders | ✅ | `IPluginDecoder` + `IPluginRegistry` in Core; `PluginLoaderService` via `AssemblyLoadContext`; `PluginsController` REST API |
-| 16.5 | LDAP / SAML SSO | — | Deprioritized (Low) |
-| 16.6 | Metrics endpoint (Prometheus) | ✅ | `/metrics` via `prometheus-net.AspNetCore`; `IoTSpyMetrics` with proxy requests, scan durations, anomaly alerts, capture queue depth |
-| 16.7 | Alerting integrations | ✅ | Slack (blocks API), Teams (MessageCard), PagerDuty Events API v2; severity threshold filtering |
-| 16.8 | Distributed mode (multi-node) | — | Deprioritized (Low) |
-| 16.9 | NAS APK package support | ✅ | `docker-compose.nas.yml`; `deploy/nas/asustor/` APK (apkg.info, lifecycle scripts, webman CGI); `scripts/build-asustor-apk.sh`; multi-arch `release.yml` CI publishing to GHCR |
-
----
-
-## Proposed Phase (17) — Deprioritized
-
-These phases were proposed in the original roadmap but deprioritized. They remain valid candidates for future implementation if team needs change.
-
-### Phase 17 — Protocol Expansion (Non-IP IoT)
+## Phase 17 — Protocol Expansion (Non-IP IoT) ⏸️ Deprioritized
 
 **Goal:** Extend coverage to wireless IoT protocols beyond TCP/IP networking.
 
@@ -66,7 +44,7 @@ These phases were proposed in the original roadmap but deprioritized. They remai
 
 ## Future Enhancement Areas (Phases 22+)
 
-Beyond Phase 21, potential candidates include Phases 16–17 (deployment, protocol expansion), or new features based on user needs and feedback. Examples:
+Beyond Phase 21, potential candidates include Phase 17 (non-IP protocol expansion) or entirely new features based on user needs and feedback. Examples:
 
 - **Offline mode** — Cache captures, rules, and playback without network connectivity
 - **Mobile app** — Native iOS/Android for field reconnaissance and live monitoring
