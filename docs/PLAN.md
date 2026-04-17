@@ -28,12 +28,12 @@ export Auth__JwtSecret="your-32-char-secret" && dotnet build && dotnet test
 → **[SKILLS-PLUGINS.md](SKILLS-PLUGINS.md)** — When/how to use `/dotnet-engineer`, `/security-code-review`, `/threat-modeling`, etc.
 
 ### "What should I work on next?"
-→ **[GAPS.md](GAPS.md)** — Known issues, tech debt, suggestions for next steps
+→ **[GAPS.md](GAPS.md)** — Known issues, API gaps, security hardening, tech debt
 
-→ **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** — Phase 21+ and deprioritized work
+→ **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** — Phases 21–22+, deprioritized Phase 17
 
 ### "What's been completed?"
-→ **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** — All 20 phases with details and test counts
+→ **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** — All 21 active phases with details and test counts
 
 ### "Show me everything at once"
 → **[PLAN-INDEX.md](PLAN-INDEX.md)** — Complete navigation hub with role-based guides
@@ -44,9 +44,9 @@ export Auth__JwtSecret="your-32-char-secret" && dotnet build && dotnet test
 
 | Metric | Value |
 |---|---|
-| **Phases complete** | 1–15, 18–20 (20 of 20 core features) ✅ |
+| **Phases complete** | 1–16, 18–20 (21 of 21 active phases) ✅ |
 | **Backend tests** | 517 (all passing) |
-| **REST controllers** | 16 |
+| **REST controllers** | 17 |
 | **SignalR hubs** | 3 |
 | **Protocols** | HTTP/HTTPS, MQTT, DNS, CoAP, WebSocket, gRPC, Modbus, OpenRTB |
 | **Next phase** | 21 — Passive Proxy Mode |
@@ -83,15 +83,15 @@ export Auth__JwtSecret="your-32-char-secret" && dotnet build && dotnet test
    - Best for: "Why did we choose X?"
 
 7. **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** (500 lines)
-   - All 20 phases with descriptions
+   - All 21 active phases with descriptions
    - Best for: "What did Phase 15 do?"
 
-8. **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** (150 lines)
-   - Future phases (21+) and deprioritized (16-17)
+8. **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** (100 lines)
+   - Future phases (21+) and deprioritized Phase 17
    - Best for: "What's next?"
 
-9. **[GAPS.md](GAPS.md)** (200 lines)
-   - Known issues, tech debt, suggestions
+9. **[GAPS.md](GAPS.md)** (350 lines)
+   - Known issues, API gaps, security hardening, tech debt, suggestions
    - Best for: "What should I work on?"
 
 ### Comprehensive Reference
