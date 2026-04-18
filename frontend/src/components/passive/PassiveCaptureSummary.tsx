@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import '../../styles/passive.css'
 import type { PassiveCaptureSummary as Summary, PassiveCaptureSession } from '../../types/api'
+import { useProxy } from '../../hooks/useProxy'
 import {
   clearBuffer,
   clearDeviceFilter,
@@ -14,16 +15,37 @@ import {
 type Tab = 'summary' | 'sessions'
 
 export default function PassiveCaptureSummary() {
+  const proxy = useProxy()
+  const settings = proxy.status?.settings ?? null
+  const isPassive = settings?.mode === 'Passive'
+  const isRunning = proxy.status?.isRunning ?? false
+  const isPassiveActive = isPassive && isRunning
+
   const [tab, setTab] = useState<Tab>('summary')
   const [summary, setSummary] = useState<Summary | null>(null)
   const [sessions, setSessions] = useState<PassiveCaptureSession[]>([])
   const [loading, setLoading] = useState(false)
+  const [modeLoading, setModeLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [filterInput, setFilterInput] = useState('')
   const [saveDialogOpen, setSaveDialogOpen] = useState(false)
   const [saveName, setSaveName] = useState('')
   const [saveDesc, setSaveDesc] = useState('')
   const [saveClear, setSaveClear] = useState(false)
+
+  // Mode toggle — proxy lifecycle (start/stop) stays in the header
+  async function handleSetPassive(passive: boolean) {
+    setModeLoading(true)
+    setError(null)
+    try {
+      await proxy.saveSettings({ mode: passive ? 'Passive' : 'ExplicitProxy' })
+      if (!passive) setSummary(null)
+    } catch {
+      setError('Failed to switch mode.')
+    } finally {
+      setModeLoading(false)
+    }
+  }
 
   const loadSummary = useCallback(async () => {
     setLoading(true)
@@ -54,11 +76,10 @@ export default function PassiveCaptureSummary() {
     return () => clearInterval(interval)
   }, [loadSummary, loadSessions])
 
+  // ── Filter & buffer ────────────────────────────────────────────────────────
+
   async function handleApplyFilter() {
-    const ips = filterInput
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
+    const ips = filterInput.split(',').map((s) => s.trim()).filter(Boolean)
     try {
       if (ips.length === 0) await clearDeviceFilter()
       else await setDeviceFilter(ips)
@@ -75,10 +96,7 @@ export default function PassiveCaptureSummary() {
 
   async function handleSaveSession() {
     if (!saveName.trim()) return
-    const ips = filterInput
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
+    const ips = filterInput.split(',').map((s) => s.trim()).filter(Boolean)
     try {
       await savePassiveSession(saveName, saveDesc || undefined, ips.length > 0 ? ips : undefined, saveClear)
       setSaveDialogOpen(false)
@@ -100,6 +118,49 @@ export default function PassiveCaptureSummary() {
 
   return (
     <div className="passive-summary">
+      {/* ── Mode toggle bar ──────────────────────────────────────────────── */}
+      <div className="passive-summary__mode-bar">
+        <div className="passive-summary__mode-status">
+          <span
+            className={`passive-summary__mode-dot ${
+              isPassiveActive ? 'passive-summary__mode-dot--active' : 'passive-summary__mode-dot--inactive'
+            }`}
+          />
+          <span className="passive-summary__mode-label">
+            {isPassiveActive
+              ? 'Passive — observing, not recording'
+              : isPassive
+                ? 'Passive mode — start the proxy to begin observing'
+                : 'Active — recording all traffic to the database'}
+          </span>
+          {isPassiveActive && summary && (
+            <span className="passive-summary__mode-count">
+              {summary.totalRequests.toLocaleString()} buffered
+            </span>
+          )}
+        </div>
+
+        <div className="passive-summary__mode-toggle">
+          <button
+            className={`passive-summary__mode-btn${!isPassive ? ' passive-summary__mode-btn--active' : ''}`}
+            onClick={() => !isPassive || handleSetPassive(false)}
+            disabled={modeLoading || !isPassive}
+            title="Record all traffic to the database (manipulation rules and anomaly detection apply)"
+          >
+            Active
+          </button>
+          <button
+            className={`passive-summary__mode-btn${isPassive ? ' passive-summary__mode-btn--active' : ''}`}
+            onClick={() => isPassive || handleSetPassive(true)}
+            disabled={modeLoading || isPassive}
+            title="Observe traffic without recording — no rules, no DB writes"
+          >
+            Passive
+          </button>
+        </div>
+      </div>
+
+      {/* ── Tab header ──────────────────────────────────────────────────── */}
       <div className="passive-summary__header">
         <h2 className="passive-summary__title">Passive Capture</h2>
         <div className="passive-summary__tabs">
@@ -119,35 +180,49 @@ export default function PassiveCaptureSummary() {
 
       {tab === 'summary' && (
         <>
-          {/* Device filter bar */}
-          <div className="passive-summary__filter-bar">
-            <label className="passive-summary__label">Device filter (IPs, comma-separated):</label>
-            <input
-              className="passive-summary__input"
-              value={filterInput}
-              onChange={(e) => setFilterInput(e.target.value)}
-              placeholder="e.g. 192.168.1.10, 192.168.1.20  (empty = all devices)"
-            />
-            <button className="passive-summary__btn" onClick={handleApplyFilter}>Apply</button>
-            <button className="passive-summary__btn passive-summary__btn--secondary" onClick={handleClearBuffer}>
-              Clear Buffer
-            </button>
-            <button className="passive-summary__btn passive-summary__btn--save" onClick={() => setSaveDialogOpen(true)}>
-              Save Session
-            </button>
-          </div>
+          {/* Explain what passive mode does if not active */}
+          {!isPassiveActive && (
+            <div className="passive-summary__explainer">
+              <strong>Passive mode</strong> is mutually exclusive with active interception (the List tab).
+              When passive is running: traffic is forwarded unchanged, no manipulation rules fire, no anomaly
+              detection runs, and nothing is written to the database per-request. The buffer is held in
+              memory and discarded when the proxy stops unless you explicitly save a named session.
+              Use the toggle above to switch between Active and Passive, then use the header Start/Stop to
+              control whether the proxy is running.
+            </div>
+          )}
+
+          {/* Device filter bar — only useful when capturing */}
+          {isPassive && (
+            <div className="passive-summary__filter-bar">
+              <label className="passive-summary__label">Record only these device IPs (comma-separated):</label>
+              <input
+                className="passive-summary__input"
+                value={filterInput}
+                onChange={(e) => setFilterInput(e.target.value)}
+                placeholder="e.g. 192.168.1.10, 192.168.1.20  (empty = all devices)"
+              />
+              <button className="passive-summary__btn" onClick={handleApplyFilter}>Apply</button>
+              <button className="passive-summary__btn passive-summary__btn--secondary" onClick={handleClearBuffer}>
+                Clear Buffer
+              </button>
+              {isPassiveActive && (
+                <button className="passive-summary__btn passive-summary__btn--save" onClick={() => setSaveDialogOpen(true)}>
+                  Save Session
+                </button>
+              )}
+            </div>
+          )}
 
           {loading && !summary && <div className="passive-summary__loading">Loading…</div>}
 
-          {summary && (
+          {isPassiveActive && summary && (
             <div className="passive-summary__stats-grid">
-              {/* Total requests */}
               <div className="passive-summary__stat-card">
                 <div className="passive-summary__stat-value">{summary.totalRequests.toLocaleString()}</div>
                 <div className="passive-summary__stat-label">Buffered requests</div>
               </div>
 
-              {/* Top hosts */}
               <div className="passive-summary__stat-card passive-summary__stat-card--wide">
                 <div className="passive-summary__section-title">Top Hosts</div>
                 <ul className="passive-summary__host-list">
@@ -160,7 +235,6 @@ export default function PassiveCaptureSummary() {
                 </ul>
               </div>
 
-              {/* Status codes */}
               <div className="passive-summary__stat-card">
                 <div className="passive-summary__section-title">Status Codes</div>
                 <ul className="passive-summary__code-list">
@@ -183,16 +257,14 @@ export default function PassiveCaptureSummary() {
           )}
 
           {/* Endpoint frequency heatmap */}
-          {summary && summary.topEndpoints.length > 0 && (
+          {isPassiveActive && summary && summary.topEndpoints.length > 0 && (
             <div className="passive-summary__endpoints">
               <div className="passive-summary__section-title">Endpoint Frequency</div>
               <div className="passive-summary__endpoint-list">
                 {summary.topEndpoints.map((ep, i) => (
                   <div key={i} className="passive-summary__endpoint-row">
                     <span className="passive-summary__method">{ep.method}</span>
-                    <span className="passive-summary__endpoint-path">
-                      {ep.host}{ep.path}
-                    </span>
+                    <span className="passive-summary__endpoint-path">{ep.host}{ep.path}</span>
                     <div className="passive-summary__bar-wrapper">
                       <div
                         className="passive-summary__bar"
@@ -252,7 +324,7 @@ export default function PassiveCaptureSummary() {
         <div className="passive-summary__sessions">
           {sessions.length === 0 ? (
             <div className="passive-summary__empty-state">
-              No saved sessions yet. Use the &quot;Save Session&quot; button in the Live Summary tab to persist a snapshot.
+              No saved sessions yet. Start a passive capture and use <strong>Save Session</strong> to persist a snapshot.
             </div>
           ) : (
             <table className="passive-summary__table">
@@ -268,7 +340,7 @@ export default function PassiveCaptureSummary() {
               <tbody>
                 {sessions.map((s) => (
                   <tr key={s.id}>
-                    <td>{s.name}</td>
+                    <td>{s.name}{s.description && <div className="passive-summary__session-desc">{s.description}</div>}</td>
                     <td>{s.entryCount.toLocaleString()}</td>
                     <td>{s.deviceFilter ?? 'All devices'}</td>
                     <td>{new Date(s.createdAt).toLocaleString()}</td>

@@ -153,9 +153,7 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
             </select>
             {mode === 'Passive' && (
               <div className="settings-hint">
-                Passive mode forwards traffic unchanged — no manipulation rules, no anomaly detection,
-                no database writes. Use the &quot;Passive Capture&quot; panel to inspect buffered traffic,
-                set device filters, and save named sessions to the database.
+                Passive mode can also be controlled from the <strong>Passive Capture</strong> panel in the dashboard — that panel includes start/stop controls and device-filter options.
               </div>
             )}
           </div>

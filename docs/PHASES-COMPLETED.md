@@ -1,6 +1,6 @@
-# IoTSpy — Completed Phases (1–15, 18–20)
+# IoTSpy — Completed Phases (1–16, 18–21)
 
-This document details all implemented phases. Phases 1–16 and 18–20 are complete and production-ready. Phase 17 remains deprioritized; see [PHASES-ROADMAP.md](PHASES-ROADMAP.md) for the future roadmap.
+This document details all implemented phases. Phases 1–16 and 18–21 are complete and production-ready. Phase 17 has been archived (hardware-dependent non-IP IoT protocols); see [PHASES-ARCHIVED.md](PHASES-ARCHIVED.md). See [PHASES-ROADMAP.md](PHASES-ROADMAP.md) for the Phase 22+ roadmap.
 
 ---
 
@@ -210,3 +210,17 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Alerting integrations (16.7)** — Slack (blocks API), Teams (MessageCard), PagerDuty Events API v2; severity threshold filtering
 - **NAS APK package support (16.9)** — `docker-compose.nas.yml`; `deploy/nas/asustor/` APK (apkg.info, lifecycle scripts, webman CGI); `scripts/build-asustor-apk.sh`; multi-arch `release.yml` CI publishing to GHCR
 - **Deprioritized within Phase 16** — LDAP/SAML SSO (16.5) and distributed multi-node mode (16.8) remain out of scope; see [GAPS.md](GAPS.md)
+
+## Phase 21 — Passive Proxy Mode
+
+**Goal:** Enable lightweight traffic monitoring with optional persistence, supporting API discovery, compliance auditing, and low-resource deployments — without interception, manipulation, or DB write overhead.
+
+- **`ProxyMode.Passive` (21.1)** — New enum value; proxy uses the explicit listener stack as transport but skips all rules, scripts, anomaly detection, and DB inserts. Switchable via settings modal ("Passive (observe-only)") or `PUT /api/proxy/settings`
+- **Pass-through pipeline (21.2)** — `ExplicitProxyServer.InterceptHttpStreamAsync` detects `settings.Mode == Passive` and takes a fast path: forwards request/response bytes unchanged, publishes to `IPassiveProxyBuffer` and SignalR, and returns — no manipulation service calls
+- **`PassiveProxyBuffer` singleton (21.3)** — Thread-safe in-memory ring buffer (10k cap; oldest evicted when full). Implements optional **device IP filter**: `SetDeviceFilter(ips)` restricts recording to traffic from specific client IPs, enabling targeted observation of individual devices or groups without recording all traffic
+- **Session save/load (21.4)** — `POST /api/passive/sessions` snapshots the in-memory buffer to the database as a named `PassiveCaptureSession`. Optionally filtered by device IP (saves only matching entries). Optional `clearBufferAfterSave` flag. `GET /api/passive/sessions/{id}/captures` reloads the persisted captures
+- **No DB writes in passive mode (21.5)** — `ICaptureRepository` is never resolved in passive sessions; the `PassiveCaptureSessionId` FK on `CapturedRequest` is populated only on explicit save. Migration `AddPhase21PassiveProxy` adds `PassiveCaptureSessions` table and nullable `PassiveCaptureSessionId` column
+- **API discovery panel (21.6)** — New "Passive Capture" view mode in the dashboard with auto-refreshing (5s) endpoint frequency heatmap (method + host + path + bar chart + count), status code distribution with color-coded badges (2xx/3xx/4xx/5xx), top 10 hosts list, total buffered count, and a saved sessions table
+- **Passive mode UI indicator (21.7)** — "Passive Mode" accent badge in the header when the proxy is running in passive mode; distinguishes from active interception at a glance
+- **Device filter controls (21.8)** — Filter bar in the Passive Capture panel: enter comma-separated IP addresses to restrict the live buffer; empty = capture all devices. `PUT /api/passive/filter` / `DELETE /api/passive/filter` API endpoints. Save-session dialog respects the active filter
+- **Tests (21.9)** — 10 new `PassiveProxyBufferTests`: ring buffer eviction, device filter accept/reject (single and multi-IP), filter clear, snapshot isolation, summary counts, and active filter exposure in summary response
