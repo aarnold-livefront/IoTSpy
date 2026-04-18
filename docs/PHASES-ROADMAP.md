@@ -8,32 +8,11 @@ See [PHASES-COMPLETED.md](PHASES-COMPLETED.md) for all implemented phases 1–16
 
 ---
 
-## Phase 21 — Passive Proxy Mode ✅ Complete
-
 See [PHASES-COMPLETED.md](PHASES-COMPLETED.md) for details.
 
 ---
 
 ## Roadmap — Phase 22+
-
-### Phase 21 — Passive Proxy Mode (Toggle-able Observation)
-
-**Goal:** Enable lightweight traffic monitoring with optional persistence, supporting API discovery, compliance auditing, and low-resource deployments without interception or filtering overhead.
-
-| # | Task | Priority | Details |
-|---|---|---|---|
-| 21.1 | Passive mode enum & ProxySettings toggle | High | Add `ProxyMode.Passive` to `InterceptionMode` enum; add `IsPassive` boolean to `ProxySettings`; configuration via UI settings modal |
-| 21.2 | Pass-through proxy pipeline | High | When passive: skip all `RulesEngine`, manipulation, anomaly detection, and breakpoint script execution; stream raw packets/requests directly to `PacketCaptureHub` without queuing for database |
-| 21.3 | In-memory session capture | Medium | Capture traffic into in-memory buffers during passive session; populate UI in real-time; optionally persist to DB via "Save Session" action; discard on proxy stop if not saved |
-| 21.4 | Session save/load | Medium | `POST /api/captures/save-session` — snapshot in-memory captures to database as a named investigation session; `GET /api/captures/load-session/{id}` to retrieve saved session; persist session metadata (timestamp, device, entry count) |
-| 21.5 | Lightweight resource footprint | Medium | Eliminate database chatter in passive mode (no INSERT on every request); measure memory overhead of in-memory buffers (configurable max size, e.g. 10k captures per session) |
-| 21.6 | API discovery visualization | Medium | New "Passive Capture Summary" panel in UI: endpoint frequency heatmap (GET /api/users: 50 requests, POST /api/auth: 20 requests), response code distribution, top domains/hostnames, suggested rule patterns |
-| 21.7 | Passive mode UI indicator | Low | Show "🔍 Passive Mode" badge in header when proxy is running in passive mode; distinguish from active interception mode visually |
-| 21.8 | Tests & documentation | Medium | Unit tests for passive pipeline (verify no rules/scripts execute); integration tests for session save/load; docs on use cases (compliance auditing, API learning, bandwidth-limited deployments) |
-
-**Backend:** `IoTSpy.Proxy` — `PassivePipelineFilter` (skip manipulation stack); `IoTSpy.Core` — `CaptureSession` model; `IoTSpy.Storage` — `CaptureSessions` DbSet + migration. **Frontend:** passive mode indicator, session save dialog, endpoint frequency heatmap visualization.
-
----
 
 ---
 
