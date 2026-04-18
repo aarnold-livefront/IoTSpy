@@ -30,7 +30,9 @@ export Auth__JwtSecret="your-32-char-secret" && dotnet build && dotnet test
 ### "What should I work on next?"
 → **[GAPS.md](GAPS.md)** — Known issues, API gaps, security hardening, tech debt
 
-→ **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** — Phases 21–22+, deprioritized Phase 17
+→ **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** — Phase 22+ roadmap
+
+→ **[PHASES-ARCHIVED.md](PHASES-ARCHIVED.md)** — Archived Phase 17 (non-IP IoT)
 
 ### "What's been completed?"
 → **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** — All 21 active phases with details and test counts
@@ -44,12 +46,12 @@ export Auth__JwtSecret="your-32-char-secret" && dotnet build && dotnet test
 
 | Metric | Value |
 |---|---|
-| **Phases complete** | 1–16, 18–20 (21 of 21 active phases) ✅ |
-| **Backend tests** | 517 (all passing) |
-| **REST controllers** | 17 |
+| **Phases complete** | 1–16, 18–21 (22 of 22 active phases) ✅ |
+| **Backend tests** | 540+ (all passing) |
+| **REST controllers** | 18 |
 | **SignalR hubs** | 3 |
 | **Protocols** | HTTP/HTTPS, MQTT, DNS, CoAP, WebSocket, gRPC, Modbus, OpenRTB |
-| **Next phase** | 21 — Passive Proxy Mode |
+| **Next phase** | 22 — Rich Media & Stream Content Replacement |
 
 ---
 

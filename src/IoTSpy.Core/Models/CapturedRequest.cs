@@ -39,4 +39,8 @@ public class CapturedRequest
     public bool IsModified { get; set; }
     public string Notes { get; set; } = string.Empty;
     public string TlsMetadataJson { get; set; } = string.Empty;
+
+    // Phase 21 — Passive proxy session link
+    public Guid? PassiveCaptureSessionId { get; set; }
+    public PassiveCaptureSession? PassiveCaptureSession { get; set; }
 }

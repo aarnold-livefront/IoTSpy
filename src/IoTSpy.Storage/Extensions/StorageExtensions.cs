@@ -66,6 +66,9 @@ services.AddScoped<IOpenRtbEventRepository, OpenRtbEventRepository>();
         services.AddScoped<ICaptureAnnotationRepository, CaptureAnnotationRepository>();
         services.AddScoped<ISessionActivityRepository, SessionActivityRepository>();
 
+        // Phase 21 — Passive proxy sessions
+        services.AddScoped<IPassiveCaptureSessionRepository, PassiveCaptureSessionRepository>();
+
         return services;
     }
 

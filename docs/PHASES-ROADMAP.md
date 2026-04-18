@@ -1,27 +1,20 @@
 # IoTSpy — Roadmap & Future Phases
 
-This document covers deprioritized work (Phase 17) and planned future phases (Phase 21+).
+This document covers planned future phases (Phase 21+).
 
-See [PHASES-COMPLETED.md](PHASES-COMPLETED.md) for all implemented phases 1–16 and 18–20.
+See [PHASES-COMPLETED.md](PHASES-COMPLETED.md) for all implemented phases 1–16 and 18–21.
 
----
-
-## Phase 17 — Protocol Expansion (Non-IP IoT) ⏸️ Deprioritized
-
-**Goal:** Extend coverage to wireless IoT protocols beyond TCP/IP networking.
-
-| # | Task | Priority | Details |
-|---|---|---|---|
-| 17.1 | AMQP 1.0 decoder | Medium | Decode AMQP frames captured via transparent proxy or PCAP import; surface messages alongside MQTT |
-| 17.2 | RTSP/RTP for IP cameras | Medium | Detect RTSP `DESCRIBE`/`SETUP`/`PLAY` sequences; capture SDP metadata; flag unauthenticated streams |
-| 17.3 | Matter/Thread protocol support | Low | Passive decode of Matter commissioning and cluster messages; Thread network topology mapping (requires USB border router) |
-| 17.4 | Zigbee passive capture | Low | USB Zigbee sniffer integration (e.g. RZUSBSTICK / CC2531) via `libusb`; decode ZDP/ZCL frames |
-| 17.5 | Bluetooth LE advertisement decode | Low | HCI socket or BlueZ integration; decode BLE advertisements from IoT beacons; map to known vendor profiles (Eddystone, iBeacon, Tile) |
-| 17.6 | Z-Wave frame decode | Low | Serial port integration with a Z-Wave controller; decode Z-Wave frames and map to device/command class |
+> Phase 17 (Non-IP IoT protocol expansion) has been formally archived. See [PHASES-ARCHIVED.md](PHASES-ARCHIVED.md).
 
 ---
 
-## Roadmap — Phase 21+
+## Phase 21 — Passive Proxy Mode ✅ Complete
+
+See [PHASES-COMPLETED.md](PHASES-COMPLETED.md) for details.
+
+---
+
+## Roadmap — Phase 22+
 
 ### Phase 21 — Passive Proxy Mode (Toggle-able Observation)
 

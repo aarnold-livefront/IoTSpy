@@ -56,6 +56,11 @@ export default function Header({
           port={port}
           signalRConnected={signalRConnected}
         />
+        {isRunning && settings?.mode === 'Passive' && (
+          <span className="header__passive-badge" title="Proxy is in passive observe-only mode — no manipulation or DB writes">
+            Passive Mode
+          </span>
+        )}
 
         <div className="header__spacer" />
 

@@ -15,7 +15,7 @@ export type InterceptionProtocol =
   | 'TlsPassthrough'
   | 'Other'
 
-export type ProxyMode = 'ExplicitProxy' | 'ArpSpoof' | 'GatewayRedirect'
+export type ProxyMode = 'ExplicitProxy' | 'ArpSpoof' | 'GatewayRedirect' | 'Passive'
 
 // ── Domain models ─────────────────────────────────────────────────────────────
 
@@ -811,5 +811,36 @@ export interface SuspiciousActivityDto {
   packetCount: number
   firstDetected: string
   evidence: string[]
+}
+
+// ── Phase 21 — Passive proxy ──────────────────────────────────────────────────
+
+export interface EndpointFrequency {
+  method: string
+  host: string
+  path: string
+  count: number
+}
+
+export interface StatusCodeBucket {
+  statusCode: number
+  count: number
+}
+
+export interface PassiveCaptureSummary {
+  totalRequests: number
+  topEndpoints: EndpointFrequency[]
+  statusCodes: StatusCodeBucket[]
+  topHosts: string[]
+  activeDeviceFilter: string[]
+}
+
+export interface PassiveCaptureSession {
+  id: string
+  name: string
+  description?: string
+  createdAt: string
+  entryCount: number
+  deviceFilter?: string
 }
 

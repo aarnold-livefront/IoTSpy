@@ -119,8 +119,7 @@
 
 .proxy-status-badge__dot--running {
   background-color: var(--color-success);
-  box-shadow: 0 0 6px var(--color-success);
-  animation: pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 5px var(--color-success);
 }
 
 .proxy-status-badge__dot--connecting {
@@ -130,4 +129,19 @@
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+.header__passive-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px 8px;
+  border-radius: 4px;
+  background-color: color-mix(in srgb, var(--color-accent) 15%, transparent);
+  border: 1px solid var(--color-accent);
+  color: var(--color-accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
 }

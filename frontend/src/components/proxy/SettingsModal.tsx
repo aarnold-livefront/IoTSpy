@@ -149,7 +149,13 @@ export default function SettingsModal({ settings, onSave, onClose }: Props) {
               <option value="ExplicitProxy">Explicit Proxy</option>
               <option value="GatewayRedirect">Gateway Redirect</option>
               <option value="ArpSpoof">ARP Spoof</option>
+              <option value="Passive">Passive (observe-only)</option>
             </select>
+            {mode === 'Passive' && (
+              <div className="settings-hint">
+                Passive mode can also be controlled from the <strong>Passive Capture</strong> panel in the dashboard — that panel includes start/stop controls and device-filter options.
+              </div>
+            )}
           </div>
 
           {(mode === 'GatewayRedirect' || mode === 'ArpSpoof') && (

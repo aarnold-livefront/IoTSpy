@@ -100,6 +100,12 @@ public class ProxyService(
                 logger.LogInformation("ArpSpoof mode started targeting {Target} via {Gateway}",
                     settings.TargetDeviceIp, settings.GatewayIp);
                 break;
+
+            case ProxyMode.Passive:
+                // Passive uses the explicit proxy listener but skips manipulation & DB inserts
+                await explicitProxy.StartAsync(settings.ProxyPort, settings.ListenAddress, ct);
+                logger.LogInformation("Passive proxy started on port {Port} — observe-only mode", settings.ProxyPort);
+                break;
         }
     }
 

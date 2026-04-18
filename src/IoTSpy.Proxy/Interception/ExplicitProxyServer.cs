@@ -12,6 +12,7 @@ using System.Text;
 using IoTSpy.Core.Enums;
 using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
+using IoTSpy.Proxy.Passive;
 using IoTSpy.Proxy.Resilience;
 using IoTSpy.Proxy.Tls;
 using Polly;
@@ -36,6 +37,7 @@ public class ExplicitProxyServer(
     SslStripService sslStripService,
     IServiceScopeFactory scopeFactory,
     ResiliencePipelineProvider<string> connectPipelineProvider,
+    IPassiveProxyBuffer passiveBuffer,
     ILogger<ExplicitProxyServer> logger)
 {
     private TcpListener? _listener;
@@ -278,8 +280,9 @@ public class ExplicitProxyServer(
         IServiceScope scope,
         CancellationToken ct)
     {
+        var isPassive = settings.Mode == Core.Enums.ProxyMode.Passive;
         var devices = scope.ServiceProvider.GetRequiredService<IDeviceRepository>();
-        var captures = scope.ServiceProvider.GetRequiredService<ICaptureRepository>();
+        var captures = isPassive ? null : scope.ServiceProvider.GetRequiredService<ICaptureRepository>();
 
         while (!ct.IsCancellationRequested)
         {
@@ -290,8 +293,52 @@ public class ExplicitProxyServer(
             var started = DateTimeOffset.UtcNow;
             var sw = System.Diagnostics.Stopwatch.StartNew();
 
-            // Parse request and apply manipulation pipeline
             ParseRequestLine(reqLine, out var method, out var path, out var query);
+            var contentType = ExtractHeaderValue(reqHeaders, "Content-Type") ?? "";
+
+            if (isPassive)
+            {
+                // Passive fast-path: forward traffic unchanged, no manipulation, no DB inserts
+                await WriteHttpMessageAsync(upstreamStream, reqLine, reqHeaders, reqBodyBytes, ct);
+
+                var (statusLine, respHeaders, respBody, respBodyBytes) =
+                    await ReadHttpMessageAsync(upstreamStream, settings.MaxBodySizeKb, ct);
+
+                if (statusLine is not null)
+                    await WriteHttpMessageAsync(clientStream, statusLine, respHeaders, respBodyBytes, ct);
+
+                ParseStatusLine(statusLine, out var sc, out var sm);
+                sw.Stop();
+
+                var passiveCapture = new CapturedRequest
+                {
+                    Method = method, Scheme = scheme, Host = host, Port = port,
+                    Path = path, Query = query, RequestHeaders = reqHeaders,
+                    RequestBody = settings.CaptureRequestBodies ? reqBody : string.Empty,
+                    RequestBodySize = reqBodyBytes.Length,
+                    StatusCode = sc, StatusMessage = sm,
+                    ResponseHeaders = respHeaders ?? string.Empty,
+                    ResponseBody = settings.CaptureResponseBodies ? (respBody ?? string.Empty) : string.Empty,
+                    ResponseBodySize = respBodyBytes?.Length ?? 0,
+                    IsTls = scheme == "https", TlsVersion = tlsVersion, TlsCipherSuite = tlsCipher,
+                    Protocol = scheme == "https" ? InterceptionProtocol.Https : InterceptionProtocol.Http,
+                    Timestamp = started, DurationMs = sw.ElapsedMilliseconds, ClientIp = clientIp
+                };
+                if (contentType.StartsWith("application/grpc", StringComparison.OrdinalIgnoreCase))
+                    passiveCapture.Protocol = InterceptionProtocol.Grpc;
+
+                passiveBuffer.Add(passiveCapture);
+                await publisher.PublishAsync(passiveCapture, ct);
+
+                if (respHeaders is not null &&
+                    (respHeaders.Contains("Connection: close", StringComparison.OrdinalIgnoreCase) ||
+                     (reqLine).EndsWith("HTTP/1.0")))
+                    break;
+                continue;
+            }
+
+            // ── Active interception path ─────────────────────────────────────
+
             var httpMsg = new HttpMessage
             {
                 Method = method, Host = host, Port = port, Path = path, Query = query, Scheme = scheme,
@@ -299,7 +346,6 @@ public class ExplicitProxyServer(
             };
 
             // OpenRTB PII stripping (runs before general manipulation rules)
-            var contentType = ExtractHeaderValue(reqHeaders, "Content-Type") ?? "";
             var modified = false;
             if (openRtbService.IsOpenRtbRequest(contentType, path, reqBody))
             {
@@ -324,38 +370,38 @@ public class ExplicitProxyServer(
                 await WriteHttpMessageAsync(upstreamStream, reqLine, reqHeaders, reqBodyBytes, ct);
 
             // Read response from upstream
-            var (statusLine, respHeaders, respBody, respBodyBytes) = await ReadHttpMessageAsync(upstreamStream, settings.MaxBodySizeKb, ct);
+            var (statusLine2, respHeaders2, respBody2, respBodyBytes2) = await ReadHttpMessageAsync(upstreamStream, settings.MaxBodySizeKb, ct);
 
             // Decode Content-Encoding for storage (the original compressed bytes are still
             // forwarded to the client below — we only change what gets persisted in the DB)
-            if (respBodyBytes.Length > 0)
+            if (respBodyBytes2.Length > 0)
             {
-                var enc = ExtractHeaderValue(respHeaders, "Content-Encoding");
-                var respMime = ExtractHeaderValue(respHeaders, "Content-Type")?.Split(';')[0].Trim() ?? "";
-                byte[] storageBytes = respBodyBytes;
+                var enc = ExtractHeaderValue(respHeaders2, "Content-Encoding");
+                var respMime = ExtractHeaderValue(respHeaders2, "Content-Type")?.Split(';')[0].Trim() ?? "";
+                byte[] storageBytes = respBodyBytes2;
 
                 if (!string.IsNullOrEmpty(enc))
                 {
-                    var decoded = TryDecompressBody(respBodyBytes, enc);
+                    var decoded = TryDecompressBody(respBodyBytes2, enc);
                     if (decoded is not null)
                     {
                         storageBytes = decoded;
                         if (!IsBinaryContentType(respMime))
-                            respBody = Encoding.UTF8.GetString(decoded);
+                            respBody2 = Encoding.UTF8.GetString(decoded);
                     }
                 }
 
                 // Encode binary bodies as base64 to prevent UTF-8 corruption and
                 // SQLite null-byte truncation (e.g. PNG/JPEG bytes stored as TEXT).
                 if (IsBinaryContentType(respMime))
-                    respBody = "b64:" + Convert.ToBase64String(storageBytes);
+                    respBody2 = "b64:" + Convert.ToBase64String(storageBytes);
             }
 
             // SSL stripping: intercept HTTPS redirects and follow them transparently
-            if (settings.SslStrip && statusLine is not null)
+            if (settings.SslStrip && statusLine2 is not null)
             {
-                ParseStatusLine(statusLine, out var redirectCode, out _);
-                var httpsLocation = SslStripService.GetHttpsRedirectLocation(redirectCode, respHeaders);
+                ParseStatusLine(statusLine2, out var redirectCode, out _);
+                var httpsLocation = SslStripService.GetHttpsRedirectLocation(redirectCode, respHeaders2);
                 if (httpsLocation is not null)
                 {
                     logger.LogInformation(
@@ -367,27 +413,27 @@ public class ExplicitProxyServer(
                         httpsLocation, reqHeaders, reqBodyBytes, method, settings.MaxBodySizeKb, ct);
                     if (stripped is not null)
                     {
-                        statusLine = stripped.Value.statusLine;
-                        respHeaders = stripped.Value.headers;
-                        respBody = stripped.Value.body;
-                        respBodyBytes = stripped.Value.bodyBytes;
+                        statusLine2 = stripped.Value.statusLine;
+                        respHeaders2 = stripped.Value.headers;
+                        respBody2 = stripped.Value.body;
+                        respBodyBytes2 = stripped.Value.bodyBytes;
                         modified = true;
                     }
                 }
             }
 
             // Apply response-phase manipulation pipeline
-            if (statusLine is not null)
+            if (statusLine2 is not null)
             {
-                ParseStatusLine(statusLine, out var sc, out _);
-                httpMsg.StatusLine = statusLine;
+                ParseStatusLine(statusLine2, out var sc, out _);
+                httpMsg.StatusLine = statusLine2;
                 httpMsg.StatusCode = sc;
-                httpMsg.ResponseHeaders = respHeaders;
-                httpMsg.ResponseBody = respBody;
+                httpMsg.ResponseHeaders = respHeaders2;
+                httpMsg.ResponseBody = respBody2;
 
                 // OpenRTB PII stripping on response
-                var respContentType = ExtractHeaderValue(respHeaders, "Content-Type") ?? "";
-                if (openRtbService.IsOpenRtbRequest(respContentType, path, respBody))
+                var respContentType = ExtractHeaderValue(respHeaders2, "Content-Type") ?? "";
+                if (openRtbService.IsOpenRtbRequest(respContentType, path, respBody2))
                 {
                     var rtbRespModified = await openRtbService.ProcessAndStripAsync(httpMsg, ManipulationPhase.Response, ct);
                     if (rtbRespModified) modified = true;
@@ -398,29 +444,29 @@ public class ExplicitProxyServer(
                 if (respModified)
                 {
                     modified = true;
-                    statusLine = httpMsg.StatusLine;
-                    respHeaders = httpMsg.ResponseHeaders;
-                    respBody = httpMsg.ResponseBody;
-                    respBodyBytes = Encoding.UTF8.GetBytes(respBody);
-                    respHeaders = UpdateContentLength(respHeaders, respBodyBytes.Length);
+                    statusLine2 = httpMsg.StatusLine;
+                    respHeaders2 = httpMsg.ResponseHeaders;
+                    respBody2 = httpMsg.ResponseBody;
+                    respBodyBytes2 = Encoding.UTF8.GetBytes(respBody2);
+                    respHeaders2 = UpdateContentLength(respHeaders2, respBodyBytes2.Length);
                 }
             }
 
             // SSL strip: always remove HSTS and rewrite https links in non-redirect responses
-            if (settings.SslStrip && statusLine is not null)
+            if (settings.SslStrip && statusLine2 is not null)
             {
-                respHeaders = SslStripService.StripResponseHeaders(respHeaders);
+                respHeaders2 = SslStripService.StripResponseHeaders(respHeaders2);
             }
 
             sw.Stop();
 
             // Forward response to client
-            if (statusLine is not null)
-                await WriteHttpMessageAsync(clientStream, statusLine, respHeaders, respBodyBytes, ct);
+            if (statusLine2 is not null)
+                await WriteHttpMessageAsync(clientStream, statusLine2, respHeaders2, respBodyBytes2, ct);
 
             // Parse and record
             ParseRequestLine(reqLine ?? "", out method, out path, out query);
-            ParseStatusLine(statusLine, out var statusCode, out var statusMsg);
+            ParseStatusLine(statusLine2, out var statusCode, out var statusMsg);
 
             var device = await GetOrRegisterDeviceAsync(devices, clientIp, ct);
             var capture = new CapturedRequest
@@ -437,9 +483,9 @@ public class ExplicitProxyServer(
                 RequestBodySize = reqBodyBytes.Length,
                 StatusCode = statusCode,
                 StatusMessage = statusMsg,
-                ResponseHeaders = respHeaders,
-                ResponseBody = settings.CaptureResponseBodies ? respBody : string.Empty,
-                ResponseBodySize = respBodyBytes.Length,
+                ResponseHeaders = respHeaders2,
+                ResponseBody = settings.CaptureResponseBodies ? respBody2 : string.Empty,
+                ResponseBodySize = respBodyBytes2.Length,
                 IsTls = scheme == "https",
                 TlsVersion = tlsVersion,
                 TlsCipherSuite = tlsCipher,
@@ -454,7 +500,7 @@ public class ExplicitProxyServer(
             if (contentType.StartsWith("application/grpc", StringComparison.OrdinalIgnoreCase))
                 capture.Protocol = InterceptionProtocol.Grpc;
 
-            await captures.AddAsync(capture, ct);
+            await captures!.AddAsync(capture, ct);
             await publisher.PublishAsync(capture, ct);
 
             // Phase 8.5: Feed the anomaly detector and publish any triggered alerts
@@ -471,21 +517,21 @@ public class ExplicitProxyServer(
 
             // WebSocket upgrade — switch to frame relay mode
             if (statusCode == 101 &&
-                respHeaders.Contains("Upgrade: websocket", StringComparison.OrdinalIgnoreCase))
+                respHeaders2.Contains("Upgrade: websocket", StringComparison.OrdinalIgnoreCase))
             {
                 capture.Protocol = scheme == "https"
                     ? InterceptionProtocol.WebSocketTls
                     : InterceptionProtocol.WebSocket;
-                await captures.UpdateAsync(capture, ct);
+                await captures!.UpdateAsync(capture, ct);
 
                 logger.LogInformation("WebSocket upgrade detected for {Host}{Path}, relaying frames", host, path);
                 await RelayWebSocketFramesAsync(clientStream, upstreamStream, capture.Id,
-                    host, clientIp, captures, ct);
+                    host, clientIp, captures!, ct);
                 break;
             }
 
             // HTTP/1.0 or Connection: close — stop after one exchange
-            if (respHeaders.Contains("Connection: close", StringComparison.OrdinalIgnoreCase) ||
+            if (respHeaders2.Contains("Connection: close", StringComparison.OrdinalIgnoreCase) ||
                 (reqLine ?? "").EndsWith("HTTP/1.0"))
                 break;
         }
