@@ -23,6 +23,8 @@ export function useProxy() {
 
   useEffect(() => {
     void refresh()
+    const interval = setInterval(refresh, 3000)
+    return () => clearInterval(interval)
   }, [refresh])
 
   const start = useCallback(async () => {

@@ -17,7 +17,7 @@ import { useTrafficStream } from '../hooks/useTrafficStream'
 import { useTheme } from '../hooks/useTheme'
 import type { CaptureFilters } from '../types/api'
 
-type ViewMode = 'list' | 'timeline' | 'packet-capture' | 'manipulation' | 'sessions' | 'passive'
+type ViewMode = 'list' | 'timeline' | 'packet-capture' | 'manipulation' | 'sessions'
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches)
@@ -55,6 +55,7 @@ export default function DashboardPage() {
   const proxyStatus = proxy.status
   const isRunning = proxyStatus?.isRunning ?? false
   const port = proxyStatus?.port ?? proxyStatus?.settings?.proxyPort ?? 8888
+  const isPassive = proxyStatus?.settings?.mode === 'Passive'
 
   return (
     <AppShell
@@ -75,86 +76,93 @@ export default function DashboardPage() {
     >
       {/* View mode toggle */}
       <div className="view-toggle">
-        {(['list', 'timeline', 'packet-capture', 'manipulation', 'sessions', 'passive'] as const).map(mode => (
+        {(['list', 'timeline', 'packet-capture', 'manipulation', 'sessions'] as const).map(mode => (
           <button
             key={mode}
             className={`view-toggle__btn${viewMode === mode ? ' view-toggle__btn--active' : ''}`}
             onClick={() => setViewMode(mode)}
           >
-            {mode === 'list' ? 'List' :
+            {mode === 'list' ? 'Requests' :
              mode === 'timeline' ? 'Timeline' :
              mode === 'packet-capture' ? 'Packet Capture' :
-             mode === 'manipulation' ? 'Manipulation' :
-             mode === 'sessions' ? 'Sessions' : 'Passive Capture'}
+             mode === 'manipulation' ? 'Manipulation' : 'Sessions'}
           </button>
         ))}
       </div>
 
-      {viewMode === 'list' && isMobile ? (
-        <ErrorBoundary>
-          {selectedId ? (
-            <CaptureDetail captureId={selectedId} onBack={() => setSelectedId(null)} />
-          ) : (
-            <CaptureList
-              captures={captures}
-              total={total}
-              loading={loading}
-              loadingMore={loadingMore}
-              error={error}
-              hasMore={hasMore}
-              filters={filters}
-              devices={devices}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              onFiltersChange={setFilters}
-              onLoadMore={loadMore}
-            />
+      {viewMode === 'list' && (
+        <div className={`requests-view${isPassive ? ' requests-view--passive' : ''}`}>
+          <ErrorBoundary>
+            <PassiveCaptureSummary embedded />
+          </ErrorBoundary>
+
+          {!isPassive && (
+            <div className="requests-view__content">
+              <ErrorBoundary>
+                {isMobile ? (
+                  selectedId ? (
+                    <CaptureDetail captureId={selectedId} onBack={() => setSelectedId(null)} />
+                  ) : (
+                    <CaptureList
+                      captures={captures}
+                      total={total}
+                      loading={loading}
+                      loadingMore={loadingMore}
+                      error={error}
+                      hasMore={hasMore}
+                      filters={filters}
+                      devices={devices}
+                      selectedId={selectedId}
+                      onSelect={setSelectedId}
+                      onFiltersChange={setFilters}
+                      onLoadMore={loadMore}
+                    />
+                  )
+                ) : selectedId ? (
+                  <SplitPane
+                    left={
+                      <CaptureList
+                        captures={captures}
+                        total={total}
+                        loading={loading}
+                        loadingMore={loadingMore}
+                        error={error}
+                        hasMore={hasMore}
+                        filters={filters}
+                        devices={devices}
+                        selectedId={selectedId}
+                        onSelect={setSelectedId}
+                        onFiltersChange={setFilters}
+                        onLoadMore={loadMore}
+                      />
+                    }
+                    right={<CaptureDetail captureId={selectedId} />}
+                    initialLeftPercent={40}
+                    onCollapse={() => setSelectedId(null)}
+                    minLeftPx={260}
+                    minRightPx={260}
+                  />
+                ) : (
+                  <CaptureList
+                    captures={captures}
+                    total={total}
+                    loading={loading}
+                    loadingMore={loadingMore}
+                    error={error}
+                    hasMore={hasMore}
+                    filters={filters}
+                    devices={devices}
+                    selectedId={selectedId}
+                    onSelect={setSelectedId}
+                    onFiltersChange={setFilters}
+                    onLoadMore={loadMore}
+                  />
+                )}
+              </ErrorBoundary>
+            </div>
           )}
-        </ErrorBoundary>
-      ) : viewMode === 'list' && selectedId ? (
-        <ErrorBoundary>
-          <SplitPane
-            left={
-              <CaptureList
-                captures={captures}
-                total={total}
-                loading={loading}
-                loadingMore={loadingMore}
-                error={error}
-                hasMore={hasMore}
-                filters={filters}
-                devices={devices}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                onFiltersChange={setFilters}
-                onLoadMore={loadMore}
-              />
-            }
-            right={<CaptureDetail captureId={selectedId} />}
-            initialLeftPercent={40}
-            onCollapse={() => setSelectedId(null)}
-            minLeftPx={260}
-            minRightPx={260}
-          />
-        </ErrorBoundary>
-      ) : viewMode === 'list' ? (
-        <ErrorBoundary>
-          <CaptureList
-            captures={captures}
-            total={total}
-            loading={loading}
-            loadingMore={loadingMore}
-            error={error}
-            hasMore={hasMore}
-            filters={filters}
-            devices={devices}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            onFiltersChange={setFilters}
-            onLoadMore={loadMore}
-          />
-        </ErrorBoundary>
-      ) : null}
+        </div>
+      )}
 
       {viewMode === 'timeline' && (
         <ErrorBoundary>
@@ -193,11 +201,6 @@ export default function DashboardPage() {
         </ErrorBoundary>
       )}
 
-      {viewMode === 'passive' && (
-        <ErrorBoundary>
-          <PassiveCaptureSummary />
-        </ErrorBoundary>
-      )}
     </AppShell>
   )
 }

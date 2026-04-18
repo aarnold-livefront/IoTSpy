@@ -7,12 +7,27 @@
   height: 100%;
 }
 
+/* Embedded inside the Requests tab — compact header, no full-height scroll */
+.passive-summary--embedded {
+  height: auto;
+  overflow: visible;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* When passive mode is active, let it expand to fill the remaining space */
+.requests-view--passive .passive-summary--embedded {
+  flex: 1;
+  height: 0;
+  overflow: auto;
+  border-bottom: none;
+}
+
 /* ── Mode control bar ────────────────────────────────────────────────────── */
 
 .passive-summary__mode-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
   background: var(--color-surface);
@@ -35,17 +50,33 @@
 }
 
 .passive-summary__mode-dot--active {
-  background-color: var(--color-success);
-  box-shadow: 0 0 6px var(--color-success);
+  /* Passive + running: blue — observing, not recording */
+  background-color: var(--color-info);
+  box-shadow: 0 0 6px var(--color-info);
   animation: pulse 2s ease-in-out infinite;
+}
+
+.passive-summary__mode-dot--running {
+  /* Active + running: red — recording to database, like a studio tally light */
+  background-color: var(--color-danger);
+  box-shadow: 0 0 6px var(--color-danger);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.passive-summary__mode-dot--idle-passive {
+  /* Passive + stopped: dim blue — mode is set but proxy isn't running */
+  background-color: var(--color-info);
+  opacity: 0.3;
+}
+
+.passive-summary__mode-dot--idle-active {
+  /* Active + stopped: dim red — mode is set but proxy isn't running */
+  background-color: var(--color-danger);
+  opacity: 0.3;
 }
 
 .passive-summary__mode-dot--ready {
   background-color: var(--color-warning);
-}
-
-.passive-summary__mode-dot--inactive {
-  background-color: var(--color-text-faint);
 }
 
 .passive-summary__mode-label {
@@ -66,11 +97,69 @@
   flex-wrap: wrap;
 }
 
+.passive-summary__info-wrap {
+  position: relative;
+}
+
+.passive-summary__info-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-faint);
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.passive-summary__info-btn:hover {
+  color: var(--color-text);
+  border-color: var(--color-text-faint);
+}
+
+.passive-summary__info-popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 280px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-3);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--color-text);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  z-index: 100;
+}
+
+.passive-summary__info-close {
+  float: right;
+  margin: -2px -2px 4px 8px;
+  background: transparent;
+  border: none;
+  color: var(--color-text-faint);
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 2px 4px;
+}
+
+.passive-summary__info-close:hover {
+  color: var(--color-text);
+}
+
 .passive-summary__mode-toggle {
   display: flex;
   border: 1px solid var(--color-border);
   border-radius: 6px;
   overflow: hidden;
+  margin-left: auto;
 }
 
 .passive-summary__mode-btn {

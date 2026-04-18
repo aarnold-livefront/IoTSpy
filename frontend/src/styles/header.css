@@ -119,8 +119,7 @@
 
 .proxy-status-badge__dot--running {
   background-color: var(--color-success);
-  box-shadow: 0 0 6px var(--color-success);
-  animation: pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 5px var(--color-success);
 }
 
 .proxy-status-badge__dot--connecting {
