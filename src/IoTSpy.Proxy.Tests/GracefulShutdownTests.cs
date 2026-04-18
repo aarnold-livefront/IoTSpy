@@ -62,6 +62,7 @@ public class GracefulShutdownTests
             new SslStripService(NullLogger<SslStripService>.Instance),
             Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(),
             Substitute.For<Polly.Registry.ResiliencePipelineProvider<string>>(),
+            Substitute.For<IPassiveProxyBuffer>(),
             NullLogger<ExplicitProxyServer>.Instance);
     }
 

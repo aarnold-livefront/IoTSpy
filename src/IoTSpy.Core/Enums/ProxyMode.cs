@@ -4,5 +4,6 @@ public enum ProxyMode
 {
     ExplicitProxy,
     ArpSpoof,
-    GatewayRedirect
+    GatewayRedirect,
+    Passive
 }

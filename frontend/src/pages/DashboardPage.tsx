@@ -8,6 +8,7 @@ import TimelineSwimlaneView from '../components/timeline/TimelineSwimlaneView'
 import PanelPacketCapture from '../components/panels/PanelPacketCapture'
 import ManipulationPanel from '../components/manipulation/ManipulationPanel'
 import SessionsPanel from '../components/sessions/SessionsPanel'
+import PassiveCaptureSummary from '../components/passive/PassiveCaptureSummary'
 import ErrorBoundary from '../components/common/ErrorBoundary'
 import { useProxy } from '../hooks/useProxy'
 import { useCaptures } from '../hooks/useCaptures'
@@ -16,7 +17,7 @@ import { useTrafficStream } from '../hooks/useTrafficStream'
 import { useTheme } from '../hooks/useTheme'
 import type { CaptureFilters } from '../types/api'
 
-type ViewMode = 'list' | 'timeline' | 'packet-capture' | 'manipulation' | 'sessions'
+type ViewMode = 'list' | 'timeline' | 'packet-capture' | 'manipulation' | 'sessions' | 'passive'
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches)
@@ -74,7 +75,7 @@ export default function DashboardPage() {
     >
       {/* View mode toggle */}
       <div className="view-toggle">
-        {(['list', 'timeline', 'packet-capture', 'manipulation', 'sessions'] as const).map(mode => (
+        {(['list', 'timeline', 'packet-capture', 'manipulation', 'sessions', 'passive'] as const).map(mode => (
           <button
             key={mode}
             className={`view-toggle__btn${viewMode === mode ? ' view-toggle__btn--active' : ''}`}
@@ -83,7 +84,8 @@ export default function DashboardPage() {
             {mode === 'list' ? 'List' :
              mode === 'timeline' ? 'Timeline' :
              mode === 'packet-capture' ? 'Packet Capture' :
-             mode === 'manipulation' ? 'Manipulation' : 'Sessions'}
+             mode === 'manipulation' ? 'Manipulation' :
+             mode === 'sessions' ? 'Sessions' : 'Passive Capture'}
           </button>
         ))}
       </div>
@@ -188,6 +190,12 @@ export default function DashboardPage() {
       {viewMode === 'sessions' && (
         <ErrorBoundary>
           <SessionsPanel />
+        </ErrorBoundary>
+      )}
+
+      {viewMode === 'passive' && (
+        <ErrorBoundary>
+          <PassiveCaptureSummary />
         </ErrorBoundary>
       )}
     </AppShell>

@@ -46,6 +46,9 @@ public DbSet<OpenRtbEvent> OpenRtbEvents => Set<OpenRtbEvent>();
     public DbSet<CaptureAnnotation> CaptureAnnotations => Set<CaptureAnnotation>();
     public DbSet<SessionActivity> SessionActivities => Set<SessionActivity>();
 
+    // Phase 21 — Passive proxy sessions
+    public DbSet<PassiveCaptureSession> PassiveCaptureSessions => Set<PassiveCaptureSession>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Device>(e =>
@@ -272,6 +275,24 @@ modelBuilder.Entity<OpenRtbPiiPolicy>(e =>
              .WithMany(d => d.ReplacementRules)
              .HasForeignKey(r => r.ApiSpecDocumentId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Phase 21 — Passive proxy sessions
+        modelBuilder.Entity<PassiveCaptureSession>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.HasIndex(s => s.CreatedAt);
+            e.Property(s => s.Name).IsRequired().HasMaxLength(200);
+            e.Property(s => s.DeviceFilter).HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<CapturedRequest>(e =>
+        {
+            e.HasOne(c => c.PassiveCaptureSession)
+             .WithMany()
+             .HasForeignKey(c => c.PassiveCaptureSessionId)
+             .OnDelete(DeleteBehavior.SetNull)
+             .IsRequired(false);
         });
 
         // Phase 15 — Collaboration
