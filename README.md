@@ -518,7 +518,7 @@ src/
   IoTSpy.Scanner/       # Port scan, fingerprinting, CVE lookup, packet capture
   IoTSpy.Manipulation/  # Rules engine, replay, fuzzer, AI mock, OpenRTB PII, packet analysis, API spec generation, content replacement
   IoTSpy.Storage/       # EF Core DbContext, repositories, migrations
-  IoTSpy.Api/           # ASP.NET Core host, 15 controllers, 2 SignalR hubs
+  IoTSpy.Api/           # ASP.NET Core host, 18 controllers, 3 SignalR hubs
 frontend/               # Vite 6 + React 19 + TypeScript dashboard
 docs/
   ARCHITECTURE.md       # Full architecture spec
@@ -577,8 +577,8 @@ See [`docs/PLAN.md`](docs/PLAN.md) for the full implementation plan, identified 
 | 18.5 | Frontend design & usability overhaul | **Complete** |
 | 19 | Bugfixes, UI polish, iOS TLS compatibility & proxy auto-start | **Complete** |
 | 20 | Admin UI & body viewer stream rendering | **Complete** |
-| 16–17 | Deployment/operations & protocol expansion (non-IP IoT) | **Deprioritized** |
-| 21 | Passive proxy mode (toggle-able observation) | **Proposed** |
+| 16 | Deployment/operations (Helm, Docker Compose, CI/CD) | **Complete** |
+| 21 | Passive proxy mode — observe-only, device IP filter, named sessions | **Complete** |
 
 ---
 

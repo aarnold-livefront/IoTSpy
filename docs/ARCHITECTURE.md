@@ -111,7 +111,7 @@ Domain models live in `IoTSpy.Core/Models/`; DTOs and result types are co-locate
 
 | Enum | Values |
 |---|---|
-| `ProxyMode` | ExplicitProxy, ArpSpoof, GatewayRedirect |
+| `ProxyMode` | ExplicitProxy, ArpSpoof, GatewayRedirect, Passive |
 | `UserRole` | Admin, Operator, Viewer |
 | `InterceptionProtocol` | Http, Https, Mqtt, MqttTls, CoAP, Dns, MDns, WebSocket, WebSocketTls, Grpc, Modbus, TlsPassthrough, Other |
 | `ScanStatus` | Pending, Running, Completed, Failed, Cancelled |
