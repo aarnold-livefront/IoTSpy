@@ -59,6 +59,12 @@ export function usePacketCapture() {
       setPackets(prev => [packet, ...prev].slice(0, 10000))
     })
 
+    // Batch event emitted by the Channel consumer (Options A+C).
+    // Prepend newest-first so the most recent packet leads the list.
+    connection.on('PacketCapturedBatch', (batch: CapturedPacket[]) => {
+      setPackets(prev => [...batch.reverse(), ...prev].slice(0, 10000))
+    })
+
     connection.on('CaptureStatus', (data: { isCapturing: boolean }) => {
       setIsCapturing(data.isCapturing)
     })

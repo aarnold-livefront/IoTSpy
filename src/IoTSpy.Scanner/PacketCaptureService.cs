@@ -6,19 +6,28 @@ using PacketDotNet;
 using SharpPcap;
 using SharpPcap.LibPcap;
 using System.Text;
+using System.Threading.Channels;
 
 namespace IoTSpy.Scanner;
 
 /// <summary>
-/// Implements live packet capture via SharpPcap/libpcap and serves as the
-/// primary implementation of <see cref="IPacketCaptureService"/>.
-/// Packets are held in an in-memory circular buffer and optionally streamed
-/// to connected clients via <see cref="IPacketCapturePublisher"/>.
+/// Live packet capture via SharpPcap/libpcap.
+///
+/// Performance architecture (Options A + B + C):
+///   A — <see cref="OnPacketArrival"/> writes to a bounded <see cref="Channel{T}"/>
+///       (non-blocking, no lock), fully decoupling the SharpPcap callback thread from
+///       storage and publishing.
+///   B — The Channel consumer writes parsed packets into a <see cref="IPacketBuffer"/>
+///       (lock-free ring array); query endpoints take lock-free snapshots.
+///   C — The consumer accumulates up to <see cref="ConsumerBatchSize"/> packets or
+///       waits <see cref="ConsumerBatchMs"/> ms, then emits a single SignalR batch
+///       message instead of one message per packet.
 /// </summary>
 public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IPacketCapturePublisher _publisher;
+    private readonly IPacketBuffer _buffer;
     private readonly ILogger<PacketCaptureService> _logger;
 
     private ILiveDevice? _activeDevice;
@@ -26,24 +35,36 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
     private long _captureIndex;
     private bool _devicesEnumerated;
 
-    // Ring buffer backed by a fixed-capacity queue — O(1) enqueue/dequeue
-    private readonly object _lock = new();
-    private readonly LinkedList<CapturedPacket> _livePackets = new();
-    private readonly Dictionary<Guid, FreezeFrameResult> _freezeFrames = new();
+    // Channel lifecycle — recreated on each StartCaptureAsync call.
+    private Channel<CapturedPacket> _channel = CreateChannel();
+    private Task _consumerTask = Task.CompletedTask;
+    private CancellationTokenSource _consumerCts = new();
 
-    private const int MaxLivePackets = 10_000;
+    private const int ChannelCapacity = 50_000;
+    private const int ConsumerBatchSize = 50;
+    private const int ConsumerBatchMs = 50;
 
     public bool IsCaptureActive { get; private set; }
 
     public PacketCaptureService(
         IServiceScopeFactory scopeFactory,
         IPacketCapturePublisher publisher,
+        IPacketBuffer buffer,
         ILogger<PacketCaptureService> logger)
     {
         _scopeFactory = scopeFactory;
         _publisher = publisher;
+        _buffer = buffer;
         _logger = logger;
     }
+
+    private static Channel<CapturedPacket> CreateChannel() =>
+        Channel.CreateBounded<CapturedPacket>(new BoundedChannelOptions(ChannelCapacity)
+        {
+            FullMode = BoundedChannelFullMode.DropOldest,
+            SingleWriter = true,  // SharpPcap uses a single callback thread per device
+            SingleReader = true
+        });
 
     // ── Interface enumeration ────────────────────────────────────────────────
 
@@ -82,10 +103,6 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         return result;
     }
 
-    /// <summary>
-    /// Ensures device list has been synced to DB at least once.
-    /// Called lazily before operations that depend on persisted devices.
-    /// </summary>
     private async Task EnsureDevicesEnumeratedAsync()
     {
         if (!_devicesEnumerated)
@@ -133,7 +150,6 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
             }
             else if (existing.IpAddress != nd.IpAddress || existing.MacAddress != nd.MacAddress)
             {
-                // Update stale address info
                 existing.IpAddress = nd.IpAddress;
                 existing.MacAddress = nd.MacAddress;
                 await repo.UpdateAsync(existing);
@@ -189,13 +205,16 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
                 return false;
             }
 
-            lock (_lock)
-            {
-                _livePackets.Clear();
-                _freezeFrames.Clear();
-                _captureIndex = 0;
-                _activeDeviceId = deviceId;
-            }
+            _buffer.Clear();
+            _activeDeviceId = deviceId;
+            Interlocked.Exchange(ref _captureIndex, 0);
+
+            // Fresh channel + consumer for this capture session.
+            _consumerCts.Cancel();
+            _consumerCts.Dispose();
+            _consumerCts = new CancellationTokenSource();
+            _channel = CreateChannel();
+            _consumerTask = Task.Run(() => RunConsumerAsync(_consumerCts.Token));
 
             _activeDevice = pcapDevice;
             _activeDevice.OnPacketArrival += OnPacketArrival;
@@ -229,6 +248,13 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
                 _activeDevice = null;
             }
             IsCaptureActive = false;
+
+            // Signal consumer to finish and drain the channel.
+            _channel.Writer.TryComplete();
+            _consumerCts.Cancel();
+            try { await _consumerTask.WaitAsync(TimeSpan.FromSeconds(3)); }
+            catch (TimeoutException) { _logger.LogWarning("Packet consumer did not drain within 3 s"); }
+
             await _publisher.PublishStatusAsync(false, _activeDeviceId);
             _logger.LogInformation("Packet capture stopped");
             return true;
@@ -241,25 +267,15 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         }
     }
 
-    // ── Packet arrival (called on SharpPcap capture thread) ──────────────────
+    // ── Packet arrival (SharpPcap capture thread — must not block) ───────────
 
     private void OnPacketArrival(object sender, PacketCapture e)
     {
         try
         {
-            var rawCapture = e.GetPacket();
-            var packet = ParseRawPacket(rawCapture);
-
-            lock (_lock)
-            {
-                _livePackets.AddLast(packet);
-                if (_livePackets.Count > MaxLivePackets)
-                    _livePackets.RemoveFirst(); // O(1) for LinkedList
-            }
-
-            // Fire-and-forget publish — observe exceptions to prevent
-            // unobserved task exceptions from crashing the process.
-            _ = PublishSafeAsync(packet);
+            var packet = ParseRawPacket(e.GetPacket());
+            // TryWrite is non-blocking and thread-safe; DropOldest evicts if full.
+            _channel.Writer.TryWrite(packet);
         }
         catch (Exception ex)
         {
@@ -267,17 +283,292 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         }
     }
 
-    private async Task PublishSafeAsync(CapturedPacket packet)
+    // ── Channel consumer (Option A + C) ─────────────────────────────────────
+
+    private async Task RunConsumerAsync(CancellationToken ct)
     {
-        try
+        var batch = new List<CapturedPacket>(ConsumerBatchSize);
+
+        while (!ct.IsCancellationRequested)
         {
-            await _publisher.PublishPacketAsync(packet);
+            // Wait up to ConsumerBatchMs for new data, then flush whatever we have.
+            using var flushCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            flushCts.CancelAfter(ConsumerBatchMs);
+
+            try
+            {
+                if (!await _channel.Reader.WaitToReadAsync(flushCts.Token))
+                    break; // channel writer completed
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // Batch window elapsed — fall through to publish what's available.
+            }
+
+            while (batch.Count < ConsumerBatchSize && _channel.Reader.TryRead(out var pkt))
+                batch.Add(pkt);
+
+            if (batch.Count > 0)
+            {
+                foreach (var pkt in batch)
+                    _buffer.Add(pkt);
+
+                try { await _publisher.PublishPacketBatchAsync(batch, ct); }
+                catch (Exception ex) { _logger.LogDebug(ex, "Failed to publish packet batch"); }
+
+                batch.Clear();
+            }
         }
-        catch (Exception ex)
+
+        // Drain any remaining packets after stop signal.
+        while (_channel.Reader.TryRead(out var pkt))
+            batch.Add(pkt);
+
+        if (batch.Count > 0)
         {
-            _logger.LogDebug(ex, "Failed to publish captured packet via SignalR");
+            foreach (var pkt in batch)
+                _buffer.Add(pkt);
         }
     }
+
+    // ── Queries (no lock — all read from the lock-free ring buffer) ──────────
+
+    public Task<NetworkDeviceStatistics?> GetLiveStatsAsync(Guid deviceId)
+    {
+        if (_activeDeviceId != deviceId)
+            return Task.FromResult<NetworkDeviceStatistics?>(null);
+
+        return Task.FromResult<NetworkDeviceStatistics?>(new NetworkDeviceStatistics
+        {
+            DeviceId = deviceId,
+            TotalPacketsCaptured = Interlocked.Read(ref _captureIndex),
+            PacketsPerSecond = 0,
+            Timestamp = DateTimeOffset.UtcNow
+        });
+    }
+
+    public Task<PagedResult<CapturedPacket>> GetCapturedPacketsAsync(
+        PacketFilter filter,
+        int page = 1,
+        int pageSize = 50,
+        CancellationToken ct = default)
+    {
+        // Snapshot outside any lock; filtering happens on the snapshot copy.
+        var filtered = ApplyFilter(_buffer.Snapshot(), filter);
+        var total = filtered.Count;
+        var items = filtered.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+        return Task.FromResult(new PagedResult<CapturedPacket>
+        {
+            Items = items,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        });
+    }
+
+    public Task<IEnumerable<CapturedPacket>> FilterPacketsAsync(
+        PacketFilterDto filter,
+        CancellationToken ct = default)
+    {
+        var pf = new PacketFilter
+        {
+            Protocol = filter.Protocol,
+            SourceIp = filter.SourceIp,
+            DestinationIp = filter.DestinationIp,
+            SourcePort = filter.SourcePort,
+            DestinationPort = filter.DestinationPort,
+            MacAddress = filter.MacAddress,
+            ShowOnlyErrors = filter.ShowOnlyErrors,
+            ShowOnlyRetransmissions = filter.ShowOnlyRetransmissions,
+            FromTime = filter.FromTime.HasValue
+                ? new DateTimeOffset(filter.FromTime.Value, TimeSpan.Zero) : null,
+            ToTime = filter.ToTime.HasValue
+                ? new DateTimeOffset(filter.ToTime.Value, TimeSpan.Zero) : null,
+            PayloadSearch = filter.PayloadSearch
+        };
+
+        var result = ApplyFilter(_buffer.Snapshot(), pf);
+        return Task.FromResult<IEnumerable<CapturedPacket>>(result.Take(filter.Limit).ToList());
+    }
+
+    public Task<CapturedPacket?> GetPacketByIdAsync(Guid id, CancellationToken ct = default)
+        => Task.FromResult(_buffer.GetById(id));
+
+    public Task<FreezeFrameResult?> FreezeFrameAsync(Guid id, CancellationToken ct = default)
+    {
+        var packet = _buffer.GetById(id);
+        if (packet == null) return Task.FromResult<FreezeFrameResult?>(null);
+        var result = BuildFreezeFrame(packet);
+        _buffer.SetFreezeFrame(id, result);
+        return Task.FromResult<FreezeFrameResult?>(result);
+    }
+
+    public Task<FreezeFrameResult?> GetFreezeFrameAsync(Guid id, CancellationToken ct = default)
+        => Task.FromResult(_buffer.GetFreezeFrame(id));
+
+    public Task<bool> DeletePacketAsync(Guid id, CancellationToken ct = default)
+        => Task.FromResult(_buffer.TryDelete(id));
+
+    public Task<bool> ClearCapturesAsync()
+    {
+        _buffer.Clear();
+        return Task.FromResult(true);
+    }
+
+    // ── PCAP export ──────────────────────────────────────────────────────────
+
+    public Task<byte[]?> ExportToPcapAsync(CancellationToken ct = default)
+    {
+        var snapshot = _buffer.Snapshot();
+        if (snapshot.Length == 0)
+            return Task.FromResult<byte[]?>(null);
+
+        using var ms = new MemoryStream();
+        using var bw = new BinaryWriter(ms);
+        WritePcapGlobalHeader(bw);
+
+        foreach (var p in snapshot)
+        {
+            var frameData = p.RawData;
+            if (frameData is null || frameData.Length == 0) continue;
+
+            var tsSec = (uint)p.Timestamp.ToUnixTimeSeconds();
+            var tsUsec = (uint)(p.Timestamp.Millisecond * 1000);
+            bw.Write(tsSec); bw.Write(tsUsec);
+            bw.Write((uint)frameData.Length); bw.Write((uint)frameData.Length);
+            bw.Write(frameData);
+        }
+
+        return Task.FromResult<byte[]?>(ms.ToArray());
+    }
+
+    public async Task<byte[]?> ExportToPcapFilteredAsync(PacketFilterDto filter, CancellationToken ct = default)
+    {
+        var filtered = (await FilterPacketsAsync(filter, ct)).ToList();
+        if (filtered.Count == 0) return null;
+
+        using var ms = new MemoryStream();
+        using var bw = new BinaryWriter(ms);
+        WritePcapGlobalHeader(bw);
+
+        foreach (var p in filtered)
+        {
+            var frameData = p.RawData; // still in memory — RawData is [NotMapped]
+            if (frameData is null || frameData.Length == 0) continue;
+
+            var tsSec = (uint)p.Timestamp.ToUnixTimeSeconds();
+            var tsUsec = (uint)(p.Timestamp.Millisecond * 1000);
+            bw.Write(tsSec); bw.Write(tsUsec);
+            bw.Write((uint)frameData.Length); bw.Write((uint)frameData.Length);
+            bw.Write(frameData);
+        }
+
+        return ms.ToArray();
+    }
+
+    private static void WritePcapGlobalHeader(BinaryWriter bw)
+    {
+        bw.Write(0xa1b2c3d4u);  // magic
+        bw.Write((ushort)2); bw.Write((ushort)4);  // version
+        bw.Write(0); bw.Write(0u);  // thiszone, sigfigs
+        bw.Write(65535u);  // snaplen
+        bw.Write(1u);      // LINKTYPE_ETHERNET
+    }
+
+    // ── PCAP import ─────────────────────────────────────────────────────────
+
+    public async Task<PcapImportResult> ImportFromPcapAsync(
+        Stream pcapStream,
+        string fileName,
+        CancellationToken ct = default)
+    {
+        var jobId = Guid.NewGuid().ToString("N")[..8];
+        var result = new PcapImportResult { JobId = jobId };
+
+        var tempPath = Path.Combine(Path.GetTempPath(), $"iotspy_import_{jobId}.pcap");
+        try
+        {
+            await using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write))
+                await pcapStream.CopyToAsync(fs, ct);
+
+            List<RawCapture> rawCaptures = ReadAllRawCaptures(tempPath, ct);
+            int total = rawCaptures.Count;
+
+            await _publisher.PublishImportProgressAsync(jobId, 0, total, ct);
+
+            var imported = new List<CapturedPacket>(Math.Min(total, _buffer.Capacity));
+            long index = Interlocked.Read(ref _captureIndex);
+
+            for (int i = 0; i < rawCaptures.Count; i++)
+            {
+                ct.ThrowIfCancellationRequested();
+                try
+                {
+                    var packet = ParseRawPacket(rawCaptures[i]);
+                    packet.Timestamp = new DateTimeOffset(rawCaptures[i].Timeval.Date);
+                    packet.CaptureIndex = ++index;
+                    packet.Source = "Import";
+                    imported.Add(packet);
+                    result.PacketsImported++;
+                }
+                catch { result.PacketsSkipped++; }
+
+                int processed = i + 1;
+                if (processed % 100 == 0 || processed == total)
+                    await _publisher.PublishImportProgressAsync(jobId, processed, total, ct);
+            }
+
+            Interlocked.Exchange(ref _captureIndex, index);
+
+            _buffer.Clear();
+            foreach (var pkt in imported.TakeLast(_buffer.Capacity))
+                _buffer.Add(pkt);
+
+            result.TcpSessionsReconstructed = TcpSessionReconstructor.ReconstructSessions(imported);
+
+            // Publish imported packets in batches (Option C) to avoid flooding SignalR.
+            const int importBatch = 50;
+            for (int i = 0; i < imported.Count; i += importBatch)
+            {
+                ct.ThrowIfCancellationRequested();
+                var chunk = imported.Skip(i).Take(importBatch).ToList();
+                await _publisher.PublishPacketBatchAsync(chunk, ct);
+            }
+
+            result.Success = true;
+            _logger.LogInformation(
+                "PCAP import {JobId}: {Imported} packets imported, {Sessions} HTTP sessions reconstructed",
+                jobId, result.PacketsImported, result.TcpSessionsReconstructed);
+        }
+        catch (OperationCanceledException) { result.Error = "Import cancelled"; }
+        catch (Exception ex)
+        {
+            result.Error = ex.Message;
+            _logger.LogError(ex, "PCAP import {JobId} failed", jobId);
+        }
+        finally
+        {
+            try { File.Delete(tempPath); } catch { /* best-effort */ }
+        }
+
+        return result;
+    }
+
+    private static List<RawCapture> ReadAllRawCaptures(string filePath, CancellationToken ct)
+    {
+        var captures = new List<RawCapture>();
+        using var device = new CaptureFileReaderDevice(filePath);
+        device.Open();
+        while (!ct.IsCancellationRequested &&
+               device.GetNextPacket(out var cap) == GetPacketStatus.PacketRead)
+        {
+            captures.Add(cap.GetPacket());
+        }
+        return captures;
+    }
+
+    // ── Packet parsing ───────────────────────────────────────────────────────
 
     private CapturedPacket ParseRawPacket(RawCapture rawCapture)
     {
@@ -289,7 +580,7 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
             Timestamp = DateTimeOffset.UtcNow,
             DeviceId = _activeDeviceId,
             Length = rawCapture.Data.Length,
-            RawData = rawCapture.Data, // stored in-memory only ([NotMapped])
+            RawData = rawCapture.Data,
             Protocol = "Unknown",
             Layer2Protocol = "Ethernet",
             Layer3Protocol = "Unknown",
@@ -301,7 +592,6 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
             var parsed = Packet.ParsePacket(rawCapture.LinkLayerType, rawCapture.Data);
             if (parsed == null) return packet;
 
-            // Ethernet
             var eth = parsed.Extract<EthernetPacket>();
             if (eth != null)
             {
@@ -310,7 +600,6 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
                 packet.DestinationMac = eth.DestinationHardwareAddress?.ToString() ?? string.Empty;
             }
 
-            // ARP — layer 3, no transport layer
             var arp = parsed.Extract<ArpPacket>();
             if (arp != null)
             {
@@ -325,7 +614,6 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
                 return packet;
             }
 
-            // IPv4
             var ip4 = parsed.Extract<IPv4Packet>();
             if (ip4 != null)
             {
@@ -335,7 +623,6 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
                 packet.IsFragment = ip4.FragmentOffset != 0;
             }
 
-            // IPv6
             var ip6 = parsed.Extract<IPv6Packet>();
             if (ip6 != null)
             {
@@ -344,7 +631,6 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
                 packet.DestinationIp = ip6.DestinationAddress.ToString();
             }
 
-            // TCP
             var tcp = parsed.Extract<TcpPacket>();
             if (tcp != null)
             {
@@ -353,14 +639,11 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
                 packet.DestinationPort = tcp.DestinationPort;
                 packet.TcpFlags = BuildTcpFlags(tcp);
                 packet.Protocol = ResolveAppProtocol(tcp.SourcePort, tcp.DestinationPort) ?? "TCP";
-
                 if (tcp.PayloadData?.Length > 0)
                     packet.PayloadPreview = GetPayloadPreview(tcp.PayloadData);
-
                 return packet;
             }
 
-            // UDP
             var udp = parsed.Extract<UdpPacket>();
             if (udp != null)
             {
@@ -369,14 +652,11 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
                 packet.DestinationPort = udp.DestinationPort;
                 packet.UdpLength = udp.Length.ToString();
                 packet.Protocol = ResolveAppProtocol(udp.SourcePort, udp.DestinationPort) ?? "UDP";
-
                 if (udp.PayloadData?.Length > 0)
                     packet.PayloadPreview = GetPayloadPreview(udp.PayloadData);
-
                 return packet;
             }
 
-            // ICMP
             var icmp = parsed.Extract<IcmpV4Packet>();
             if (icmp != null)
             {
@@ -404,26 +684,17 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         return string.Join("|", flags);
     }
 
-    private static string? ResolveAppProtocol(int srcPort, int dstPort)
-    {
-        // Check both directions — the well-known port is usually the lower one
-        return MatchPort(srcPort) ?? MatchPort(dstPort);
+    private static string? ResolveAppProtocol(int srcPort, int dstPort) =>
+        MatchPort(srcPort) ?? MatchPort(dstPort);
 
-        static string? MatchPort(int port) => port switch
-        {
-            80 => "HTTP",
-            443 => "HTTPS",
-            53 => "DNS",
-            1883 => "MQTT",
-            8883 => "MQTT/TLS",
-            5353 => "mDNS",
-            5683 => "CoAP",
-            67 or 68 => "DHCP",
-            22 => "SSH",
-            23 => "Telnet",
-            _ => null
-        };
-    }
+    private static string? MatchPort(int port) => port switch
+    {
+        80 => "HTTP", 443 => "HTTPS", 53 => "DNS",
+        1883 => "MQTT", 8883 => "MQTT/TLS", 5353 => "mDNS",
+        5683 => "CoAP", 67 or 68 => "DHCP",
+        22 => "SSH", 23 => "Telnet",
+        _ => null
+    };
 
     private static string GetPayloadPreview(byte[] data)
     {
@@ -434,168 +705,47 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         return sb.ToString();
     }
 
-    // ── Queries ──────────────────────────────────────────────────────────────
-
-    public Task<NetworkDeviceStatistics?> GetLiveStatsAsync(Guid deviceId)
-    {
-        if (_activeDeviceId != deviceId)
-            return Task.FromResult<NetworkDeviceStatistics?>(null);
-
-        lock (_lock)
-        {
-            return Task.FromResult<NetworkDeviceStatistics?>(new NetworkDeviceStatistics
-            {
-                DeviceId = deviceId,
-                TotalPacketsCaptured = Interlocked.Read(ref _captureIndex),
-                PacketsPerSecond = 0,
-                Timestamp = DateTimeOffset.UtcNow
-            });
-        }
-    }
-
-    public Task<PagedResult<CapturedPacket>> GetCapturedPacketsAsync(
-        PacketFilter filter,
-        int page = 1,
-        int pageSize = 50,
-        CancellationToken ct = default)
-    {
-        List<CapturedPacket> filtered;
-        lock (_lock)
-            filtered = ApplyFilter(_livePackets, filter);
-
-        var total = filtered.Count;
-        var items = filtered
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-
-        return Task.FromResult(new PagedResult<CapturedPacket>
-        {
-            Items = items,
-            Total = total,
-            Page = page,
-            PageSize = pageSize
-        });
-    }
-
-    public Task<IEnumerable<CapturedPacket>> FilterPacketsAsync(
-        PacketFilterDto filter,
-        CancellationToken ct = default)
-    {
-        var pf = new PacketFilter
-        {
-            Protocol = filter.Protocol,
-            SourceIp = filter.SourceIp,
-            DestinationIp = filter.DestinationIp,
-            SourcePort = filter.SourcePort,
-            DestinationPort = filter.DestinationPort,
-            MacAddress = filter.MacAddress,
-            ShowOnlyErrors = filter.ShowOnlyErrors,
-            ShowOnlyRetransmissions = filter.ShowOnlyRetransmissions,
-            FromTime = filter.FromTime.HasValue
-                ? new DateTimeOffset(filter.FromTime.Value, TimeSpan.Zero)
-                : null,
-            ToTime = filter.ToTime.HasValue
-                ? new DateTimeOffset(filter.ToTime.Value, TimeSpan.Zero)
-                : null,
-            PayloadSearch = filter.PayloadSearch
-        };
-
-        List<CapturedPacket> result;
-        lock (_lock)
-            result = ApplyFilter(_livePackets, pf);
-
-        // Materialize inside lock, then limit outside
-        return Task.FromResult<IEnumerable<CapturedPacket>>(
-            result.Take(filter.Limit).ToList());
-    }
-
-    private static List<CapturedPacket> ApplyFilter(
-        IEnumerable<CapturedPacket> source, PacketFilter f)
+    private static List<CapturedPacket> ApplyFilter(IEnumerable<CapturedPacket> source, PacketFilter f)
     {
         var q = source.AsEnumerable();
 
         if (!string.IsNullOrEmpty(f.Protocol))
             q = q.Where(p => p.Protocol.Contains(f.Protocol!, StringComparison.OrdinalIgnoreCase)
                            || p.Layer4Protocol.Contains(f.Protocol!, StringComparison.OrdinalIgnoreCase));
-
         if (!string.IsNullOrEmpty(f.SourceIp))
             q = q.Where(p => p.SourceIp.Contains(f.SourceIp!));
-
         if (!string.IsNullOrEmpty(f.DestinationIp))
             q = q.Where(p => p.DestinationIp.Contains(f.DestinationIp!));
-
         if (f.SourcePort.HasValue)
             q = q.Where(p => p.SourcePort == f.SourcePort);
-
         if (f.DestinationPort.HasValue)
             q = q.Where(p => p.DestinationPort == f.DestinationPort);
-
         if (!string.IsNullOrEmpty(f.MacAddress))
             q = q.Where(p => p.SourceMac.Equals(f.MacAddress, StringComparison.OrdinalIgnoreCase)
                            || p.DestinationMac.Equals(f.MacAddress, StringComparison.OrdinalIgnoreCase));
-
         if (f.ShowOnlyErrors)
             q = q.Where(p => p.IsError);
-
         if (f.ShowOnlyRetransmissions)
             q = q.Where(p => p.IsRetransmission);
-
         if (f.FromTime.HasValue)
             q = q.Where(p => p.Timestamp >= f.FromTime.Value);
-
         if (f.ToTime.HasValue)
             q = q.Where(p => p.Timestamp <= f.ToTime.Value);
-
         if (!string.IsNullOrEmpty(f.PayloadSearch))
             q = q.Where(p => p.PayloadPreview.Contains(f.PayloadSearch!, StringComparison.OrdinalIgnoreCase));
 
         return q.OrderByDescending(p => p.Timestamp).ToList();
     }
 
-    public Task<CapturedPacket?> GetPacketByIdAsync(Guid id, CancellationToken ct = default)
-    {
-        lock (_lock)
-        {
-            var packet = _livePackets.FirstOrDefault(p => p.Id == id);
-            return Task.FromResult(packet);
-        }
-    }
-
-    public Task<FreezeFrameResult?> FreezeFrameAsync(Guid id, CancellationToken ct = default)
-    {
-        lock (_lock)
-        {
-            var packet = _livePackets.FirstOrDefault(p => p.Id == id);
-            if (packet == null) return Task.FromResult<FreezeFrameResult?>(null);
-
-            var result = BuildFreezeFrame(packet);
-            _freezeFrames[id] = result;
-            return Task.FromResult<FreezeFrameResult?>(result);
-        }
-    }
-
-    public Task<FreezeFrameResult?> GetFreezeFrameAsync(Guid id, CancellationToken ct = default)
-    {
-        lock (_lock)
-        {
-            _freezeFrames.TryGetValue(id, out var frame);
-            return Task.FromResult(frame);
-        }
-    }
-
     private static FreezeFrameResult BuildFreezeFrame(CapturedPacket packet)
     {
-        // Use raw frame data for the hex dump when available, otherwise fall back to preview
         var rawBytes = packet.RawData ?? Encoding.UTF8.GetBytes(packet.PayloadPreview);
-        var hexDump = FormatHexDump(rawBytes);
-
         return new FreezeFrameResult
         {
             PacketId = packet.Id,
             Timestamp = packet.Timestamp,
             FullPayloadHex = BitConverter.ToString(rawBytes).Replace("-", " "),
-            HexDump = hexDump,
+            HexDump = FormatHexDump(rawBytes),
             ProtocolDetails = $"{packet.Protocol} ({packet.Layer4Protocol})",
             Layer2Info = $"{packet.Layer2Protocol} src={packet.SourceMac} dst={packet.DestinationMac}",
             Layer3Info = $"{packet.Layer3Protocol} src={packet.SourceIp} dst={packet.DestinationIp}",
@@ -605,9 +755,6 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         };
     }
 
-    /// <summary>
-    /// Formats raw bytes as a Wireshark-style hex dump (offset | hex | ASCII).
-    /// </summary>
     private static string FormatHexDump(byte[] data)
     {
         var sb = new StringBuilder();
@@ -631,227 +778,6 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         return sb.ToString();
     }
 
-    public Task<bool> DeletePacketAsync(Guid id, CancellationToken ct = default)
-    {
-        lock (_lock)
-        {
-            var node = _livePackets.First;
-            while (node != null)
-            {
-                if (node.Value.Id == id)
-                {
-                    _livePackets.Remove(node);
-                    _freezeFrames.Remove(id);
-                    return Task.FromResult(true);
-                }
-                node = node.Next;
-            }
-            return Task.FromResult(false);
-        }
-    }
-
-    public Task<bool> ClearCapturesAsync()
-    {
-        lock (_lock)
-        {
-            _livePackets.Clear();
-            _freezeFrames.Clear();
-        }
-        return Task.FromResult(true);
-    }
-
-    // ── PCAP export ──────────────────────────────────────────────────────────
-
-    public Task<byte[]?> ExportToPcapAsync(CancellationToken ct = default)
-    {
-        List<CapturedPacket> snapshot;
-        lock (_lock)
-            snapshot = _livePackets.ToList();
-
-        if (snapshot.Count == 0)
-            return Task.FromResult<byte[]?>(null);
-
-        using var ms = new MemoryStream();
-        using var bw = new BinaryWriter(ms);
-
-        // PCAP global header (libpcap format)
-        bw.Write(0xa1b2c3d4u);  // magic number
-        bw.Write((ushort)2);     // version major
-        bw.Write((ushort)4);     // version minor
-        bw.Write(0);             // thiszone
-        bw.Write(0u);            // sigfigs
-        bw.Write(65535u);        // snaplen
-        bw.Write(1u);            // network = LINKTYPE_ETHERNET
-
-        foreach (var p in snapshot)
-        {
-            // Use raw frame data when available; skip packets without it
-            var frameData = p.RawData;
-            if (frameData == null || frameData.Length == 0)
-                continue;
-
-            var tsSec = (uint)p.Timestamp.ToUnixTimeSeconds();
-            var tsUsec = (uint)(p.Timestamp.Millisecond * 1000);
-            bw.Write(tsSec);
-            bw.Write(tsUsec);
-            bw.Write((uint)frameData.Length);  // incl_len
-            bw.Write((uint)frameData.Length);  // orig_len
-            bw.Write(frameData);
-        }
-
-        return Task.FromResult<byte[]?>(ms.ToArray());
-    }
-
-    public async Task<byte[]?> ExportToPcapFilteredAsync(PacketFilterDto filter, CancellationToken ct = default)
-    {
-        var filtered = (await FilterPacketsAsync(filter, ct)).ToList();
-        if (filtered.Count == 0) return null;
-
-        using var ms = new MemoryStream();
-        using var bw = new BinaryWriter(ms);
-
-        bw.Write(0xa1b2c3d4u);
-        bw.Write((ushort)2);
-        bw.Write((ushort)4);
-        bw.Write(0);
-        bw.Write(0u);
-        bw.Write(65535u);
-        bw.Write(1u);
-
-        // Get raw data from live buffer for these packet IDs
-        Dictionary<Guid, byte[]?> rawDataById;
-        lock (_lock)
-            rawDataById = _livePackets.ToDictionary(p => p.Id, p => p.RawData);
-
-        foreach (var p in filtered)
-        {
-            if (!rawDataById.TryGetValue(p.Id, out var frameData) || frameData is null || frameData.Length == 0)
-                continue;
-
-            var tsSec = (uint)p.Timestamp.ToUnixTimeSeconds();
-            var tsUsec = (uint)(p.Timestamp.Millisecond * 1000);
-            bw.Write(tsSec);
-            bw.Write(tsUsec);
-            bw.Write((uint)frameData.Length);
-            bw.Write((uint)frameData.Length);
-            bw.Write(frameData);
-        }
-
-        return ms.ToArray();
-    }
-
-    // ── PCAP import ─────────────────────────────────────────────────────────
-
-    public async Task<PcapImportResult> ImportFromPcapAsync(
-        Stream pcapStream,
-        string fileName,
-        CancellationToken ct = default)
-    {
-        var jobId = Guid.NewGuid().ToString("N")[..8];
-        var result = new PcapImportResult { JobId = jobId };
-
-        // Write the upload to a temp file — SharpPcap requires a file path
-        var tempPath = Path.Combine(Path.GetTempPath(), $"iotspy_import_{jobId}.pcap");
-        try
-        {
-            await using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write))
-                await pcapStream.CopyToAsync(fs, ct);
-
-            // Phase 1 (synchronous): read all raw captures into memory.
-            // PacketCapture is a ref struct and cannot cross await boundaries,
-            // so we do all SharpPcap reads before any async work.
-            List<RawCapture> rawCaptures = ReadAllRawCaptures(tempPath, ct);
-            int total = rawCaptures.Count;
-
-            await _publisher.PublishImportProgressAsync(jobId, 0, total, ct);
-
-            // Phase 2 (async-safe): parse packets, publish progress via SignalR
-            var imported = new List<CapturedPacket>(Math.Min(total, MaxLivePackets));
-            long index = Interlocked.Read(ref _captureIndex);
-
-            for (int i = 0; i < rawCaptures.Count; i++)
-            {
-                ct.ThrowIfCancellationRequested();
-                try
-                {
-                    var packet = ParseRawPacket(rawCaptures[i]);
-                    packet.Timestamp = new DateTimeOffset(rawCaptures[i].Timeval.Date);
-                    packet.CaptureIndex = ++index;
-                    packet.Source = "Import";
-                    imported.Add(packet);
-                    result.PacketsImported++;
-                }
-                catch
-                {
-                    result.PacketsSkipped++;
-                }
-
-                int processed = i + 1;
-                if (processed % 100 == 0 || processed == total)
-                    await _publisher.PublishImportProgressAsync(jobId, processed, total, ct);
-            }
-
-            Interlocked.Exchange(ref _captureIndex, index);
-
-            // Phase 3: replace in-memory buffer with imported packets
-            lock (_lock)
-            {
-                _livePackets.Clear();
-                _freezeFrames.Clear();
-                foreach (var pkt in imported.TakeLast(MaxLivePackets))
-                    _livePackets.AddLast(pkt);
-            }
-
-            // Phase 4: TCP session reconstruction enriches HTTP packet metadata
-            result.TcpSessionsReconstructed = TcpSessionReconstructor.ReconstructSessions(imported);
-
-            // Phase 5: push each imported packet to SignalR so the frontend list populates
-            foreach (var pkt in imported)
-            {
-                ct.ThrowIfCancellationRequested();
-                await _publisher.PublishPacketAsync(pkt, ct);
-            }
-
-            result.Success = true;
-            _logger.LogInformation(
-                "PCAP import {JobId}: {Imported} packets imported, {Sessions} HTTP sessions reconstructed",
-                jobId, result.PacketsImported, result.TcpSessionsReconstructed);
-        }
-        catch (OperationCanceledException)
-        {
-            result.Error = "Import cancelled";
-        }
-        catch (Exception ex)
-        {
-            result.Error = ex.Message;
-            _logger.LogError(ex, "PCAP import {JobId} failed", jobId);
-        }
-        finally
-        {
-            try { File.Delete(tempPath); } catch { /* best-effort */ }
-        }
-
-        return result;
-    }
-
-    /// <summary>
-    /// Reads all raw packet captures from a PCAP/pcapng file synchronously.
-    /// Must remain non-async because <see cref="SharpPcap.PacketCapture"/> is a
-    /// ref struct and cannot cross await boundaries.
-    /// </summary>
-    private static List<RawCapture> ReadAllRawCaptures(string filePath, CancellationToken ct)
-    {
-        var captures = new List<RawCapture>();
-        using var device = new SharpPcap.LibPcap.CaptureFileReaderDevice(filePath);
-        device.Open();
-        while (!ct.IsCancellationRequested &&
-               device.GetNextPacket(out var cap) == SharpPcap.GetPacketStatus.PacketRead)
-        {
-            captures.Add(cap.GetPacket());
-        }
-        return captures;
-    }
-
     // ── Disposal ─────────────────────────────────────────────────────────────
 
     public void Dispose()
@@ -867,5 +793,7 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
             catch { /* best-effort cleanup */ }
             IsCaptureActive = false;
         }
+        _consumerCts.Cancel();
+        _consumerCts.Dispose();
     }
 }

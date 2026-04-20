@@ -38,6 +38,7 @@ public class ExplicitProxyServer(
     IServiceScopeFactory scopeFactory,
     ResiliencePipelineProvider<string> connectPipelineProvider,
     IPassiveProxyBuffer passiveBuffer,
+    ICaptureBatchWriter captureBatchWriter,
     ILogger<ExplicitProxyServer> logger)
 {
     private TcpListener? _listener;
@@ -500,8 +501,7 @@ public class ExplicitProxyServer(
             if (contentType.StartsWith("application/grpc", StringComparison.OrdinalIgnoreCase))
                 capture.Protocol = InterceptionProtocol.Grpc;
 
-            await captures!.AddAsync(capture, ct);
-            await publisher.PublishAsync(capture, ct);
+            captureBatchWriter.TryEnqueue(capture);
 
             // Phase 8.5: Feed the anomaly detector and publish any triggered alerts
             if (statusCode > 0)
@@ -868,8 +868,7 @@ public class ExplicitProxyServer(
             TlsMetadataJson = JsonSerializer.Serialize(metadata)
         };
 
-        await captures.AddAsync(capture, ct);
-        await publisher.PublishAsync(capture, ct);
+        captureBatchWriter.TryEnqueue(capture);
 
         logger.LogInformation(
             "TLS passthrough complete: {ClientIp}→{SniHostname}:{Port} Duration={DurationMs}ms " +

@@ -5,6 +5,7 @@ namespace IoTSpy.Core.Interfaces;
 public interface ICaptureRepository
 {
     Task<CapturedRequest> AddAsync(CapturedRequest capture, CancellationToken ct = default);
+    Task AddBatchAsync(IReadOnlyList<CapturedRequest> captures, CancellationToken ct = default);
     Task<List<CapturedRequest>> GetPagedAsync(CaptureFilter filter, int page, int pageSize, CancellationToken ct = default);
     Task<int> CountAsync(CaptureFilter filter, CancellationToken ct = default);
     Task<CapturedRequest?> GetByIdAsync(Guid id, CancellationToken ct = default);

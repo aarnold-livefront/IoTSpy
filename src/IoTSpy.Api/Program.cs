@@ -143,6 +143,8 @@ var signalR = builder.Services.AddSignalR()
 if (redisOptions.IsConfigured && redisOptions.EnableSignalRBackplane)
     signalR.AddStackExchangeRedis(redisOptions.ConnectionString!);
 builder.Services.AddSingleton<ICapturePublisher, SignalRCapturePublisher>();
+builder.Services.AddSingleton<ICaptureBatchWriter, CaptureBatchWriter>();
+builder.Services.AddHostedService(sp => (CaptureBatchWriter)sp.GetRequiredService<ICaptureBatchWriter>());
 builder.Services.AddSingleton<IPacketCapturePublisher, SignalRPacketPublisher>();
 builder.Services.AddSingleton<IAnomalyAlertPublisher, SignalRAnomalyPublisher>();
 builder.Services.AddSingleton<CollaborationPublisher>();
