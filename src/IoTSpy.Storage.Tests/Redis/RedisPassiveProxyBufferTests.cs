@@ -65,8 +65,8 @@ public class RedisPassiveProxyBufferTests
 
         _db.Received(1).ListTrim(
             Arg.Is<RedisKey>(k => k == "test:passive:buffer"),
-            -_options.PassiveBufferCapacity,
-            -1,
+            Arg.Is<long>(v => v == -_options.PassiveBufferCapacity),
+            Arg.Is<long>(v => v == -1),
             Arg.Any<CommandFlags>());
     }
 
