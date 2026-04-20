@@ -1,3 +1,4 @@
+using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using IoTSpy.Scanner;
 using Xunit;
@@ -90,10 +91,18 @@ public class LockFreePacketRingBufferTests
         var pkt = MakePacket();
         buf.Add(pkt);
 
-        buf.TryDelete(pkt.Id);
-
+        Assert.True(buf.TryDelete(pkt.Id));
         Assert.Empty(buf.Snapshot());
         Assert.Null(buf.GetById(pkt.Id));
+    }
+
+    [Fact]
+    public void TryDelete_ReturnsFalse_ForAbsentId()
+    {
+        var buf = new LockFreePacketRingBuffer(10);
+        buf.Add(MakePacket());
+
+        Assert.False(buf.TryDelete(Guid.NewGuid()));
     }
 
     [Fact]

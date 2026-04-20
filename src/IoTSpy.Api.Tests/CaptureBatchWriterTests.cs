@@ -44,7 +44,14 @@ public class CaptureBatchWriterTests
     [Fact]
     public async Task ExecuteAsync_PersistsEnqueuedCaptures()
     {
+        // Collect items across all AddBatchAsync calls to be resilient to
+        // scheduler timing — two items may land in one or two batches.
+        var persisted = new List<CapturedRequest>();
         var (writer, repo, _) = Build();
+        repo.AddBatchAsync(
+                Arg.Do<IReadOnlyList<CapturedRequest>>(batch => persisted.AddRange(batch)),
+                Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
 
         writer.TryEnqueue(MakeCapture("a.com"));
         writer.TryEnqueue(MakeCapture("b.com"));
@@ -52,14 +59,11 @@ public class CaptureBatchWriterTests
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         var task = writer.StartAsync(cts.Token);
 
-        // Give the consumer time to flush
         await Task.Delay(500, CancellationToken.None);
         cts.Cancel();
         try { await task; } catch (OperationCanceledException) { }
 
-        await repo.Received().AddBatchAsync(
-            Arg.Is<IReadOnlyList<CapturedRequest>>(b => b.Count >= 2),
-            Arg.Any<CancellationToken>());
+        Assert.True(persisted.Count >= 2, $"Expected >= 2 persisted captures, got {persisted.Count}");
     }
 
     [Fact]

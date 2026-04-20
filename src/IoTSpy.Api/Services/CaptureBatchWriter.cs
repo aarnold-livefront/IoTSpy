@@ -33,6 +33,12 @@ public sealed class CaptureBatchWriter : BackgroundService, ICaptureBatchWriter
     private const int BatchSize = 100;
     private static readonly TimeSpan FlushInterval = TimeSpan.FromMilliseconds(200);
 
+    // NOTE: BoundedChannelFullMode.DropOldest means TryWrite always returns true
+    // (it evicts the oldest item to make room), so drops are not individually
+    // observable at the call site. If the channel consistently stays full
+    // (flush rate < enqueue rate), old captures are silently lost. Monitor
+    // channel depth via metrics/logs if sustained high-throughput capture is needed.
+
     public CaptureBatchWriter(
         IServiceScopeFactory scopeFactory,
         ICapturePublisher publisher,

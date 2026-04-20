@@ -37,6 +37,9 @@ public sealed class LockFreePacketRingBuffer : IPacketBuffer
     }
 
     public int Capacity { get; }
+
+    // Total items ever written, capped at Capacity. Does NOT decrease after
+    // TryDelete calls — Snapshot() may return fewer items than Count reports.
     public int Count => _totalAdded;
 
     public void Add(CapturedPacket packet)
@@ -84,9 +87,21 @@ public sealed class LockFreePacketRingBuffer : IPacketBuffer
 
     public bool TryDelete(Guid id)
     {
-        _deleted.TryAdd(id, 0);
-        _freezeFrames.TryRemove(id, out _);
-        return true;
+        // Only soft-delete IDs that are actually in the ring to prevent the
+        // _deleted set from growing without bound when callers pass stale IDs.
+        int pos = _writePos;
+        int count = _totalAdded;
+        for (int i = count - 1; i >= 0; i--)
+        {
+            int slot = (pos - count + i + Capacity * 2) % Capacity;
+            if (_ring[slot]?.Id == id)
+            {
+                _deleted.TryAdd(id, 0);
+                _freezeFrames.TryRemove(id, out _);
+                return true;
+            }
+        }
+        return false;
     }
 
     public void Clear()

@@ -126,13 +126,16 @@ var redisOptions = builder.Configuration
 
 if (redisOptions.IsConfigured)
 {
-    var multiplexer = ConnectionMultiplexer.Connect(redisOptions.ConnectionString!);
+    // abortConnect=false: don't throw if Redis is unavailable at startup;
+    // StackExchange.Redis will reconnect automatically in the background.
+    var redisConfig = ConfigurationOptions.Parse(redisOptions.ConnectionString!);
+    redisConfig.AbortOnConnectFail = false;
+    var multiplexer = ConnectionMultiplexer.Connect(redisConfig);
     builder.Services.AddSingleton<IConnectionMultiplexer>(multiplexer);
     builder.Services.AddSingleton(redisOptions);
-    builder.Services.AddSingleton<IPassiveProxyBuffer>(sp =>
-        new RedisPassiveProxyBuffer(
-            sp.GetRequiredService<IConnectionMultiplexer>(),
-            sp.GetRequiredService<RedisOptions>()));
+    builder.Services.AddSingleton<RedisPassiveProxyBuffer>();
+    builder.Services.AddSingleton<IPassiveProxyBuffer>(sp => sp.GetRequiredService<RedisPassiveProxyBuffer>());
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<RedisPassiveProxyBuffer>());
 }
 
 // ── SignalR ──────────────────────────────────────────────────────────────────

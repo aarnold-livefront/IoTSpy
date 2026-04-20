@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using IoTSpy.Core.Models;
 using IoTSpy.Storage.Redis;
+using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using StackExchange.Redis;
 using Xunit;
@@ -12,6 +13,7 @@ public class RedisPassiveProxyBufferTests
 {
     private readonly IDatabase _db;
     private readonly IConnectionMultiplexer _mux;
+    private readonly IBatch _batch;
     private readonly RedisOptions _options = new() { KeyPrefix = "test", PassiveBufferCapacity = 5 };
 
     private static readonly JsonSerializerOptions JsonOpts = new()
@@ -26,11 +28,23 @@ public class RedisPassiveProxyBufferTests
         _mux = Substitute.For<IConnectionMultiplexer>();
         _mux.GetDatabase(Arg.Any<int>(), Arg.Any<object>()).Returns(_db);
 
-        // Default: empty filter on startup
-        _db.SetMembers(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>()).Returns([]);
+        // Default: no filter on startup
+        _db.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+           .Returns(Task.FromResult(Array.Empty<RedisValue>()));
+
+        // Batch mock used by PersistBatch
+        _batch = Substitute.For<IBatch>();
+        _batch.ListRightPushAsync(Arg.Any<RedisKey>(), Arg.Any<RedisValue>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
+              .Returns(Task.FromResult(1L));
+        _db.CreateBatch().Returns(_batch);
+
+        // Needed by SetDeviceFilter atomic rename
+        _db.KeyRename(Arg.Any<RedisKey>(), Arg.Any<RedisKey>(), Arg.Any<When>(), Arg.Any<CommandFlags>())
+           .Returns(true);
     }
 
-    private RedisPassiveProxyBuffer CreateBuffer() => new(_mux, _options);
+    private RedisPassiveProxyBuffer CreateBuffer() =>
+        new(_mux, _options, NullLogger<RedisPassiveProxyBuffer>.Instance);
 
     private static RedisValue Serialize(CapturedRequest r) =>
         JsonSerializer.Serialize(r, JsonOpts);
@@ -42,15 +56,20 @@ public class RedisPassiveProxyBufferTests
         int status = 200) =>
         new() { ClientIp = clientIp, Host = host, Path = path, Method = "GET", StatusCode = status };
 
+    // ── Add (async — writes via Channel; background consumer calls Redis) ────
+
     [Fact]
-    public void Add_PushesJsonToRedis()
+    public async Task Add_PushesJsonToRedis()
     {
         var buf = CreateBuffer();
-        var capture = MakeCapture();
+        await buf.StartAsync(CancellationToken.None);
 
-        buf.Add(capture);
+        buf.Add(MakeCapture());
 
-        _db.Received(1).ListRightPush(
+        await Task.Delay(250, CancellationToken.None);
+        await buf.StopAsync(CancellationToken.None);
+
+        await _batch.Received().ListRightPushAsync(
             Arg.Is<RedisKey>(k => k == "test:passive:buffer"),
             Arg.Any<RedisValue>(),
             Arg.Any<When>(),
@@ -58,12 +77,17 @@ public class RedisPassiveProxyBufferTests
     }
 
     [Fact]
-    public void Add_TrimsAfterPush()
+    public async Task Add_TrimsAfterPush()
     {
         var buf = CreateBuffer();
+        await buf.StartAsync(CancellationToken.None);
+
         buf.Add(MakeCapture());
 
-        _db.Received(1).ListTrim(
+        await Task.Delay(250, CancellationToken.None);
+        await buf.StopAsync(CancellationToken.None);
+
+        await _batch.Received().ListTrimAsync(
             Arg.Is<RedisKey>(k => k == "test:passive:buffer"),
             Arg.Is<long>(v => v == -_options.PassiveBufferCapacity),
             Arg.Is<long>(v => v == -1),
@@ -71,15 +95,18 @@ public class RedisPassiveProxyBufferTests
     }
 
     [Fact]
-    public void Add_WithActiveFilter_SkipsNonMatchingCapture()
+    public async Task Add_WithActiveFilter_SkipsNonMatchingCapture()
     {
-        _db.SetMembers(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
-           .Returns([(RedisValue)"10.0.0.1"]);
-
         var buf = CreateBuffer();
+        await buf.StartAsync(CancellationToken.None);
+        buf.SetDeviceFilter(["10.0.0.1"]);
+
         buf.Add(MakeCapture(clientIp: "10.0.0.99")); // not in filter
 
-        _db.DidNotReceive().ListRightPush(
+        await Task.Delay(250, CancellationToken.None);
+        await buf.StopAsync(CancellationToken.None);
+
+        await _batch.DidNotReceive().ListRightPushAsync(
             Arg.Any<RedisKey>(),
             Arg.Any<RedisValue>(),
             Arg.Any<When>(),
@@ -87,20 +114,41 @@ public class RedisPassiveProxyBufferTests
     }
 
     [Fact]
-    public void Add_WithActiveFilter_AcceptsMatchingCapture()
+    public async Task Add_WithActiveFilter_AcceptsMatchingCapture()
     {
-        _db.SetMembers(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
-           .Returns([(RedisValue)"10.0.0.1"]);
-
         var buf = CreateBuffer();
+        await buf.StartAsync(CancellationToken.None);
+        buf.SetDeviceFilter(["10.0.0.1"]);
+
         buf.Add(MakeCapture(clientIp: "10.0.0.1")); // in filter
 
-        _db.Received(1).ListRightPush(
+        await Task.Delay(250, CancellationToken.None);
+        await buf.StopAsync(CancellationToken.None);
+
+        await _batch.Received().ListRightPushAsync(
             Arg.Any<RedisKey>(),
             Arg.Any<RedisValue>(),
             Arg.Any<When>(),
             Arg.Any<CommandFlags>());
     }
+
+    // ── Filter loading ────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task DeviceFilter_LoadedFromRedisOnStart()
+    {
+        _db.SetMembersAsync(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
+           .Returns(Task.FromResult<RedisValue[]>([(RedisValue)"192.168.1.1"]));
+
+        var buf = CreateBuffer();
+        await buf.StartAsync(CancellationToken.None);
+
+        Assert.Contains("192.168.1.1", buf.DeviceFilter);
+
+        await buf.StopAsync(CancellationToken.None);
+    }
+
+    // ── Synchronous read paths (Count, Snapshot, Clear) ──────────────────────
 
     [Fact]
     public void Count_ReturnsRedisListLength()
@@ -134,7 +182,6 @@ public class RedisPassiveProxyBufferTests
            .Returns([(RedisValue)"not-json"]);
 
         var buf = CreateBuffer();
-        // JsonSerializer.Deserialize returns null on failure; OfType<> filters nulls
         Assert.Empty(buf.Snapshot());
     }
 
@@ -149,29 +196,43 @@ public class RedisPassiveProxyBufferTests
             Arg.Any<CommandFlags>());
     }
 
+    // ── SetDeviceFilter ───────────────────────────────────────────────────────
+
     [Fact]
     public void SetDeviceFilter_StoresIpsInRedis()
     {
+        // SetDeviceFilter uses an atomic temp-key rename: writes to "{filter}:tmp",
+        // then renames it to the real filter key — no empty-filter window for other instances.
         var buf = CreateBuffer();
         buf.SetDeviceFilter(["192.168.1.1", "192.168.1.2"]);
 
         _db.Received(1).KeyDelete(
-            Arg.Is<RedisKey>(k => k == "test:passive:filter"),
+            Arg.Is<RedisKey>(k => k.ToString().EndsWith(":tmp")),
             Arg.Any<CommandFlags>());
         _db.Received(1).SetAdd(
-            Arg.Is<RedisKey>(k => k == "test:passive:filter"),
+            Arg.Is<RedisKey>(k => k.ToString().EndsWith(":tmp")),
             Arg.Any<RedisValue[]>(),
+            Arg.Any<CommandFlags>());
+        _db.Received(1).KeyRename(
+            Arg.Is<RedisKey>(k => k.ToString().EndsWith(":tmp")),
+            Arg.Is<RedisKey>(k => k == "test:passive:filter"),
+            Arg.Any<When>(),
             Arg.Any<CommandFlags>());
     }
 
     [Fact]
-    public void SetDeviceFilter_UpdatesLocalCache_AffectsSubsequentAdds()
+    public async Task SetDeviceFilter_UpdatesLocalCache_AffectsSubsequentAdds()
     {
         var buf = CreateBuffer();
+        await buf.StartAsync(CancellationToken.None);
         buf.SetDeviceFilter(["10.10.10.1"]);
 
         buf.Add(MakeCapture(clientIp: "10.10.10.99")); // not in filter
-        _db.DidNotReceive().ListRightPush(
+
+        await Task.Delay(250, CancellationToken.None);
+        await buf.StopAsync(CancellationToken.None);
+
+        await _batch.DidNotReceive().ListRightPushAsync(
             Arg.Any<RedisKey>(),
             Arg.Any<RedisValue>(),
             Arg.Any<When>(),
@@ -190,32 +251,26 @@ public class RedisPassiveProxyBufferTests
     }
 
     [Fact]
-    public void ClearDeviceFilter_AllowsAllSubsequentAdds()
+    public async Task ClearDeviceFilter_AllowsAllSubsequentAdds()
     {
-        _db.SetMembers(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
-           .Returns([(RedisValue)"10.0.0.1"]);
-
         var buf = CreateBuffer();
+        await buf.StartAsync(CancellationToken.None);
+        buf.SetDeviceFilter(["10.0.0.1"]);
         buf.ClearDeviceFilter();
-        buf.Add(MakeCapture(clientIp: "10.0.0.99")); // previously filtered
 
-        _db.Received(1).ListRightPush(
+        buf.Add(MakeCapture(clientIp: "10.0.0.99")); // previously filtered, now allowed
+
+        await Task.Delay(250, CancellationToken.None);
+        await buf.StopAsync(CancellationToken.None);
+
+        await _batch.Received().ListRightPushAsync(
             Arg.Any<RedisKey>(),
             Arg.Any<RedisValue>(),
             Arg.Any<When>(),
             Arg.Any<CommandFlags>());
     }
 
-    [Fact]
-    public void DeviceFilter_LoadedFromRedisOnConstruction()
-    {
-        _db.SetMembers(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
-           .Returns([(RedisValue)"192.168.1.1"]);
-
-        var buf = CreateBuffer();
-
-        Assert.Contains("192.168.1.1", buf.DeviceFilter);
-    }
+    // ── GetSummary ────────────────────────────────────────────────────────────
 
     [Fact]
     public void GetSummary_ReturnsCorrectCounts()
@@ -244,13 +299,12 @@ public class RedisPassiveProxyBufferTests
     [Fact]
     public void GetSummary_ExposesActiveDeviceFilter()
     {
-        _db.SetMembers(Arg.Any<RedisKey>(), Arg.Any<CommandFlags>())
-           .Returns([(RedisValue)"10.0.0.1", (RedisValue)"10.0.0.2"]);
         _db.ListRange(
                 Arg.Any<RedisKey>(), Arg.Any<long>(), Arg.Any<long>(), Arg.Any<CommandFlags>())
            .Returns([]);
 
         var buf = CreateBuffer();
+        buf.SetDeviceFilter(["10.0.0.1", "10.0.0.2"]);
         var summary = buf.GetSummary();
 
         Assert.Contains("10.0.0.1", summary.ActiveDeviceFilter);
