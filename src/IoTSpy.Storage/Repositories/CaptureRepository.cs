@@ -13,6 +13,12 @@ public class CaptureRepository(IoTSpyDbContext db) : ICaptureRepository
         return capture;
     }
 
+    public async Task AddBatchAsync(IReadOnlyList<CapturedRequest> captures, CancellationToken ct = default)
+    {
+        db.Captures.AddRange(captures);
+        await db.SaveChangesAsync(ct);
+    }
+
     public Task<List<CapturedRequest>> GetPagedAsync(CaptureFilter filter, int page, int pageSize, CancellationToken ct = default)
     {
         return ApplyFilter(filter)

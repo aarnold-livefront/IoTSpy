@@ -63,6 +63,7 @@ public class GracefulShutdownTests
             Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(),
             Substitute.For<Polly.Registry.ResiliencePipelineProvider<string>>(),
             Substitute.For<IPassiveProxyBuffer>(),
+            Substitute.For<ICaptureBatchWriter>(),
             NullLogger<ExplicitProxyServer>.Instance);
     }
 

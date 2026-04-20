@@ -15,6 +15,7 @@ using IoTSpy.Proxy.Tls;
 using IoTSpy.Manipulation;
 using IoTSpy.Scanner;
 using IoTSpy.Storage.Extensions;
+using IoTSpy.Storage.Redis;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -22,6 +23,7 @@ using Microsoft.IdentityModel.Tokens;
 using Prometheus;
 using Scalar.AspNetCore;
 using Serilog;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -117,11 +119,35 @@ builder.Services.AddAuthentication(options =>
         ApiKeyAuthenticationHandler.SchemeName, _ => { });
 builder.Services.AddAuthorization();
 
+// ── Redis (optional — enables Redis passive buffer + SignalR backplane) ───────
+var redisOptions = builder.Configuration
+    .GetSection(RedisOptions.SectionName)
+    .Get<RedisOptions>() ?? new RedisOptions();
+
+if (redisOptions.IsConfigured)
+{
+    // abortConnect=false: don't throw if Redis is unavailable at startup;
+    // StackExchange.Redis will reconnect automatically in the background.
+    var redisConfig = ConfigurationOptions.Parse(redisOptions.ConnectionString!);
+    redisConfig.AbortOnConnectFail = false;
+    var multiplexer = ConnectionMultiplexer.Connect(redisConfig);
+    builder.Services.AddSingleton<IConnectionMultiplexer>(multiplexer);
+    builder.Services.AddSingleton(redisOptions);
+    builder.Services.AddSingleton<RedisPassiveProxyBuffer>();
+    builder.Services.AddSingleton<IPassiveProxyBuffer>(sp => sp.GetRequiredService<RedisPassiveProxyBuffer>());
+    builder.Services.AddHostedService(sp => sp.GetRequiredService<RedisPassiveProxyBuffer>());
+}
+
 // ── SignalR ──────────────────────────────────────────────────────────────────
-builder.Services.AddSignalR()
+var signalR = builder.Services.AddSignalR()
     .AddJsonProtocol(opts =>
         opts.PayloadSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+
+if (redisOptions.IsConfigured && redisOptions.EnableSignalRBackplane)
+    signalR.AddStackExchangeRedis(redisOptions.ConnectionString!);
 builder.Services.AddSingleton<ICapturePublisher, SignalRCapturePublisher>();
+builder.Services.AddSingleton<ICaptureBatchWriter, CaptureBatchWriter>();
+builder.Services.AddHostedService(sp => (CaptureBatchWriter)sp.GetRequiredService<ICaptureBatchWriter>());
 builder.Services.AddSingleton<IPacketCapturePublisher, SignalRPacketPublisher>();
 builder.Services.AddSingleton<IAnomalyAlertPublisher, SignalRAnomalyPublisher>();
 builder.Services.AddSingleton<CollaborationPublisher>();
@@ -135,7 +161,9 @@ builder.Services.AddProxyResilience(resilienceOptions);
 // ── Proxy ────────────────────────────────────────────────────────────────────
 // All proxy servers and supporting engines are singletons (long-lived TCP listeners)
 builder.Services.AddSingleton<SslStripService>();
-builder.Services.AddSingleton<IPassiveProxyBuffer, IoTSpy.Proxy.Passive.PassiveProxyBuffer>();
+// Fall back to the in-process ring buffer when Redis is not configured.
+if (!redisOptions.IsConfigured)
+    builder.Services.AddSingleton<IPassiveProxyBuffer, IoTSpy.Proxy.Passive.PassiveProxyBuffer>();
 builder.Services.AddSingleton<ExplicitProxyServer>();
 builder.Services.AddSingleton<TransparentProxyServer>();
 builder.Services.AddSingleton<IptablesHelper>();
@@ -168,9 +196,12 @@ builder.Services.AddOpenApi();
 builder.Services.AddScoped<AuthService>();
 
 // ── Health checks (Phase 8.1) ────────────────────────────────────────────────
-builder.Services.AddHealthChecks()
+var healthChecks = builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy("API is running"), tags: ["ready", "live"])
     .AddDbContextCheck<IoTSpy.Storage.IoTSpyDbContext>("database", tags: ["ready"]);
+
+if (redisOptions.IsConfigured)
+    healthChecks.AddCheck<RedisHealthCheck>("redis", tags: ["ready"]);
 
 // ── Rate limiting (Phase 8.3) ─────────────────────────────────────────────────
 var rateLimitEnabled = bool.TryParse(builder.Configuration["RateLimit:Enabled"], out var rle) && rle;
