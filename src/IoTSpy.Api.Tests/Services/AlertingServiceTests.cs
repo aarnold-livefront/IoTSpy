@@ -30,7 +30,7 @@ public class AlertingServiceTests
     public async Task SendAlertAsync_WhenDisabled_SendsNothing()
     {
         var (svc, sent) = CreateService(new AlertingOptions { Enabled = false });
-        await svc.SendAlertAsync("Title", "Body", AlertSeverity.Critical);
+        await svc.SendAlertAsync("Title", "Body", AlertSeverity.Critical, TestContext.Current.CancellationToken);
         Assert.Empty(sent);
     }
 
@@ -43,7 +43,7 @@ public class AlertingServiceTests
             Slack = new SlackOptions { WebhookUrl = "https://hooks.slack.com/test" }
         });
 
-        await svc.SendAlertAsync("Test alert", "Details here", AlertSeverity.Warning);
+        await svc.SendAlertAsync("Test alert", "Details here", AlertSeverity.Warning, TestContext.Current.CancellationToken);
 
         Assert.Single(sent);
         Assert.Equal("https://hooks.slack.com/test", sent[0].url);
@@ -66,7 +66,7 @@ public class AlertingServiceTests
             Teams = new TeamsOptions { WebhookUrl = "https://teams.example.com/webhook" }
         });
 
-        await svc.SendAlertAsync("Teams alert", "Body text", AlertSeverity.Critical);
+        await svc.SendAlertAsync("Teams alert", "Body text", AlertSeverity.Critical, TestContext.Current.CancellationToken);
 
         Assert.Single(sent);
         using var doc = JsonDocument.Parse(sent[0].body);
@@ -83,7 +83,7 @@ public class AlertingServiceTests
             PagerDuty = new PagerDutyOptions { IntegrationKey = "test-key-123", MinimumSeverity = "Warning" }
         });
 
-        await svc.SendAlertAsync("PD alert", "Body", AlertSeverity.Critical);
+        await svc.SendAlertAsync("PD alert", "Body", AlertSeverity.Critical, TestContext.Current.CancellationToken);
 
         Assert.Single(sent);
         Assert.Contains("events.pagerduty.com", sent[0].url);
@@ -104,7 +104,7 @@ public class AlertingServiceTests
         });
 
         // Warning is below Critical threshold
-        await svc.SendAlertAsync("Low alert", "Body", AlertSeverity.Warning);
+        await svc.SendAlertAsync("Low alert", "Body", AlertSeverity.Warning, TestContext.Current.CancellationToken);
 
         Assert.Empty(sent);
     }
@@ -119,7 +119,7 @@ public class AlertingServiceTests
             Teams = new TeamsOptions { WebhookUrl = "https://teams.example.com" },
         });
 
-        await svc.SendAlertAsync("Multi", "Body", AlertSeverity.Info);
+        await svc.SendAlertAsync("Multi", "Body", AlertSeverity.Info, TestContext.Current.CancellationToken);
 
         Assert.Equal(2, sent.Count);
     }
@@ -133,7 +133,7 @@ public class AlertingServiceTests
             Slack = new SlackOptions { WebhookUrl = "https://slack.example.com" }
         });
 
-        await svc.SendAlertAsync("Alert", "Body", AlertSeverity.Critical);
+        await svc.SendAlertAsync("Alert", "Body", AlertSeverity.Critical, TestContext.Current.CancellationToken);
 
         using var doc = JsonDocument.Parse(sent[0].body);
         var color = doc.RootElement.GetProperty("attachments")[0].GetProperty("color").GetString();

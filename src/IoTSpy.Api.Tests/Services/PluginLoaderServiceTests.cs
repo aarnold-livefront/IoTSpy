@@ -97,7 +97,9 @@ public class PluginLoaderServiceTests
         }
         finally
         {
-            Directory.Delete(dir, recursive: true);
+            // On Windows the loaded assembly file is locked until the process exits; best-effort cleanup.
+            try { Directory.Delete(dir, recursive: true); }
+            catch (UnauthorizedAccessException) { }
         }
     }
 
