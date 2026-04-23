@@ -601,6 +601,8 @@ export type ContentReplacementAction =
   | 'ReplaceWithUrl'
   | 'ReplaceWithValue'
   | 'Redact'
+  | 'TrackingPixel'
+  | 'MockSseStream'
 
 // ── API Spec models ─────────────────────────────────────────────────────────
 
@@ -635,6 +637,8 @@ export interface ContentReplacementRule {
   pathPattern?: string
   priority: number
   createdAt: string
+  sseInterEventDelayMs?: number
+  sseLoop?: boolean
 }
 
 export interface AssetInfo {
@@ -642,6 +646,35 @@ export interface AssetInfo {
   fileName: string
   size: number
   lastModified: string
+}
+
+export interface SyntheticHttpMessage {
+  method?: string
+  host?: string
+  path?: string
+  requestHeaders?: Record<string, string>
+  requestBody?: string
+  statusCode?: number
+  responseHeaders?: Record<string, string>
+  responseBody?: string
+}
+
+export interface PreviewRuleRequest {
+  captureId?: string
+  synthetic?: SyntheticHttpMessage
+}
+
+export interface PreviewRuleResult {
+  matched: boolean
+  modified: boolean
+  statusCode: number
+  responseHeaders: Record<string, string>
+  responseBodyText?: string
+  responseBodyBase64?: string
+  bodyLength: number
+  contentType?: string
+  warnings: string[]
+  wasStreamed: boolean
 }
 
 // ── API Spec request DTOs ───────────────────────────────────────────────────
@@ -683,6 +716,8 @@ export interface CreateReplacementRuleRequest {
   hostPattern?: string
   pathPattern?: string
   priority?: number
+  sseInterEventDelayMs?: number
+  sseLoop?: boolean
 }
 
 export interface UpdateReplacementRuleRequest {
@@ -697,6 +732,8 @@ export interface UpdateReplacementRuleRequest {
   hostPattern?: string
   pathPattern?: string
   priority?: number
+  sseInterEventDelayMs?: number
+  sseLoop?: boolean
 }
 
 // ── SignalR DTOs ──────────────────────────────────────────────────────────────
