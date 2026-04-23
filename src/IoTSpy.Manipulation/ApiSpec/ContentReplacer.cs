@@ -4,6 +4,7 @@ using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using IoTSpy.Core.Enums;
 using IoTSpy.Core.Models;
+using IoTSpy.Manipulation.ApiSpec.BodySources;
 using Microsoft.Extensions.Logging;
 
 namespace IoTSpy.Manipulation.ApiSpec;
@@ -11,16 +12,21 @@ namespace IoTSpy.Manipulation.ApiSpec;
 /// <summary>
 /// Applies content replacement rules to HTTP responses based on content type,
 /// JSON path, header values, or body regex patterns. Supports replacing binary
-/// content (images/video/audio) with files from the local filesystem.
+/// content (images/video/audio) with files from the local filesystem by emitting
+/// an <see cref="Core.Interfaces.IResponseBodySource"/> that the proxy writer
+/// consumes in preference to the string-based ResponseBody.
 /// </summary>
 public sealed class ContentReplacer(ILogger<ContentReplacer> logger)
 {
-    private readonly ConcurrentDictionary<string, byte[]> _fileCache = new();
+    private readonly ConcurrentDictionary<string, FileMetadata> _metaCache = new();
 
     /// <summary>
     /// Apply matching replacement rules to the HTTP message. Returns true if any modification was made.
     /// </summary>
-    public bool Apply(HttpMessage message, IReadOnlyList<ContentReplacementRule> rules)
+    public async Task<bool> ApplyAsync(
+        HttpMessage message,
+        IReadOnlyList<ContentReplacementRule> rules,
+        CancellationToken ct = default)
     {
         var modified = false;
         var responseContentType = ExtractContentType(message.ResponseHeaders);
@@ -32,11 +38,11 @@ public sealed class ContentReplacer(ILogger<ContentReplacer> logger)
 
             var applied = rule.MatchType switch
             {
-                ContentMatchType.ContentType => ApplyContentTypeRule(rule, message, responseContentType),
+                ContentMatchType.ContentType => await ApplyContentTypeRuleAsync(rule, message, responseContentType, ct),
                 ContentMatchType.JsonPath => ApplyJsonPathRule(rule, message),
                 ContentMatchType.HeaderValue => ApplyHeaderRule(rule, message),
                 ContentMatchType.BodyRegex => ApplyBodyRegexRule(rule, message),
-                _ => false
+                _ => false,
             };
 
             if (applied)
@@ -63,7 +69,8 @@ public sealed class ContentReplacer(ILogger<ContentReplacer> logger)
         return true;
     }
 
-    private bool ApplyContentTypeRule(ContentReplacementRule rule, HttpMessage message, string responseContentType)
+    private async Task<bool> ApplyContentTypeRuleAsync(
+        ContentReplacementRule rule, HttpMessage message, string responseContentType, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(responseContentType)) return false;
 
@@ -71,7 +78,7 @@ public sealed class ContentReplacer(ILogger<ContentReplacer> logger)
         if (!MatchesContentType(rule.MatchPattern, responseContentType))
             return false;
 
-        return ApplyReplacement(rule, message);
+        return await ApplyReplacementAsync(rule, message, ct);
     }
 
     private bool ApplyJsonPathRule(ContentReplacementRule rule, HttpMessage message)
@@ -144,12 +151,12 @@ public sealed class ContentReplacer(ILogger<ContentReplacer> logger)
         return true;
     }
 
-    private bool ApplyReplacement(ContentReplacementRule rule, HttpMessage message)
+    private async Task<bool> ApplyReplacementAsync(ContentReplacementRule rule, HttpMessage message, CancellationToken ct)
     {
         switch (rule.Action)
         {
             case ContentReplacementAction.ReplaceWithFile:
-                return ReplaceWithFile(rule, message);
+                return await ReplaceWithFileAsync(rule, message, ct);
 
             case ContentReplacementAction.ReplaceWithValue:
                 if (rule.ReplacementValue is null) return false;
@@ -164,11 +171,16 @@ public sealed class ContentReplacer(ILogger<ContentReplacer> logger)
 
             case ContentReplacementAction.ReplaceWithUrl:
                 // For URL replacement, we modify JSON fields pointing to media URLs
-                // or set a redirect to the replacement URL
+                // or set a redirect to the replacement URL.
                 if (rule.ReplacementValue is null) return false;
                 message.ResponseBody = rule.ReplacementValue;
                 if (rule.ReplacementContentType is not null)
                     UpdateContentType(message, rule.ReplacementContentType);
+                return true;
+
+            case ContentReplacementAction.TrackingPixel:
+                message.ResponseBodySource = TrackingPixelBodySource.Instance;
+                UpdateContentType(message, TrackingPixelBodySource.Instance.ContentType);
                 return true;
 
             default:
@@ -176,48 +188,74 @@ public sealed class ContentReplacer(ILogger<ContentReplacer> logger)
         }
     }
 
-    private bool ReplaceWithFile(ContentReplacementRule rule, HttpMessage message)
+    private async Task<bool> ReplaceWithFileAsync(ContentReplacementRule rule, HttpMessage message, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(rule.ReplacementFilePath)) return false;
 
+        var path = rule.ReplacementFilePath;
+        FileMetadata meta;
         try
         {
-            var fileBytes = _fileCache.GetOrAdd(rule.ReplacementFilePath, path =>
+            meta = GetFileMetadata(path);
+        }
+        catch (FileNotFoundException)
+        {
+            logger.LogWarning("Replacement file not found: {Path}", path);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to stat replacement file {Path}", path);
+            return false;
+        }
+
+        if (meta.Size == 0) return false;
+
+        var mime = rule.ReplacementContentType ?? meta.InferredMime;
+        var isBinary = MimeInferrer.IsBinary(mime);
+
+        // Range request for binary asset → serve 206 partial content.
+        if (isBinary)
+        {
+            var rangeHeader = TryGetRequestHeader(message, "Range");
+            if (!string.IsNullOrEmpty(rangeHeader) &&
+                RangeHelper.TryParse(rangeHeader, meta.Size, out var slice))
             {
-                if (!File.Exists(path))
-                {
-                    logger.LogWarning("Replacement file not found: {Path}", path);
-                    return [];
-                }
-                return File.ReadAllBytes(path);
-            });
+                message.ResponseBodySource = new RangeSlicedBodySource(path, slice.Start, slice.End, meta.Size, mime);
+                message.StatusCode = 206;
+                UpdateContentType(message, mime);
+                return true;
+            }
 
-            if (fileBytes.Length == 0) return false;
+            message.ResponseBodySource = new FileStreamBodySource(path, mime, meta.Size);
+            message.StatusCode = 200;
+            UpdateContentType(message, mime);
+            return true;
+        }
 
-            // Store as base64 for string-based body transport
-            message.ResponseBody = Convert.ToBase64String(fileBytes);
-
-            if (rule.ReplacementContentType is not null)
-                UpdateContentType(message, rule.ReplacementContentType);
-
+        // Text file: load as UTF-8 string (legacy path). Small enough to be safe.
+        try
+        {
+            message.ResponseBody = await File.ReadAllTextAsync(path, ct);
+            UpdateContentType(message, mime);
             return true;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to read replacement file {Path}", rule.ReplacementFilePath);
+            logger.LogError(ex, "Failed to read replacement file {Path}", path);
             return false;
         }
     }
 
     /// <summary>
-    /// Invalidate cached file data (call when files change on disk).
+    /// Invalidate cached file metadata (call when files change on disk).
     /// </summary>
     public void InvalidateFileCache(string? filePath = null)
     {
         if (filePath is not null)
-            _fileCache.TryRemove(filePath, out _);
+            _metaCache.TryRemove(filePath, out _);
         else
-            _fileCache.Clear();
+            _metaCache.Clear();
     }
 
     internal static bool MatchesContentType(string pattern, string contentType)
@@ -300,40 +338,136 @@ public sealed class ContentReplacer(ILogger<ContentReplacer> logger)
     private static string ExtractContentType(string headers)
     {
         if (string.IsNullOrWhiteSpace(headers)) return string.Empty;
-        try
+
+        // Try JSON dict form first (used internally by unit tests and some rule paths)
+        if (headers.TrimStart().StartsWith('{'))
         {
-            var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(headers);
-            if (dict is not null)
+            try
             {
-                foreach (var (key, value) in dict)
+                var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(headers);
+                if (dict is not null)
                 {
-                    if (key.Equals("Content-Type", StringComparison.OrdinalIgnoreCase))
-                        return value.Split(';')[0].Trim();
+                    foreach (var (key, value) in dict)
+                    {
+                        if (key.Equals("Content-Type", StringComparison.OrdinalIgnoreCase))
+                            return value.Split(';')[0].Trim();
+                    }
                 }
             }
+            catch { /* ignore and fall through to CRLF parse */ }
         }
-        catch { /* ignore */ }
+
+        // CRLF-separated form (how the proxy delivers headers into HttpMessage)
+        foreach (var line in headers.Split(["\r\n", "\n"], StringSplitOptions.None))
+        {
+            var colon = line.IndexOf(':');
+            if (colon <= 0) continue;
+            var name = line[..colon].Trim();
+            if (!name.Equals("Content-Type", StringComparison.OrdinalIgnoreCase)) continue;
+            return line[(colon + 1)..].Split(';')[0].Trim();
+        }
+
         return string.Empty;
     }
 
     private static void UpdateContentType(HttpMessage message, string newContentType)
     {
-        if (string.IsNullOrWhiteSpace(message.ResponseHeaders)) return;
-        try
+        if (string.IsNullOrWhiteSpace(message.ResponseHeaders))
         {
-            var headers = JsonSerializer.Deserialize<Dictionary<string, string>>(message.ResponseHeaders);
-            if (headers is null) return;
-
-            var ctKey = headers.Keys.FirstOrDefault(k =>
-                k.Equals("Content-Type", StringComparison.OrdinalIgnoreCase));
-
-            if (ctKey is not null)
-                headers[ctKey] = newContentType;
-            else
-                headers["Content-Type"] = newContentType;
-
-            message.ResponseHeaders = JsonSerializer.Serialize(headers);
+            message.ResponseHeaders = $"Content-Type: {newContentType}";
+            return;
         }
-        catch { /* ignore */ }
+
+        // JSON dict form (tests, JSON-based paths)
+        if (message.ResponseHeaders.TrimStart().StartsWith('{'))
+        {
+            try
+            {
+                var headers = JsonSerializer.Deserialize<Dictionary<string, string>>(message.ResponseHeaders);
+                if (headers is not null)
+                {
+                    var ctKey = headers.Keys.FirstOrDefault(k =>
+                        k.Equals("Content-Type", StringComparison.OrdinalIgnoreCase));
+
+                    if (ctKey is not null)
+                        headers[ctKey] = newContentType;
+                    else
+                        headers["Content-Type"] = newContentType;
+
+                    message.ResponseHeaders = JsonSerializer.Serialize(headers);
+                    return;
+                }
+            }
+            catch { /* fall through to CRLF path */ }
+        }
+
+        // CRLF-separated form (real proxy traffic)
+        var lines = message.ResponseHeaders.Split(["\r\n"], StringSplitOptions.None).ToList();
+        var replaced = false;
+        for (var i = 0; i < lines.Count; i++)
+        {
+            var colon = lines[i].IndexOf(':');
+            if (colon <= 0) continue;
+            var name = lines[i][..colon].Trim();
+            if (!name.Equals("Content-Type", StringComparison.OrdinalIgnoreCase)) continue;
+            lines[i] = $"Content-Type: {newContentType}";
+            replaced = true;
+            break;
+        }
+        if (!replaced) lines.Add($"Content-Type: {newContentType}");
+        message.ResponseHeaders = string.Join("\r\n", lines.Where(l => !string.IsNullOrWhiteSpace(l)));
     }
+
+    private static string? TryGetRequestHeader(HttpMessage message, string name)
+    {
+        var hdrs = message.RequestHeaders;
+        if (string.IsNullOrWhiteSpace(hdrs)) return null;
+
+        // JSON dict form
+        if (hdrs.TrimStart().StartsWith('{'))
+        {
+            try
+            {
+                var dict = JsonSerializer.Deserialize<Dictionary<string, string>>(hdrs);
+                if (dict is not null)
+                {
+                    var match = dict.FirstOrDefault(kv => kv.Key.Equals(name, StringComparison.OrdinalIgnoreCase));
+                    if (match.Key is not null) return match.Value;
+                }
+            }
+            catch { /* fall through */ }
+        }
+
+        foreach (var line in hdrs.Split(["\r\n", "\n"], StringSplitOptions.None))
+        {
+            var colon = line.IndexOf(':');
+            if (colon <= 0) continue;
+            var hname = line[..colon].Trim();
+            if (!hname.Equals(name, StringComparison.OrdinalIgnoreCase)) continue;
+            return line[(colon + 1)..].Trim();
+        }
+        return null;
+    }
+
+    private FileMetadata GetFileMetadata(string path)
+    {
+        if (!File.Exists(path))
+        {
+            _metaCache.TryRemove(path, out _);
+            throw new FileNotFoundException("Replacement file not found", path);
+        }
+
+        var fi = new FileInfo(path);
+        if (_metaCache.TryGetValue(path, out var cached) &&
+            cached.Size == fi.Length && cached.LastWrite == fi.LastWriteTimeUtc)
+        {
+            return cached;
+        }
+
+        var meta = new FileMetadata(fi.Length, fi.LastWriteTimeUtc, MimeInferrer.FromPath(path));
+        _metaCache[path] = meta;
+        return meta;
+    }
+
+    private readonly record struct FileMetadata(long Size, DateTime LastWrite, string InferredMime);
 }

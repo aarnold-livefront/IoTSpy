@@ -1,3 +1,5 @@
+using IoTSpy.Core.Interfaces;
+
 namespace IoTSpy.Core.Models;
 
 /// <summary>
@@ -29,4 +31,12 @@ public class HttpMessage
     /// Set to true by the manipulation pipeline when any rule or script modified this message.
     /// </summary>
     public bool WasModified { get; set; }
+
+    /// <summary>
+    /// When set, the proxy writer uses this source to emit the response body and selected
+    /// headers (Content-Type, Content-Length, Content-Range, etc.) instead of
+    /// <see cref="ResponseBody"/>. Enables binary-safe replacement, HTTP range slicing,
+    /// SSE stream replay, and direct file streaming without round-tripping bytes through a UTF-8 string.
+    /// </summary>
+    public IResponseBodySource? ResponseBodySource { get; set; }
 }

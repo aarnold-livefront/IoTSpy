@@ -59,7 +59,7 @@ public class ContentReplacerTests
     // ── BodyRegex Replacement ────────────────────────────────────────────────
 
     [Fact]
-    public void Apply_BodyRegex_ReplacesMatches()
+    public async Task Apply_BodyRegex_ReplacesMatches()
     {
         var replacer = CreateReplacer();
         var message = MakeJsonResponse("""{"phone":"555-1234","name":"test"}""");
@@ -78,7 +78,7 @@ public class ContentReplacerTests
             }
         };
 
-        var modified = replacer.Apply(message, rules);
+        var modified = await replacer.ApplyAsync(message, rules, TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Contains("XXX-XXXX", message.ResponseBody);
@@ -86,7 +86,7 @@ public class ContentReplacerTests
     }
 
     [Fact]
-    public void Apply_BodyRegex_Redact_ReplacesWithRedacted()
+    public async Task Apply_BodyRegex_Redact_ReplacesWithRedacted()
     {
         var replacer = CreateReplacer();
         var message = MakeJsonResponse("""{"secret":"abc123"}""");
@@ -104,7 +104,7 @@ public class ContentReplacerTests
             }
         };
 
-        var modified = replacer.Apply(message, rules);
+        var modified = await replacer.ApplyAsync(message, rules, TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Contains("[REDACTED]", message.ResponseBody);
@@ -113,7 +113,7 @@ public class ContentReplacerTests
     // ── JsonPath Replacement ─────────────────────────────────────────────────
 
     [Fact]
-    public void Apply_JsonPath_ReplacesField()
+    public async Task Apply_JsonPath_ReplacesField()
     {
         var replacer = CreateReplacer();
         var message = MakeJsonResponse("""{"user":{"email":"real@test.com","name":"John"}}""");
@@ -132,7 +132,7 @@ public class ContentReplacerTests
             }
         };
 
-        var modified = replacer.Apply(message, rules);
+        var modified = await replacer.ApplyAsync(message, rules, TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Contains("fake@example.com", message.ResponseBody);
@@ -140,7 +140,7 @@ public class ContentReplacerTests
     }
 
     [Fact]
-    public void Apply_JsonPath_RedactsField()
+    public async Task Apply_JsonPath_RedactsField()
     {
         var replacer = CreateReplacer();
         var message = MakeJsonResponse("""{"token":"secret-value","data":"public"}""");
@@ -158,7 +158,7 @@ public class ContentReplacerTests
             }
         };
 
-        var modified = replacer.Apply(message, rules);
+        var modified = await replacer.ApplyAsync(message, rules, TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Contains("[REDACTED]", message.ResponseBody);
@@ -168,7 +168,7 @@ public class ContentReplacerTests
     // ── Header Replacement ───────────────────────────────────────────────────
 
     [Fact]
-    public void Apply_HeaderValue_ReplacesHeader()
+    public async Task Apply_HeaderValue_ReplacesHeader()
     {
         var replacer = CreateReplacer();
         var message = MakeJsonResponse();
@@ -187,7 +187,7 @@ public class ContentReplacerTests
             }
         };
 
-        var modified = replacer.Apply(message, rules);
+        var modified = await replacer.ApplyAsync(message, rules, TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Contains("text/plain", message.ResponseHeaders);
@@ -196,7 +196,7 @@ public class ContentReplacerTests
     // ── Content Type Rule ────────────────────────────────────────────────────
 
     [Fact]
-    public void Apply_ContentType_ReplaceWithValue()
+    public async Task Apply_ContentType_ReplaceWithValue()
     {
         var replacer = CreateReplacer();
         var message = MakeImageResponse();
@@ -216,7 +216,7 @@ public class ContentReplacerTests
             }
         };
 
-        var modified = replacer.Apply(message, rules);
+        var modified = await replacer.ApplyAsync(message, rules, TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Equal("custom-image-data", message.ResponseBody);
@@ -224,7 +224,7 @@ public class ContentReplacerTests
     }
 
     [Fact]
-    public void Apply_ContentType_Redact()
+    public async Task Apply_ContentType_Redact()
     {
         var replacer = CreateReplacer();
         var message = MakeImageResponse();
@@ -242,7 +242,7 @@ public class ContentReplacerTests
             }
         };
 
-        var modified = replacer.Apply(message, rules);
+        var modified = await replacer.ApplyAsync(message, rules, TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Empty(message.ResponseBody);
@@ -251,7 +251,7 @@ public class ContentReplacerTests
     // ── Scope Matching ───────────────────────────────────────────────────────
 
     [Fact]
-    public void Apply_HostPatternDoesNotMatch_Skips()
+    public async Task Apply_HostPatternDoesNotMatch_Skips()
     {
         var replacer = CreateReplacer();
         var message = MakeJsonResponse();
@@ -270,12 +270,12 @@ public class ContentReplacerTests
             }
         };
 
-        var modified = replacer.Apply(message, rules);
+        var modified = await replacer.ApplyAsync(message, rules, TestContext.Current.CancellationToken);
         Assert.False(modified);
     }
 
     [Fact]
-    public void Apply_PathPatternDoesNotMatch_Skips()
+    public async Task Apply_PathPatternDoesNotMatch_Skips()
     {
         var replacer = CreateReplacer();
         var message = MakeJsonResponse();
@@ -294,14 +294,14 @@ public class ContentReplacerTests
             }
         };
 
-        var modified = replacer.Apply(message, rules);
+        var modified = await replacer.ApplyAsync(message, rules, TestContext.Current.CancellationToken);
         Assert.False(modified);
     }
 
     // ── Disabled Rules ───────────────────────────────────────────────────────
 
     [Fact]
-    public void Apply_DisabledRule_IsSkipped()
+    public async Task Apply_DisabledRule_IsSkipped()
     {
         var replacer = CreateReplacer();
         var message = MakeJsonResponse("""{"name":"test"}""");
@@ -319,14 +319,14 @@ public class ContentReplacerTests
             }
         };
 
-        var modified = replacer.Apply(message, rules);
+        var modified = await replacer.ApplyAsync(message, rules, TestContext.Current.CancellationToken);
         Assert.False(modified);
     }
 
     // ── Priority Order ───────────────────────────────────────────────────────
 
     [Fact]
-    public void Apply_RulesApplyInPriorityOrder()
+    public async Task Apply_RulesApplyInPriorityOrder()
     {
         var replacer = CreateReplacer();
         var message = MakeJsonResponse("""{"value":"original"}""");
@@ -355,7 +355,7 @@ public class ContentReplacerTests
             }
         };
 
-        var modified = replacer.Apply(message, rules);
+        var modified = await replacer.ApplyAsync(message, rules, TestContext.Current.CancellationToken);
 
         Assert.True(modified);
         Assert.Contains("second-replace", message.ResponseBody);
@@ -364,7 +364,7 @@ public class ContentReplacerTests
     // ── No Match ─────────────────────────────────────────────────────────────
 
     [Fact]
-    public void Apply_NoMatchingRules_ReturnsFalse()
+    public async Task Apply_NoMatchingRules_ReturnsFalse()
     {
         var replacer = CreateReplacer();
         var message = MakeJsonResponse();
@@ -382,17 +382,17 @@ public class ContentReplacerTests
             }
         };
 
-        var modified = replacer.Apply(message, rules);
+        var modified = await replacer.ApplyAsync(message, rules, TestContext.Current.CancellationToken);
         Assert.False(modified);
     }
 
     [Fact]
-    public void Apply_EmptyRules_ReturnsFalse()
+    public async Task Apply_EmptyRules_ReturnsFalse()
     {
         var replacer = CreateReplacer();
         var message = MakeJsonResponse();
 
-        var modified = replacer.Apply(message, []);
+        var modified = await replacer.ApplyAsync(message, [], TestContext.Current.CancellationToken);
         Assert.False(modified);
     }
 }

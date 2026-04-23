@@ -180,7 +180,7 @@ public sealed class ApiSpecMockService(
 
         if (enabledRules.Count == 0) return false;
 
-        return contentReplacer.Apply(message, enabledRules);
+        return await contentReplacer.ApplyAsync(message, enabledRules, ct);
     }
 
     private async Task<ApiSpecDocument?> GetActiveSpecAsync(string host, CancellationToken ct)
