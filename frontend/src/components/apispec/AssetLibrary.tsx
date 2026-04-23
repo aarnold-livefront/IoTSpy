@@ -127,18 +127,19 @@ export default function AssetLibrary({ onPick, compact }: Props) {
 
   return (
     <div style={{ marginTop: compact ? 0 : 16 }}>
-      {!compact && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ margin: 0 }}>Asset Library ({assets.length})</h3>
-          <button
-            className="btn btn--primary"
-            style={{ fontSize: 12 }}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            Upload
-          </button>
-        </div>
-      )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {!compact
+          ? <h3 style={{ margin: 0 }}>Asset Library ({assets.length})</h3>
+          : <span style={{ fontSize: 12, color: '#aaa' }}>Assets ({assets.length})</span>
+        }
+        <button
+          className="btn btn--primary"
+          style={{ fontSize: 12 }}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          Upload
+        </button>
+      </div>
 
       <input
         ref={fileInputRef}
@@ -153,7 +154,7 @@ export default function AssetLibrary({ onPick, compact }: Props) {
         onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
-        onClick={() => !onPick && fileInputRef.current?.click()}
+        onClick={() => fileInputRef.current?.click()}
         style={{
           marginTop: 8,
           padding: 16,
@@ -163,7 +164,7 @@ export default function AssetLibrary({ onPick, compact }: Props) {
           textAlign: 'center',
           color: '#aaa',
           fontSize: 13,
-          cursor: onPick ? 'default' : 'pointer',
+          cursor: 'pointer',
         }}
       >
         {dragOver ? 'Drop files to upload' : 'Drop files here or click to upload (images, video, audio, .sse, .ndjson, text)'}
@@ -252,15 +253,13 @@ export default function AssetLibrary({ onPick, compact }: Props) {
               >
                 {a.fileName}
               </div>
-              {!onPick && (
-                <button
-                  className="btn btn--danger"
-                  style={{ fontSize: 10, padding: '2px 6px', marginTop: 4 }}
-                  onClick={(e) => { e.stopPropagation(); void handleDelete(a) }}
-                >
-                  Delete
-                </button>
-              )}
+              <button
+                className="btn btn--danger"
+                style={{ fontSize: 10, padding: '2px 6px', marginTop: 4 }}
+                onClick={(e) => { e.stopPropagation(); void handleDelete(a) }}
+              >
+                Delete
+              </button>
             </div>
           )
         })}

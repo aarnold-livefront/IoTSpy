@@ -49,6 +49,8 @@ export default function ReplacementRulesEditor({ spec, onAddRule, onEditRule, on
   const [formPriority, setFormPriority] = useState(0)
   const [formSseDelay, setFormSseDelay] = useState(0)
   const [formSseLoop, setFormSseLoop] = useState(false)
+  const [formHostPattern, setFormHostPattern] = useState('')
+  const [formPathPattern, setFormPathPattern] = useState('')
 
   const needsFile = formAction === 'ReplaceWithFile' || formAction === 'MockSseStream'
   const needsValue = formAction === 'ReplaceWithValue' || formAction === 'ReplaceWithUrl'
@@ -66,6 +68,8 @@ export default function ReplacementRulesEditor({ spec, onAddRule, onEditRule, on
     setFormPriority(0)
     setFormSseDelay(0)
     setFormSseLoop(false)
+    setFormHostPattern('')
+    setFormPathPattern('')
     setShowAdd(false)
   }
 
@@ -82,6 +86,8 @@ export default function ReplacementRulesEditor({ spec, onAddRule, onEditRule, on
       priority: formPriority,
       sseInterEventDelayMs: isSse ? formSseDelay : undefined,
       sseLoop: isSse ? formSseLoop : undefined,
+      hostPattern: formHostPattern.trim() || undefined,
+      pathPattern: formPathPattern.trim() || undefined,
     }
     await onAddRule(spec.id, req)
     resetForm()
@@ -229,6 +235,24 @@ export default function ReplacementRulesEditor({ spec, onAddRule, onEditRule, on
                 style={{ width: '100%' }}
               />
             </label>
+            <label>
+              <span style={{ fontSize: 11, color: '#aaa' }}>Host Pattern (regex, optional)</span>
+              <input
+                value={formHostPattern}
+                onChange={(e) => setFormHostPattern(e.target.value)}
+                placeholder="e.g. ads\.example\.com"
+                style={{ width: '100%' }}
+              />
+            </label>
+            <label>
+              <span style={{ fontSize: 11, color: '#aaa' }}>Path Pattern (regex, optional)</span>
+              <input
+                value={formPathPattern}
+                onChange={(e) => setFormPathPattern(e.target.value)}
+                placeholder="e.g. /ads/.*\.gif"
+                style={{ width: '100%' }}
+              />
+            </label>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             <button className="btn btn--primary" onClick={() => void handleAdd()}>Add</button>
@@ -251,7 +275,16 @@ export default function ReplacementRulesEditor({ spec, onAddRule, onEditRule, on
         <tbody>
           {rules.map((rule) => (
             <tr key={rule.id}>
-              <td>{rule.name}</td>
+              <td>
+                <div>{rule.name}</div>
+                {(rule.hostPattern || rule.pathPattern) && (
+                  <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>
+                    {rule.hostPattern && <span title="Host pattern">host: <code>{rule.hostPattern}</code></span>}
+                    {rule.hostPattern && rule.pathPattern && ' · '}
+                    {rule.pathPattern && <span title="Path pattern">path: <code>{rule.pathPattern}</code></span>}
+                  </div>
+                )}
+              </td>
               <td>
                 <code style={{ fontSize: 11 }}>
                   {rule.matchType}: {rule.matchPattern}

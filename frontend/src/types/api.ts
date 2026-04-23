@@ -625,6 +625,7 @@ export interface ApiSpecDocument {
 export interface ContentReplacementRule {
   id: string
   apiSpecDocumentId: string
+  host?: string
   name: string
   enabled: boolean
   matchType: ContentMatchType

@@ -271,9 +271,11 @@ modelBuilder.Entity<OpenRtbPiiPolicy>(e =>
             e.HasKey(r => r.Id);
             e.HasIndex(r => r.ApiSpecDocumentId);
             e.HasIndex(r => r.Priority);
+            e.HasIndex(r => r.Host);
             e.HasOne(r => r.ApiSpecDocument)
              .WithMany(d => d.ReplacementRules)
              .HasForeignKey(r => r.ApiSpecDocumentId)
+             .IsRequired(false)
              .OnDelete(DeleteBehavior.Cascade);
         });
 

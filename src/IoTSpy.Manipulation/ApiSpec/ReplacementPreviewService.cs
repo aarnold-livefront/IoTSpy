@@ -23,8 +23,9 @@ public sealed class ReplacementPreviewService(
     public async Task<PreviewResult?> PreviewAsync(
         Guid specId, Guid ruleId, PreviewRequest request, CancellationToken ct)
     {
-        var rules = await specRepo.GetReplacementRulesAsync(specId, ct);
-        var rule = rules.FirstOrDefault(r => r.Id == ruleId);
+        var rule = specId != Guid.Empty
+            ? (await specRepo.GetReplacementRulesAsync(specId, ct)).FirstOrDefault(r => r.Id == ruleId)
+            : await specRepo.GetRuleByIdAsync(ruleId, ct);
         if (rule is null) return null;
 
         HttpMessage message;

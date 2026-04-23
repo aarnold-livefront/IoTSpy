@@ -2,9 +2,7 @@ import { useState } from 'react'
 import { useApiSpec } from '../../hooks/useApiSpec'
 import GenerateSpecDialog from './GenerateSpecDialog'
 import SpecEditor from './SpecEditor'
-import ReplacementRulesEditor from './ReplacementRulesEditor'
 import ImportExportControls from './ImportExportControls'
-import AssetLibrary from './AssetLibrary'
 import type { ApiSpecDocument } from '../../types/api'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -16,7 +14,6 @@ const STATUS_COLORS: Record<string, string> = {
 export default function ApiSpecPanel() {
   const apiSpec = useApiSpec()
   const [showGenerate, setShowGenerate] = useState(false)
-  const [showAssets, setShowAssets] = useState(false)
 
   const handleSelect = (spec: ApiSpecDocument) => {
     void apiSpec.select(spec.id)
@@ -50,9 +47,6 @@ export default function ApiSpecPanel() {
             onImport={apiSpec.importSpec}
             onExport={apiSpec.exportSpec}
           />
-          <button className="btn btn--secondary" onClick={() => setShowAssets((v) => !v)}>
-            {showAssets ? 'Hide Assets' : 'Assets'}
-          </button>
           <button className="btn btn--primary" onClick={() => setShowGenerate(true)}>
             Generate from Traffic
           </button>
@@ -60,8 +54,6 @@ export default function ApiSpecPanel() {
       </div>
 
       {apiSpec.error && <div className="error-banner">{apiSpec.error}</div>}
-
-      {showAssets && <AssetLibrary />}
 
       {showGenerate && (
         <GenerateSpecDialog
@@ -137,13 +129,6 @@ export default function ApiSpecPanel() {
             </div>
 
             <SpecEditor spec={apiSpec.selectedSpec} onUpdate={apiSpec.update} />
-
-            <ReplacementRulesEditor
-              spec={apiSpec.selectedSpec}
-              onAddRule={apiSpec.addRule}
-              onEditRule={apiSpec.editRule}
-              onDeleteRule={apiSpec.removeRule}
-            />
           </div>
         )}
       </div>

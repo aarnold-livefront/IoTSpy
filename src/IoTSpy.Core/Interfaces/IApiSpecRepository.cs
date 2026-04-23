@@ -12,6 +12,9 @@ public interface IApiSpecRepository
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 
     Task<List<ContentReplacementRule>> GetReplacementRulesAsync(Guid specId, CancellationToken ct = default);
+    Task<ContentReplacementRule?> GetRuleByIdAsync(Guid ruleId, CancellationToken ct = default);
+    Task<List<ContentReplacementRule>> GetStandaloneRulesForHostAsync(string host, CancellationToken ct = default);
+    Task<List<ContentReplacementRule>> GetAllStandaloneRulesAsync(CancellationToken ct = default);
     Task<ContentReplacementRule> AddReplacementRuleAsync(ContentReplacementRule rule, CancellationToken ct = default);
     Task<ContentReplacementRule> UpdateReplacementRuleAsync(ContentReplacementRule rule, CancellationToken ct = default);
     Task DeleteReplacementRuleAsync(Guid ruleId, CancellationToken ct = default);
