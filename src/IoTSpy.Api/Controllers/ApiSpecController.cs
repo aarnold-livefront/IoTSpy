@@ -12,7 +12,8 @@ namespace IoTSpy.Api.Controllers;
 [Route("api/apispec")]
 public class ApiSpecController(
     IApiSpecService apiSpecService,
-    IApiSpecRepository specRepo) : ControllerBase
+    IApiSpecRepository specRepo,
+    ReplacementPreviewService previewService) : ControllerBase
 {
     private static readonly string AssetsDirectory =
         Path.Combine(AppContext.BaseDirectory, "data", "assets");
@@ -286,6 +287,56 @@ public class ApiSpecController(
         System.IO.File.Delete(filePath);
         return NoContent();
     }
+
+    // ── Rule Preview ──────────────────────────────────────────────────────────
+
+    [HttpPost("{specId:guid}/rules/{ruleId:guid}/preview")]
+    public async Task<IActionResult> PreviewRule(
+        Guid specId, Guid ruleId, [FromBody] PreviewRequest request, CancellationToken ct)
+    {
+        var result = await previewService.PreviewAsync(specId, ruleId, request, ct);
+        if (result is null) return NotFound();
+        return Ok(result);
+    }
+
+    // ── Asset Content (public read-only) ──────────────────────────────────────
+
+    [HttpGet("assets/{filename}/content")]
+    [AllowAnonymous]
+    public IActionResult GetAssetContent(string filename)
+    {
+        var safe = Path.GetFileName(filename);
+        if (safe != filename || string.IsNullOrWhiteSpace(safe))
+            return BadRequest("Invalid filename");
+
+        var filePath = Path.Combine(AssetsDirectory, safe);
+        if (!System.IO.File.Exists(filePath)) return NotFound();
+
+        var ext = Path.GetExtension(safe);
+        var mime = InferMime(ext);
+        return PhysicalFile(filePath, mime, enableRangeProcessing: true);
+    }
+
+    private static string InferMime(string extension) => extension.ToLowerInvariant() switch
+    {
+        ".png" => "image/png",
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".gif" => "image/gif",
+        ".webp" => "image/webp",
+        ".svg" => "image/svg+xml",
+        ".mp4" => "video/mp4",
+        ".webm" => "video/webm",
+        ".mov" => "video/quicktime",
+        ".mp3" => "audio/mpeg",
+        ".wav" => "audio/wav",
+        ".ogg" => "audio/ogg",
+        ".json" => "application/json",
+        ".html" or ".htm" => "text/html",
+        ".txt" => "text/plain",
+        ".sse" => "text/event-stream",
+        ".ndjson" => "application/x-ndjson",
+        _ => "application/octet-stream",
+    };
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

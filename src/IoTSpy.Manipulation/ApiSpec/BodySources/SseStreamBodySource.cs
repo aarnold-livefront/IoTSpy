@@ -48,10 +48,10 @@ public sealed class SseStreamBodySource(string filePath, int interEventDelayMs, 
         using var reader = new StreamReader(path);
         if (isNdjson)
         {
-            while (!reader.EndOfStream)
+            string? line;
+            while ((line = await reader.ReadLineAsync(ct)) is not null)
             {
                 ct.ThrowIfCancellationRequested();
-                var line = await reader.ReadLineAsync(ct);
                 if (string.IsNullOrWhiteSpace(line)) continue;
                 yield return $"data: {line}\n\n";
             }
