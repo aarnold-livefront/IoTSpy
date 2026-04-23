@@ -82,7 +82,7 @@ All phases 1–16, 18–22 plus OpenRTB inspection, TLS passthrough/SSL strippin
 - Helm chart at `deploy/helm/iotspy/`; production Docker Compose at `docker-compose.prod.yml`
 
 ### Content Rules (post-Phase 22 decoupling)
-`ContentReplacementRule` is now a first-class entity — no API spec required. Standalone rules are scoped by `Host` directly. The proxy pipeline (`ApiSpecMockService.ApplyMockAsync`) merges spec-attached and standalone rules by priority. UI: **Manipulation → Content Rules tab** (host selector, rules CRUD, asset library, preview modal with synthetic + capture modes). API Spec tab is now documentation-only (generate/import/export/refine).
+`ContentReplacementRule` is now a first-class entity — no API spec required. Standalone rules are scoped by `Host` directly. The proxy pipeline (`ApiSpecMockService.ApplyMockAsync`) merges spec-attached and standalone rules by priority. UI: Manipulation panel has 7 tabs — **Traffic Rules** (header/body/status/delay/drop), **Breakpoints**, **Replay**, **Fuzzer**, **Content Rules** (all rules loaded immediately, host input is a live filter, no gate), **Assets** (promoted to top-level), **API Spec** (documentation-only: generate/import/export/refine).
 
 ### Operational notes
 

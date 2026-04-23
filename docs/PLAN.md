@@ -30,12 +30,12 @@ export Auth__JwtSecret="your-32-char-secret" && dotnet build && dotnet test
 ### "What should I work on next?"
 → **[GAPS.md](GAPS.md)** — Known issues, API gaps, security hardening, tech debt
 
-→ **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** — Phase 22+ roadmap
+→ **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** — Phase 23+ roadmap
 
 → **[PHASES-ARCHIVED.md](PHASES-ARCHIVED.md)** — Archived Phase 17 (non-IP IoT)
 
 ### "What's been completed?"
-→ **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** — All 21 active phases with details and test counts
+→ **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** — All 23 active phases with details and test counts
 
 ### "Show me everything at once"
 → **[PLAN-INDEX.md](PLAN-INDEX.md)** — Complete navigation hub with role-based guides
@@ -46,9 +46,9 @@ export Auth__JwtSecret="your-32-char-secret" && dotnet build && dotnet test
 
 | Metric | Value |
 |---|---|
-| **Phases complete** | 1–16, 18–22 (23 of 23 active phases) ✅ |
-| **Backend tests** | 540+ (all passing) |
-| **REST controllers** | 18 |
+| **Phases complete** | 1–16, 18–22 + content rules decoupling (23 of 23 active phases) ✅ |
+| **Backend tests** | 608+ (all passing) |
+| **REST controllers** | 19 |
 | **SignalR hubs** | 3 |
 | **Protocols** | HTTP/HTTPS, MQTT, DNS, CoAP, WebSocket, gRPC, Modbus, OpenRTB |
 | **Next phase** | 23+ (roadmap only) |

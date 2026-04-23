@@ -10,7 +10,7 @@ See [PHASES-COMPLETED.md](PHASES-COMPLETED.md) for all implemented phases 1–16
 
 ## Future Enhancement Areas (Phases 23+)
 
-Beyond Phases 21–22, potential candidates based on the codebase audit and Phase 17:
+Beyond Phase 22 (including post-phase content rules decoupling and Manipulation UI cleanup), potential candidates based on the codebase audit and Phase 17:
 
 ### API & Backend Polish
 - **Bulk operations** — Batch enable/disable rules, cancel-all scans, bulk capture delete by filter; reduces multi-step workflows to single calls

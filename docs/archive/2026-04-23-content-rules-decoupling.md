@@ -212,6 +212,10 @@ exists — check `GET /api/captures` distinct hosts).
 - [x] Asset library accessible and manageable from Content Rules tab (Rules + Assets sub-tabs)
 - [x] Rule preview works (synthetic + capture modes) — overridePreview prop routes to /api/contentrules/{id}/preview
 - [x] API Spec tab no longer shows rules or asset library
+- [x] "Rules" tab renamed to "Traffic Rules" — eliminates name collision with Content Rules nested Rules sub-tab
+- [x] Content Rules host gate removed — rules load immediately, host input is a live filter (no "Load" button)
+- [x] "Assets" promoted to top-level Manipulation tab — no longer nested inside Content Rules
+- [x] `ContentReplacementRule` TS type has `host?: string` field
 
 ## Implementation notes
 - `RulePreviewModal` gained an `overridePreview` prop so ContentRulesPanel routes previews

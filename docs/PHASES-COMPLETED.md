@@ -1,4 +1,4 @@
-# IoTSpy — Completed Phases (1–16, 18–22)
+# IoTSpy — Completed Phases (1–16, 18–22 + post-phase work)
 
 This document details all implemented phases. Phases 1–16 and 18–22 are complete and production-ready. Phase 17 has been archived (hardware-dependent non-IP IoT protocols); see [PHASES-ARCHIVED.md](PHASES-ARCHIVED.md). See [PHASES-ROADMAP.md](PHASES-ROADMAP.md) for the Phase 23+ roadmap.
 
@@ -238,3 +238,23 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Rule preview endpoint + modal (22.7)** — `ReplacementPreviewService` applies a single rule against a synthetic or captured exchange in-memory (1 MB + 2 s cap) and returns modified status/headers/body + warnings; `POST /api/apispec/{specId}/rules/{ruleId}/preview`; `RulePreviewModal.tsx` wires it to the rule table. New `[AllowAnonymous] GET /api/apispec/assets/{filename}/content` serves assets with `PhysicalFile(enableRangeProcessing: true)` so `<img>` / `<video>` tags can load previews without the JWT header
 - **Correction** — Content Replacement Rule CRUD lives on `ApiSpecController` (`/api/apispec/{specId}/rules`), not `ManipulationController` as the original roadmap implied; the new preview endpoint follows that routing. `ExtractContentType` / `UpdateContentType` in `ContentReplacer` previously only understood JSON-dict headers, silently missing real proxy CRLF headers — now handles both formats, so ContentType-match rules finally fire on live traffic
 - **Tests (22.9)** — 34 new backend tests (`RangeHelperTests`, `BodySourcesTests`, `SseStreamBodySourceTests`, `ContentReplacerBinaryTests`, `ReplacementPreviewServiceTests`) incl. PNG round-trip regression proving base64-corruption is fixed; 2 new Vitest tests for `AssetLibrary`. All 608 backend + 13 frontend tests pass
+
+## Post-Phase 22 — Content Rules Decoupling & Manipulation UI Cleanup
+
+**Goal:** Decouple `ContentReplacementRule` from `ApiSpecDocument` (no spec required to use content replacement), and reconcile confusing tab overlap in the Manipulation panel.
+
+### Content Rules Decoupling
+- **`ContentReplacementRule` model** — `ApiSpecDocumentId` made nullable (`Guid?`); `Host` column added for standalone rules scoped directly to a host
+- **EF migration `DecoupleContentRules`** — hand-written raw SQL with `suppressTransaction: true` on PRAGMA statements to avoid EF Core SQLite runtime warning; 18th migration total
+- **`IApiSpecRepository`** — `GetStandaloneRulesForHostAsync(host)` and `GetAllStandaloneRulesAsync()` added
+- **`ApiSpecMockService.ApplyMockAsync`** — merges spec-attached and standalone rules by priority; no longer early-exits when no active spec is found for a host
+- **`ReplacementPreviewService`** — `specId == Guid.Empty` falls back to `GetRuleByIdAsync` so the new `/api/contentrules/{id}/preview` endpoint works without a spec
+- **`ContentRulesController`** — new controller at `/api/contentrules` (5 endpoints: list with optional `?host=` filter, create, update, delete, preview); 19th REST controller
+- **Frontend** — `api/contentrules.ts`, `hooks/useContentRules.ts`, `components/contentrules/ContentRulesPanel.tsx`
+
+### Manipulation Panel UI Cleanup
+- **"Rules" tab renamed → "Traffic Rules"** — disambiguates header/body/status/delay/drop manipulation from content replacement rules
+- **Content Rules host gate removed** — panel previously required entering a host and clicking "Load" before showing anything; now loads all rules immediately with a live-filter input for host, consistent with every other tab
+- **"Assets" promoted to top-level Manipulation tab** — moved out of the nested Content Rules sub-tab; is now a peer tab (Traffic Rules | Breakpoints | Replay | Fuzzer | Content Rules | Assets | API Spec)
+- **"Host" column added** to Content Rules table — visible when rules from multiple hosts are shown together
+- **`ContentReplacementRule` TS type** — `host?: string` field added (was missing from frontend type despite being returned by the backend)
