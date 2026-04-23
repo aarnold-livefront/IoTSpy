@@ -7,4 +7,5 @@ public enum ContentReplacementAction
     ReplaceWithValue,
     Redact,
     TrackingPixel,
+    MockSseStream,
 }

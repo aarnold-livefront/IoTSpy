@@ -183,9 +183,28 @@ public sealed class ContentReplacer(ILogger<ContentReplacer> logger)
                 UpdateContentType(message, TrackingPixelBodySource.Instance.ContentType);
                 return true;
 
+            case ContentReplacementAction.MockSseStream:
+                return MockSseStream(rule, message);
+
             default:
                 return false;
         }
+    }
+
+    private bool MockSseStream(ContentReplacementRule rule, HttpMessage message)
+    {
+        if (string.IsNullOrWhiteSpace(rule.ReplacementFilePath) || !File.Exists(rule.ReplacementFilePath))
+        {
+            logger.LogWarning("SSE replay file not found: {Path}", rule.ReplacementFilePath);
+            return false;
+        }
+
+        var delay = rule.SseInterEventDelayMs ?? 0;
+        var loop = rule.SseLoop ?? false;
+        message.ResponseBodySource = new SseStreamBodySource(rule.ReplacementFilePath, delay, loop);
+        message.StatusCode = 200;
+        UpdateContentType(message, "text/event-stream");
+        return true;
     }
 
     private async Task<bool> ReplaceWithFileAsync(ContentReplacementRule rule, HttpMessage message, CancellationToken ct)

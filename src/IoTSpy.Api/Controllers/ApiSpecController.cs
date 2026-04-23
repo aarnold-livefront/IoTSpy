@@ -185,7 +185,9 @@ public class ApiSpecController(
             ReplacementContentType = dto.ReplacementContentType,
             HostPattern = dto.HostPattern,
             PathPattern = dto.PathPattern,
-            Priority = dto.Priority ?? 0
+            Priority = dto.Priority ?? 0,
+            SseInterEventDelayMs = dto.SseInterEventDelayMs,
+            SseLoop = dto.SseLoop,
         };
 
         await specRepo.AddReplacementRuleAsync(rule, ct);
@@ -211,6 +213,8 @@ public class ApiSpecController(
         if (dto.HostPattern is not null) rule.HostPattern = dto.HostPattern;
         if (dto.PathPattern is not null) rule.PathPattern = dto.PathPattern;
         if (dto.Priority.HasValue) rule.Priority = dto.Priority.Value;
+        if (dto.SseInterEventDelayMs.HasValue) rule.SseInterEventDelayMs = dto.SseInterEventDelayMs.Value;
+        if (dto.SseLoop.HasValue) rule.SseLoop = dto.SseLoop.Value;
 
         await specRepo.UpdateReplacementRuleAsync(rule, ct);
 
@@ -315,7 +319,9 @@ public class ApiSpecController(
         string? ReplacementContentType = null,
         string? HostPattern = null,
         string? PathPattern = null,
-        int? Priority = null);
+        int? Priority = null,
+        int? SseInterEventDelayMs = null,
+        bool? SseLoop = null);
 
     public record UpdateReplacementRuleDto(
         string? Name = null,
@@ -328,7 +334,9 @@ public class ApiSpecController(
         string? ReplacementContentType = null,
         string? HostPattern = null,
         string? PathPattern = null,
-        int? Priority = null);
+        int? Priority = null,
+        int? SseInterEventDelayMs = null,
+        bool? SseLoop = null);
 
     public record AssetUploadResult(string FilePath, string FileName, string ContentType, long Size);
     public record AssetInfo(string FilePath, string FileName, long Size, DateTime LastModified);
