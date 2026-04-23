@@ -39,6 +39,8 @@ public sealed class SseStreamBodySource(string filePath, int interEventDelayMs, 
             }
         }
         while (loop && !ct.IsCancellationRequested);
+
+        ct.ThrowIfCancellationRequested();
     }
 
     private static async IAsyncEnumerable<string> ReadFramesAsync(
