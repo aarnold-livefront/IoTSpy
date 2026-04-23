@@ -4,7 +4,7 @@
 
 IoTSpy is a .NET 10 / C# solution that acts as a transparent MITM proxy, multi-protocol decoder, statistical anomaly detector, and lightweight pen-test suite for IoT network research. A REST + SignalR API exposes all functionality; the frontend is a Vite 6 + React 19 + TypeScript single-page application.
 
-All phases (1–15) plus OpenRTB inspection, TLS passthrough/SSL stripping, API Spec Generation & Content-Aware Mocking, React Frontend Performance & Correctness, Frontend Design Overhaul, Bugfixes/iOS TLS/Proxy Auto-start, and Admin UI & Body Viewer Stream Rendering are complete. Phases 16–17 (Deployment/Operations and Protocol Expansion) were deprioritized but remain valid candidates for future work.
+All phases (1–16, 18–22) are complete and production-ready, plus post-phase content rules decoupling. Phase 17 (non-IP IoT protocol expansion) has been archived. See [PHASES-COMPLETED.md](PHASES-COMPLETED.md) for full details.
 
 ---
 
@@ -104,7 +104,7 @@ Domain models live in `IoTSpy.Core/Models/`; DTOs and result types are co-locate
 `ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`, `IAnomalyAlertPublisher`, `IPacketCaptureService`, `IPacketCaptureAnalyzer`, `IPacketCapturePublisher`, `IOpenRtbEventRepository`, `IOpenRtbPiiPolicyRepository`, `IOpenRtbService`, `IPiiStrippingLogRepository`, `ICaptureDeviceRepository`, `IAlertingService`, `IReportService`, `IScheduledScanRepository`, `IMqttBrokerProxy`, `ICoapProxy`, `IUserRepository`, `IAuditRepository`, `IDashboardLayoutRepository`, `IApiSpecRepository`, `IApiSpecService`
 
 | `ApiSpecDocument` | API spec entity: name, host, version, OpenAPI JSON, status (Draft/Active/Archived), mock/passthrough/LLM flags, timestamps; nav property to `ContentReplacementRule` list |
-| `ContentReplacementRule` | Content replacement rule: match type (ContentType/JsonPath/HeaderValue/BodyRegex), action (ReplaceWithFile/ReplaceWithUrl/ReplaceWithValue/Redact), priority, host/path scope patterns; FK → ApiSpecDocument |
+| `ContentReplacementRule` | Content replacement rule: match type (ContentType/JsonPath/HeaderValue/BodyRegex), action (ReplaceWithFile/ReplaceWithUrl/ReplaceWithValue/Redact/TrackingPixel/MockSseStream), priority, host/path scope patterns; nullable FK → ApiSpecDocument; `Host` column for standalone rules |
 | `ApiSpecGenerationRequest` | DTO for spec generation: host, path pattern, method, date range, LLM flag, name |
 
 ### Enums (16)
@@ -127,7 +127,7 @@ Domain models live in `IoTSpy.Core/Models/`; DTOs and result types are co-locate
 | `PiiRedactionStrategy` | Redact, Hash, Mask, Remove |
 | `ApiSpecStatus` | Draft, Active, Archived |
 | `ContentMatchType` | ContentType, JsonPath, HeaderValue, BodyRegex |
-| `ContentReplacementAction` | ReplaceWithFile, ReplaceWithUrl, ReplaceWithValue, Redact |
+| `ContentReplacementAction` | ReplaceWithFile, ReplaceWithUrl, ReplaceWithValue, Redact, TrackingPixel, MockSseStream |
 
 ---
 
@@ -482,7 +482,8 @@ ASP.NET Core 10 host. `Program.cs` wires everything up in order: Storage → Aut
 | `ReportController` | `GET /api/reports/devices/{id}/html`, `GET /api/reports/devices/{id}/pdf` — scan report generation |
 | `ScheduledScanController` | CRUD `GET/POST/PUT/DELETE /api/scheduled-scans` — cron-based recurring scan jobs |
 | `DashboardController` | Per-user dashboard layout CRUD (`GET/POST/PUT/DELETE /api/dashboard/layouts`) |
-| `ApiSpecController` | API spec CRUD, generate from traffic, import/export, LLM refine, activate/deactivate, replacement rules CRUD, asset upload/list/delete (20+ endpoints at `/api/apispec`) |
+| `ApiSpecController` | API spec CRUD, generate from traffic, import/export, LLM refine, activate/deactivate, spec-attached replacement rules CRUD, asset upload/list/delete/content, rule preview (20+ endpoints at `/api/apispec`) |
+| `ContentRulesController` | Standalone content replacement rules (no spec required): list with `?host=` filter, create, update, delete, preview (5 endpoints at `/api/contentrules`) |
 | `SessionsController` | Investigation sessions CRUD, capture management, annotations, activity feed, AirDrop sharing (Phase 15) |
 
 ### SignalR (3 hubs)
@@ -568,7 +569,7 @@ Login response writes `user: { id, username, displayName, role }` to `localStora
 | Captures | Split-pane list + detail (request / response / TLS tabs) | `CaptureFilterBar`; `BodyViewer` with three modes (Pretty/Raw/Hex); SSE/NDJSON stream rendering with collapsible per-event rows |
 | Devices | Device list with timeline swimlane view per device | Real-time sync via SignalR; swimlane labels resizable and ellipsis-truncated |
 | Scanner | `ScannerPanel` → `ScanJobList` + `ScanFindingsView` | Scan job progress tracking; detailed findings with severity classification |
-| Manipulation | `ManipulationPanel` → `RulesEditor`, `BreakpointsEditor`, `ReplayPanel`, `FuzzerPanel`, `ApiSpecPanel` | Full CRUD for rules and breakpoints; request replay with modifications; fuzzer job orchestration |
+| Manipulation | `ManipulationPanel` → `RulesEditor` (tab: "Traffic Rules"), `BreakpointsEditor`, `ReplayPanel`, `FuzzerPanel`, `ContentRulesPanel`, `AssetLibrary`, `ApiSpecPanel` | Traffic Rules: header/body/status/delay/drop manipulation; Content Rules: binary-safe content replacement + SSE stream mocking, live host filter; Assets: upload/manage replacement files; API Spec: documentation-only (generate/import/export/refine) |
 | Packet Capture | `PanelPacketCapture` (tabbed: Packets / Protocols / Patterns / Suspicious) | `PacketListFilterable`, `PacketInspector` (Details / Hex Dump / Layers), `ProtocolDistributionView`, `PatternExplorer`, `SuspiciousActivityPanel`; drag-drop PCAP import with progress bar |
 | Live stream | `useTrafficStream` via SignalR | New captures prepended in real time with teal glow animation; alternating row stripes; HTTP method + status color coding |
 | Sessions (Phase 15) | `SessionsPanel` → list/create/detail views | `AnnotationPanel` for per-capture notes + tags; `PresenceIndicator` with avatar chips; session export (ZIP); AirDrop sharing |

@@ -447,14 +447,27 @@ public class ExplicitProxyServer(
                     modified = true;
                     statusLine2 = httpMsg.StatusLine;
                     respHeaders2 = httpMsg.ResponseHeaders;
-                    respBody2 = httpMsg.ResponseBody;
-                    respBodyBytes2 = Encoding.UTF8.GetBytes(respBody2);
-                    respHeaders2 = UpdateContentLength(respHeaders2, respBodyBytes2.Length);
+
+                    if (httpMsg.ResponseBodySource is null)
+                    {
+                        respBody2 = httpMsg.ResponseBody;
+                        respBodyBytes2 = Encoding.UTF8.GetBytes(respBody2);
+                        respHeaders2 = UpdateContentLength(respHeaders2, respBodyBytes2.Length);
+                    }
+                    else
+                    {
+                        // Binary / streaming / range path: headers synthesised from the body source.
+                        var src = httpMsg.ResponseBodySource;
+                        statusLine2 = $"HTTP/1.1 {src.StatusCode} {ReasonPhrase(src.StatusCode)}";
+                        respHeaders2 = ApplyBodySourceHeaders(respHeaders2, src);
+                        respBody2 = $"[binary replacement: {src.ContentLength?.ToString() ?? "stream"}]";
+                        respBodyBytes2 = []; // capture record only; wire write handled below
+                    }
                 }
             }
 
             // SSL strip: always remove HSTS and rewrite https links in non-redirect responses
-            if (settings.SslStrip && statusLine2 is not null)
+            if (settings.SslStrip && statusLine2 is not null && httpMsg.ResponseBodySource is null)
             {
                 respHeaders2 = SslStripService.StripResponseHeaders(respHeaders2);
             }
@@ -463,7 +476,17 @@ public class ExplicitProxyServer(
 
             // Forward response to client
             if (statusLine2 is not null)
-                await WriteHttpMessageAsync(clientStream, statusLine2, respHeaders2, respBodyBytes2, ct);
+            {
+                if (httpMsg.ResponseBodySource is { } bodySrc)
+                {
+                    await WriteHttpHeadAsync(clientStream, statusLine2, respHeaders2, ct);
+                    await bodySrc.WriteToAsync(clientStream, ct);
+                }
+                else
+                {
+                    await WriteHttpMessageAsync(clientStream, statusLine2, respHeaders2, respBodyBytes2, ct);
+                }
+            }
 
             // Parse and record
             ParseRequestLine(reqLine ?? "", out method, out path, out query);
@@ -1019,13 +1042,75 @@ public class ExplicitProxyServer(
     private static async Task WriteHttpMessageAsync(
         Stream stream, string firstLine, string headers, byte[] bodyBytes, CancellationToken ct)
     {
+        await WriteHttpHeadAsync(stream, firstLine, headers, ct);
+        if (bodyBytes.Length > 0)
+            await stream.WriteAsync(bodyBytes, ct);
+    }
+
+    private static async Task WriteHttpHeadAsync(
+        Stream stream, string firstLine, string headers, CancellationToken ct)
+    {
         var head = new StringBuilder();
         head.Append(firstLine).Append("\r\n");
         if (!string.IsNullOrEmpty(headers)) head.Append(headers).Append("\r\n");
         head.Append("\r\n");
         await stream.WriteAsync(Encoding.UTF8.GetBytes(head.ToString()), ct);
-        if (bodyBytes.Length > 0)
-            await stream.WriteAsync(bodyBytes, ct);
+    }
+
+    private static string ReasonPhrase(int status) => status switch
+    {
+        200 => "OK",
+        201 => "Created",
+        204 => "No Content",
+        206 => "Partial Content",
+        301 => "Moved Permanently",
+        302 => "Found",
+        304 => "Not Modified",
+        400 => "Bad Request",
+        401 => "Unauthorized",
+        403 => "Forbidden",
+        404 => "Not Found",
+        416 => "Range Not Satisfiable",
+        500 => "Internal Server Error",
+        _ => "OK",
+    };
+
+    /// <summary>
+    /// Rewrites response headers to match the supplied body source: sets Content-Type,
+    /// sets/removes Content-Length, strips Transfer-Encoding and Content-Encoding so the
+    /// replaced bytes aren't interpreted as chunked or gzipped, and appends extra headers
+    /// (Content-Range, Accept-Ranges, Cache-Control) declared by the source.
+    /// </summary>
+    private static string ApplyBodySourceHeaders(string headers, IoTSpy.Core.Interfaces.IResponseBodySource src)
+    {
+        static bool StripLine(string line) =>
+            line.StartsWith("Content-Length:", StringComparison.OrdinalIgnoreCase)
+            || line.StartsWith("Content-Type:", StringComparison.OrdinalIgnoreCase)
+            || line.StartsWith("Transfer-Encoding:", StringComparison.OrdinalIgnoreCase)
+            || line.StartsWith("Content-Encoding:", StringComparison.OrdinalIgnoreCase);
+
+        var lines = (headers ?? string.Empty)
+            .Split("\r\n", StringSplitOptions.None)
+            .Where(l => !string.IsNullOrEmpty(l) && !StripLine(l))
+            .ToList();
+
+        lines.Add($"Content-Type: {src.ContentType}");
+        if (src.ContentLength is { } len)
+            lines.Add($"Content-Length: {len}");
+
+        foreach (var (name, value) in src.ExtraHeaders)
+        {
+            // Remove any prior occurrence (case-insensitive) to avoid duplicates.
+            lines.RemoveAll(l =>
+            {
+                var colon = l.IndexOf(':');
+                if (colon <= 0) return false;
+                return l[..colon].Trim().Equals(name, StringComparison.OrdinalIgnoreCase);
+            });
+            lines.Add($"{name}: {value}");
+        }
+
+        return string.Join("\r\n", lines);
     }
 
     private static string UpdateContentLength(string headers, int byteCount)

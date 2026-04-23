@@ -74,12 +74,15 @@ See `.dev/claude-skills/README.md` for full details.
 
 ## Current state
 
-All phases 1–16, 18–21 plus OpenRTB inspection, TLS passthrough/SSL stripping, API Spec Generation & Content-Aware Mocking, collaboration, and passive proxy mode are complete:
-- 540+ backend tests across 8 test projects; 11+ frontend component tests
-- 18 REST controllers, 120+ endpoints (added `PassiveCaptureController`)
-- 16 EF Core migrations up through `AddPhase21PassiveProxy`
+All phases 1–16, 18–22 plus OpenRTB inspection, TLS passthrough/SSL stripping, API Spec Generation & Content-Aware Mocking, collaboration, passive proxy mode, rich-media/SSE content replacement, and content rules decoupling are complete:
+- 608+ backend tests across 8 test projects; 13+ frontend component tests
+- 19 REST controllers, 125+ endpoints (added `PassiveCaptureController`; Phase 22 added rule preview + public asset-content routes; `ContentRulesController` added for standalone content rules at `/api/contentrules`)
+- 18 EF Core migrations up through `DecoupleContentRules`
 - GitHub Actions CI at `.github/workflows/ci.yml`
 - Helm chart at `deploy/helm/iotspy/`; production Docker Compose at `docker-compose.prod.yml`
+
+### Content Rules (post-Phase 22 decoupling)
+`ContentReplacementRule` is now a first-class entity — no API spec required. Standalone rules are scoped by `Host` directly. The proxy pipeline (`ApiSpecMockService.ApplyMockAsync`) merges spec-attached and standalone rules by priority. UI: Manipulation panel has 7 tabs — **Traffic Rules** (header/body/status/delay/drop), **Breakpoints**, **Replay**, **Fuzzer**, **Content Rules** (all rules loaded immediately, host input is a live filter, no gate), **Assets** (promoted to top-level), **API Spec** (documentation-only: generate/import/export/refine).
 
 ### Operational notes
 

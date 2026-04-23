@@ -6,6 +6,8 @@ import type {
   CreateReplacementRuleRequest,
   GenerateSpecRequest,
   ImportSpecRequest,
+  PreviewRuleRequest,
+  PreviewRuleResult,
   UpdateReplacementRuleRequest,
   UpdateSpecRequest,
 } from '../types/api'
@@ -105,6 +107,17 @@ export function deleteRule(specId: string, ruleId: string): Promise<void> {
   return apiFetch<void>(`/api/apispec/${specId}/rules/${ruleId}`, { method: 'DELETE' })
 }
 
+export function previewRule(
+  specId: string,
+  ruleId: string,
+  req: PreviewRuleRequest,
+): Promise<PreviewRuleResult> {
+  return apiFetch<PreviewRuleResult>(`/api/apispec/${specId}/rules/${ruleId}/preview`, {
+    method: 'POST',
+    body: JSON.stringify(req),
+  })
+}
+
 // ── Assets ──────────────────────────────────────────────────────────────────
 
 export async function uploadAsset(file: File): Promise<{ filePath: string; fileName: string }> {
@@ -131,4 +144,16 @@ export function listAssets(): Promise<AssetInfo[]> {
 
 export function deleteAsset(filename: string): Promise<void> {
   return apiFetch<void>(`/api/apispec/assets/${filename}`, { method: 'DELETE' })
+}
+
+export function getAssetContentUrl(fileName: string): string {
+  return `/api/apispec/assets/${encodeURIComponent(fileName)}/content`
+}
+
+export async function uploadAssets(files: File[]): Promise<{ filePath: string; fileName: string }[]> {
+  const results: { filePath: string; fileName: string }[] = []
+  for (const file of files) {
+    results.push(await uploadAsset(file))
+  }
+  return results
 }

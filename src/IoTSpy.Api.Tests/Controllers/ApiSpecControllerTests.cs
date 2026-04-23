@@ -2,6 +2,7 @@ using IoTSpy.Api.Controllers;
 using IoTSpy.Core.Enums;
 using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
+using IoTSpy.Manipulation.ApiSpec;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
 using Xunit;
@@ -30,11 +31,18 @@ public class ApiSpecControllerTests
 
     private static ApiSpecController CreateController(
         IApiSpecService? service = null,
-        IApiSpecRepository? repo = null)
+        IApiSpecRepository? repo = null,
+        ReplacementPreviewService? preview = null)
     {
+        var specRepo = repo ?? Substitute.For<IApiSpecRepository>();
         return new ApiSpecController(
             service ?? Substitute.For<IApiSpecService>(),
-            repo ?? Substitute.For<IApiSpecRepository>());
+            specRepo,
+            preview ?? new ReplacementPreviewService(
+                new ContentReplacer(Microsoft.Extensions.Logging.Abstractions.NullLogger<ContentReplacer>.Instance),
+                specRepo,
+                Substitute.For<ICaptureRepository>(),
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<ReplacementPreviewService>.Instance));
     }
 
     // ── List ──────────────────────────────────────────────────────────────────

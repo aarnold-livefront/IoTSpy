@@ -12,7 +12,8 @@ namespace IoTSpy.Api.Controllers;
 [Route("api/apispec")]
 public class ApiSpecController(
     IApiSpecService apiSpecService,
-    IApiSpecRepository specRepo) : ControllerBase
+    IApiSpecRepository specRepo,
+    ReplacementPreviewService previewService) : ControllerBase
 {
     private static readonly string AssetsDirectory =
         Path.Combine(AppContext.BaseDirectory, "data", "assets");
@@ -185,7 +186,9 @@ public class ApiSpecController(
             ReplacementContentType = dto.ReplacementContentType,
             HostPattern = dto.HostPattern,
             PathPattern = dto.PathPattern,
-            Priority = dto.Priority ?? 0
+            Priority = dto.Priority ?? 0,
+            SseInterEventDelayMs = dto.SseInterEventDelayMs,
+            SseLoop = dto.SseLoop,
         };
 
         await specRepo.AddReplacementRuleAsync(rule, ct);
@@ -211,6 +214,8 @@ public class ApiSpecController(
         if (dto.HostPattern is not null) rule.HostPattern = dto.HostPattern;
         if (dto.PathPattern is not null) rule.PathPattern = dto.PathPattern;
         if (dto.Priority.HasValue) rule.Priority = dto.Priority.Value;
+        if (dto.SseInterEventDelayMs.HasValue) rule.SseInterEventDelayMs = dto.SseInterEventDelayMs.Value;
+        if (dto.SseLoop.HasValue) rule.SseLoop = dto.SseLoop.Value;
 
         await specRepo.UpdateReplacementRuleAsync(rule, ct);
 
@@ -283,6 +288,56 @@ public class ApiSpecController(
         return NoContent();
     }
 
+    // ── Rule Preview ──────────────────────────────────────────────────────────
+
+    [HttpPost("{specId:guid}/rules/{ruleId:guid}/preview")]
+    public async Task<IActionResult> PreviewRule(
+        Guid specId, Guid ruleId, [FromBody] PreviewRequest request, CancellationToken ct)
+    {
+        var result = await previewService.PreviewAsync(specId, ruleId, request, ct);
+        if (result is null) return NotFound();
+        return Ok(result);
+    }
+
+    // ── Asset Content (public read-only) ──────────────────────────────────────
+
+    [HttpGet("assets/{filename}/content")]
+    [AllowAnonymous]
+    public IActionResult GetAssetContent(string filename)
+    {
+        var safe = Path.GetFileName(filename);
+        if (safe != filename || string.IsNullOrWhiteSpace(safe))
+            return BadRequest("Invalid filename");
+
+        var filePath = Path.Combine(AssetsDirectory, safe);
+        if (!System.IO.File.Exists(filePath)) return NotFound();
+
+        var ext = Path.GetExtension(safe);
+        var mime = InferMime(ext);
+        return PhysicalFile(filePath, mime, enableRangeProcessing: true);
+    }
+
+    private static string InferMime(string extension) => extension.ToLowerInvariant() switch
+    {
+        ".png" => "image/png",
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".gif" => "image/gif",
+        ".webp" => "image/webp",
+        ".svg" => "image/svg+xml",
+        ".mp4" => "video/mp4",
+        ".webm" => "video/webm",
+        ".mov" => "video/quicktime",
+        ".mp3" => "audio/mpeg",
+        ".wav" => "audio/wav",
+        ".ogg" => "audio/ogg",
+        ".json" => "application/json",
+        ".html" or ".htm" => "text/html",
+        ".txt" => "text/plain",
+        ".sse" => "text/event-stream",
+        ".ndjson" => "application/x-ndjson",
+        _ => "application/octet-stream",
+    };
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void InvalidateSpecCache(string host)
@@ -315,7 +370,9 @@ public class ApiSpecController(
         string? ReplacementContentType = null,
         string? HostPattern = null,
         string? PathPattern = null,
-        int? Priority = null);
+        int? Priority = null,
+        int? SseInterEventDelayMs = null,
+        bool? SseLoop = null);
 
     public record UpdateReplacementRuleDto(
         string? Name = null,
@@ -328,7 +385,9 @@ public class ApiSpecController(
         string? ReplacementContentType = null,
         string? HostPattern = null,
         string? PathPattern = null,
-        int? Priority = null);
+        int? Priority = null,
+        int? SseInterEventDelayMs = null,
+        bool? SseLoop = null);
 
     public record AssetUploadResult(string FilePath, string FileName, string ContentType, long Size);
     public record AssetInfo(string FilePath, string FileName, long Size, DateTime LastModified);

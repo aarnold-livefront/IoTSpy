@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useApiSpec } from '../../hooks/useApiSpec'
 import GenerateSpecDialog from './GenerateSpecDialog'
 import SpecEditor from './SpecEditor'
-import ReplacementRulesEditor from './ReplacementRulesEditor'
 import ImportExportControls from './ImportExportControls'
 import type { ApiSpecDocument } from '../../types/api'
 
@@ -130,13 +129,6 @@ export default function ApiSpecPanel() {
             </div>
 
             <SpecEditor spec={apiSpec.selectedSpec} onUpdate={apiSpec.update} />
-
-            <ReplacementRulesEditor
-              spec={apiSpec.selectedSpec}
-              onAddRule={apiSpec.addRule}
-              onEditRule={apiSpec.editRule}
-              onDeleteRule={apiSpec.removeRule}
-            />
           </div>
         )}
       </div>

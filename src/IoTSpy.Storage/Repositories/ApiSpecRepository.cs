@@ -51,10 +51,25 @@ public class ApiSpecRepository(IoTSpyDbContext db) : IApiSpecRepository
         }
     }
 
+    public Task<ContentReplacementRule?> GetRuleByIdAsync(Guid ruleId, CancellationToken ct = default) =>
+        db.ContentReplacementRules.FirstOrDefaultAsync(r => r.Id == ruleId, ct);
+
     public Task<List<ContentReplacementRule>> GetReplacementRulesAsync(Guid specId, CancellationToken ct = default) =>
         db.ContentReplacementRules
             .Where(r => r.ApiSpecDocumentId == specId)
             .OrderBy(r => r.Priority)
+            .ToListAsync(ct);
+
+    public Task<List<ContentReplacementRule>> GetStandaloneRulesForHostAsync(string host, CancellationToken ct = default) =>
+        db.ContentReplacementRules
+            .Where(r => r.ApiSpecDocumentId == null && r.Host == host)
+            .OrderBy(r => r.Priority)
+            .ToListAsync(ct);
+
+    public Task<List<ContentReplacementRule>> GetAllStandaloneRulesAsync(CancellationToken ct = default) =>
+        db.ContentReplacementRules
+            .Where(r => r.ApiSpecDocumentId == null)
+            .OrderBy(r => r.Host).ThenBy(r => r.Priority)
             .ToListAsync(ct);
 
     public async Task<ContentReplacementRule> AddReplacementRuleAsync(ContentReplacementRule rule, CancellationToken ct = default)

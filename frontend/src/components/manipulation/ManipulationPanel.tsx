@@ -6,21 +6,25 @@ import BreakpointsEditor from './BreakpointsEditor'
 import ReplayPanel from './ReplayPanel'
 import FuzzerPanel from './FuzzerPanel'
 import ApiSpecPanel from '../apispec/ApiSpecPanel'
+import ContentRulesPanel from '../contentrules/ContentRulesPanel'
+import AssetLibrary from '../apispec/AssetLibrary'
 import '../../styles/manipulation.css'
 
-type ManipTab = 'rules' | 'breakpoints' | 'replay' | 'fuzzer' | 'apispec'
+type ManipTab = 'trafficrules' | 'breakpoints' | 'replay' | 'fuzzer' | 'contentrules' | 'assets' | 'apispec'
 
 export default function ManipulationPanel() {
-  const [activeTab, setActiveTab] = useState<ManipTab>('rules')
+  const [activeTab, setActiveTab] = useState<ManipTab>('trafficrules')
 
   const manip = useManipulation()
   const { captures } = useCaptures({ page: 1, pageSize: 100 })
 
   const tabs: { key: ManipTab; label: string }[] = [
-    { key: 'rules', label: 'Rules' },
+    { key: 'trafficrules', label: 'Traffic Rules' },
     { key: 'breakpoints', label: 'Breakpoints' },
     { key: 'replay', label: 'Replay' },
     { key: 'fuzzer', label: 'Fuzzer' },
+    { key: 'contentrules', label: 'Content Rules' },
+    { key: 'assets', label: 'Assets' },
     { key: 'apispec', label: 'API Spec' },
   ]
 
@@ -39,7 +43,7 @@ export default function ManipulationPanel() {
       </div>
 
       <div className="manip-content">
-        {activeTab === 'rules' && (
+        {activeTab === 'trafficrules' && (
           <RulesEditor
             rules={manip.rules}
             loading={manip.rulesLoading}
@@ -82,6 +86,8 @@ export default function ManipulationPanel() {
             onDelete={manip.removeFuzzer}
           />
         )}
+        {activeTab === 'contentrules' && <ContentRulesPanel />}
+        {activeTab === 'assets' && <AssetLibrary />}
         {activeTab === 'apispec' && <ApiSpecPanel />}
       </div>
     </div>

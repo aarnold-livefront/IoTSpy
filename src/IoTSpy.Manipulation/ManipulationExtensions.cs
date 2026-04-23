@@ -24,6 +24,7 @@ public static class ManipulationExtensions
         // ── API Spec Generation & Content Replacement ───────────────────────
         services.AddSingleton<ApiSpec.ApiSpecGenerator>();
         services.AddSingleton<ApiSpec.ContentReplacer>();
+        services.AddScoped<ApiSpec.ReplacementPreviewService>();
         services.AddSingleton<IApiSpecService, ApiSpec.ApiSpecMockService>();
 
         // ── OpenRTB PII Stripping ────────────────────────────────────────────

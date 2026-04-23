@@ -3,6 +3,7 @@ using System;
 using IoTSpy.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IoTSpy.Storage.Migrations
 {
     [DbContext(typeof(IoTSpyDbContext))]
-    partial class IoTSpyDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260423122436_AddPhase22SseReplayConfig")]
+    partial class AddPhase22SseReplayConfig
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.3");
@@ -594,7 +597,7 @@ namespace IoTSpy.Storage.Migrations
                     b.Property<int>("Action")
                         .HasColumnType("INTEGER");
 
-                    b.Property<Guid?>("ApiSpecDocumentId")
+                    b.Property<Guid>("ApiSpecDocumentId")
                         .HasColumnType("TEXT");
 
                     b.Property<long>("CreatedAt")
@@ -602,9 +605,6 @@ namespace IoTSpy.Storage.Migrations
 
                     b.Property<bool>("Enabled")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("Host")
-                        .HasColumnType("TEXT");
 
                     b.Property<string>("HostPattern")
                         .HasColumnType("TEXT");
@@ -644,8 +644,6 @@ namespace IoTSpy.Storage.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ApiSpecDocumentId");
-
-                    b.HasIndex("Host");
 
                     b.HasIndex("Priority");
 
@@ -1575,7 +1573,8 @@ namespace IoTSpy.Storage.Migrations
                     b.HasOne("IoTSpy.Core.Models.ApiSpecDocument", "ApiSpecDocument")
                         .WithMany("ReplacementRules")
                         .HasForeignKey("ApiSpecDocumentId")
-                        .OnDelete(DeleteBehavior.Cascade);
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("ApiSpecDocument");
                 });

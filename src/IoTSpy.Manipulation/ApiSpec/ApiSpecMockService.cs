@@ -147,10 +147,9 @@ public sealed class ApiSpecMockService(
         if (phase != ManipulationPhase.Response) return false;
 
         var spec = await GetActiveSpecAsync(message.Host, ct);
-        if (spec is null) return false;
 
         // Passthrough-first: observe and cache the real response
-        if (spec.PassthroughFirst)
+        if (spec is { PassthroughFirst: true })
         {
             var cacheKey = $"{message.Method}:{ApiSpecGenerator.NormalizePath(message.Path)}";
             if (!_observationCache.ContainsKey($"{spec.Host}:{cacheKey}"))
@@ -172,15 +171,21 @@ public sealed class ApiSpecMockService(
             }
         }
 
-        // Apply content replacement rules
-        var enabledRules = spec.ReplacementRules
-            .Where(r => r.Enabled)
-            .OrderBy(r => r.Priority)
-            .ToList();
+        // Apply content replacement rules (spec-attached + standalone merged by priority)
+        var specRules = spec?.ReplacementRules.Where(r => r.Enabled) ?? [];
+        var standaloneRules = await GetStandaloneRulesAsync(message.Host, ct);
+        var allRules = specRules.Concat(standaloneRules).OrderBy(r => r.Priority).ToList();
 
-        if (enabledRules.Count == 0) return false;
+        if (allRules.Count == 0) return false;
 
-        return contentReplacer.Apply(message, enabledRules);
+        return await contentReplacer.ApplyAsync(message, allRules, ct);
+    }
+
+    private async Task<List<ContentReplacementRule>> GetStandaloneRulesAsync(string host, CancellationToken ct)
+    {
+        using var scope = scopeFactory.CreateScope();
+        var repo = scope.ServiceProvider.GetRequiredService<IApiSpecRepository>();
+        return await repo.GetStandaloneRulesForHostAsync(host, ct);
     }
 
     private async Task<ApiSpecDocument?> GetActiveSpecAsync(string host, CancellationToken ct)
