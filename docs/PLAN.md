@@ -46,12 +46,12 @@ export Auth__JwtSecret="your-32-char-secret" && dotnet build && dotnet test
 
 | Metric | Value |
 |---|---|
-| **Phases complete** | 1–16, 18–21 (22 of 22 active phases) ✅ |
+| **Phases complete** | 1–16, 18–22 (23 of 23 active phases) ✅ |
 | **Backend tests** | 540+ (all passing) |
 | **REST controllers** | 18 |
 | **SignalR hubs** | 3 |
 | **Protocols** | HTTP/HTTPS, MQTT, DNS, CoAP, WebSocket, gRPC, Modbus, OpenRTB |
-| **Next phase** | 22 — Rich Media & Stream Content Replacement |
+| **Next phase** | 23+ (roadmap only) |
 
 ---
 

@@ -74,10 +74,10 @@ See `.dev/claude-skills/README.md` for full details.
 
 ## Current state
 
-All phases 1–16, 18–21 plus OpenRTB inspection, TLS passthrough/SSL stripping, API Spec Generation & Content-Aware Mocking, collaboration, and passive proxy mode are complete:
-- 540+ backend tests across 8 test projects; 11+ frontend component tests
-- 18 REST controllers, 120+ endpoints (added `PassiveCaptureController`)
-- 16 EF Core migrations up through `AddPhase21PassiveProxy`
+All phases 1–16, 18–22 plus OpenRTB inspection, TLS passthrough/SSL stripping, API Spec Generation & Content-Aware Mocking, collaboration, passive proxy mode, and rich-media/SSE content replacement are complete:
+- 608+ backend tests across 8 test projects; 13+ frontend component tests
+- 18 REST controllers, 120+ endpoints (added `PassiveCaptureController`; Phase 22 added rule preview + public asset-content routes to `ApiSpecController`)
+- 17 EF Core migrations up through `AddPhase22SseReplayConfig`
 - GitHub Actions CI at `.github/workflows/ci.yml`
 - Helm chart at `deploy/helm/iotspy/`; production Docker Compose at `docker-compose.prod.yml`
 

@@ -1,6 +1,6 @@
-# IoTSpy — Completed Phases (1–16, 18–21)
+# IoTSpy — Completed Phases (1–16, 18–22)
 
-This document details all implemented phases. Phases 1–16 and 18–21 are complete and production-ready. Phase 17 has been archived (hardware-dependent non-IP IoT protocols); see [PHASES-ARCHIVED.md](PHASES-ARCHIVED.md). See [PHASES-ROADMAP.md](PHASES-ROADMAP.md) for the Phase 22+ roadmap.
+This document details all implemented phases. Phases 1–16 and 18–22 are complete and production-ready. Phase 17 has been archived (hardware-dependent non-IP IoT protocols); see [PHASES-ARCHIVED.md](PHASES-ARCHIVED.md). See [PHASES-ROADMAP.md](PHASES-ROADMAP.md) for the Phase 23+ roadmap.
 
 ---
 
@@ -224,3 +224,17 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Passive mode UI indicator (21.7)** — "Passive Mode" accent badge in the header when the proxy is running in passive mode; distinguishes from active interception at a glance
 - **Device filter controls (21.8)** — Filter bar in the Passive Capture panel: enter comma-separated IP addresses to restrict the live buffer; empty = capture all devices. `PUT /api/passive/filter` / `DELETE /api/passive/filter` API endpoints. Save-session dialog respects the active filter
 - **Tests (21.9)** — 10 new `PassiveProxyBufferTests`: ring buffer eviction, device filter accept/reject (single and multi-IP), filter clear, snapshot isolation, summary counts, and active filter exposure in summary response
+
+## Phase 22 — Rich Media & Stream Content Replacement
+
+**Goal:** Fix silent corruption when replacing binary content (images, video, audio) through the MITM proxy and add first-class support for SSE stream mocking, HTTP Range passthrough, tracking pixels, and an in-UI rule preview. Primary use case: replace advertising images, tracking pixels, video ads, and live ad-feed streams with researcher-controlled content.
+
+- **Body-source abstraction (22.1, 22.8)** — New `IResponseBodySource` interface on `IoTSpy.Core`; `HttpMessage.ResponseBodySource` opt-in channel. When set, the proxy writer bypasses the string body and the UTF-8 round-trip that previously turned binary payloads into base64 text on the wire. `FileStreamBodySource` streams any size file directly from disk (unified path, no 4 MB threshold)
+- **Proxy writer refactor (22.2)** — `WriteHttpHeadAsync` + `ApplyBodySourceHeaders` helpers in `ExplicitProxyServer`; stripped `Transfer-Encoding` + `Content-Encoding`, overwritten `Content-Type` + `Content-Length`, appended body-source `ExtraHeaders`
+- **HTTP Range passthrough (22.3)** — `RangeHelper.TryParse` handles `bytes=S-E`, `bytes=S-`, `bytes=-N` (multi-range rejected); `RangeSlicedBodySource` serves 206 with `Content-Range` + `Accept-Ranges: bytes`, required by `<video>` elements
+- **SSE stream mocking (22.4)** — `ContentReplacementAction.MockSseStream` + `SseStreamBodySource` replays `.sse` / `.ndjson` files with per-event flush, configurable inter-event delay, and optional loop-until-disconnect; EF migration `AddPhase22SseReplayConfig` added nullable `SseInterEventDelayMs` + `SseLoop` columns to `ContentReplacementRules`
+- **Tracking pixel (22.5)** — `ContentReplacementAction.TrackingPixel` + `TrackingPixelBodySource` singleton emits a 43-byte 1×1 transparent GIF89a with no asset upload required
+- **Asset library UI (22.6)** — New `AssetLibrary.tsx` with native HTML5 drag-drop + MIME allowlist + multi-file upload + media-kind badges + inline image/video/audio thumbnails; `ApiSpecPanel` gains an Assets toggle; `ReplacementRulesEditor` gets Pick-Asset modal + SSE delay/loop inputs
+- **Rule preview endpoint + modal (22.7)** — `ReplacementPreviewService` applies a single rule against a synthetic or captured exchange in-memory (1 MB + 2 s cap) and returns modified status/headers/body + warnings; `POST /api/apispec/{specId}/rules/{ruleId}/preview`; `RulePreviewModal.tsx` wires it to the rule table. New `[AllowAnonymous] GET /api/apispec/assets/{filename}/content` serves assets with `PhysicalFile(enableRangeProcessing: true)` so `<img>` / `<video>` tags can load previews without the JWT header
+- **Correction** — Content Replacement Rule CRUD lives on `ApiSpecController` (`/api/apispec/{specId}/rules`), not `ManipulationController` as the original roadmap implied; the new preview endpoint follows that routing. `ExtractContentType` / `UpdateContentType` in `ContentReplacer` previously only understood JSON-dict headers, silently missing real proxy CRLF headers — now handles both formats, so ContentType-match rules finally fire on live traffic
+- **Tests (22.9)** — 34 new backend tests (`RangeHelperTests`, `BodySourcesTests`, `SseStreamBodySourceTests`, `ContentReplacerBinaryTests`, `ReplacementPreviewServiceTests`) incl. PNG round-trip regression proving base64-corruption is fixed; 2 new Vitest tests for `AssetLibrary`. All 608 backend + 13 frontend tests pass
