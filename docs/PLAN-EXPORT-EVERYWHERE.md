@@ -1,4 +1,4 @@
-# Phase 23 — Export Everywhere
+# Export Everywhere
 
 ## Goal
 
@@ -8,7 +8,7 @@ Give users portable, shareable representations of the data and configurations th
 
 ## Features
 
-### 23.1 — Capture → Streaming Asset Export *(implement first)*
+### 1 — Capture → Streaming Asset Export *(implement first)*
 
 Captured SSE (`text/event-stream`) and NDJSON (`application/x-ndjson`) response bodies are already stored in `CapturedRequest.ResponseBody`. This feature exposes them as usable asset files for `MockSseStream` content rules.
 
@@ -67,7 +67,7 @@ downloadBodyUrl(id: string): string   // returns URL for <a download> tag
 
 ---
 
-### 23.2 — Fuzzer Results Export
+### 2 — Fuzzer Results Export
 
 **Endpoint:** `GET /api/manipulation/fuzzers/{id}/export`
 
@@ -84,7 +84,7 @@ Returns `application/json` with `Content-Disposition: attachment; filename="fuzz
 
 ---
 
-### 23.3 — Scan Findings Export
+### 3 — Scan Findings Export
 
 **Endpoint:** `GET /api/scanner/jobs/{id}/export`
 
@@ -102,7 +102,7 @@ Returns `application/json` with `Content-Disposition: attachment; filename="scan
 
 ---
 
-### 23.4 — Ruleset Bundle Export
+### 4 — Ruleset Bundle Export
 
 **Endpoint:** `GET /api/manipulation/export` (optional `?specId=` to scope to one API spec)
 
@@ -128,9 +128,9 @@ Asset files referenced by `ReplacementFilePath` are **not** embedded — `refere
 
 ## Implementation order
 
-1. **23.1** — Capture → asset export (highest immediate value, smallest scope)
-2. **23.2** — Fuzzer results export
-3. **23.3** — Scan findings export
-4. **23.4** — Ruleset bundle export (most complex — touches multiple repositories)
+1. **1** — Capture → asset export (highest immediate value, smallest scope)
+2. **2** — Fuzzer results export
+3. **3** — Scan findings export
+4. **4** — Ruleset bundle export (most complex — touches multiple repositories)
 
 Each sub-feature is independently shippable.
