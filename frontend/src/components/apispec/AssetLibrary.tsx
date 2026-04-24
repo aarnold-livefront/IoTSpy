@@ -5,6 +5,7 @@ import {
   listAssets,
   uploadAssets,
 } from '../../api/apispec'
+import ConfirmDialog from '../common/ConfirmDialog'
 import type { AssetInfo } from '../../types/api'
 
 interface Props {
@@ -71,6 +72,7 @@ export default function AssetLibrary({ onPick, compact }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [confirmDeleteName, setConfirmDeleteName] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -115,10 +117,10 @@ export default function AssetLibrary({ onPick, compact }: Props) {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const handleDelete = async (asset: AssetInfo) => {
-    if (!confirm(`Delete ${asset.fileName}?`)) return
+  const handleDeleteConfirmed = async (fileName: string) => {
+    setConfirmDeleteName(null)
     try {
-      await deleteAsset(asset.fileName)
+      await deleteAsset(fileName)
       await refresh()
     } catch (e) {
       setError(`Delete failed: ${(e as Error).message}`)
@@ -127,6 +129,16 @@ export default function AssetLibrary({ onPick, compact }: Props) {
 
   return (
     <div style={{ marginTop: compact ? 0 : 16 }}>
+      {confirmDeleteName && (
+        <ConfirmDialog
+          title="Delete asset"
+          message={`Delete "${confirmDeleteName}"? This cannot be undone.`}
+          confirmLabel="Delete"
+          danger
+          onConfirm={() => void handleDeleteConfirmed(confirmDeleteName)}
+          onCancel={() => setConfirmDeleteName(null)}
+        />
+      )}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         {!compact
           ? <h3 style={{ margin: 0 }}>Asset Library ({assets.length})</h3>
@@ -256,7 +268,7 @@ export default function AssetLibrary({ onPick, compact }: Props) {
               <button
                 className="btn btn--danger"
                 style={{ fontSize: 10, padding: '2px 6px', marginTop: 4 }}
-                onClick={(e) => { e.stopPropagation(); void handleDelete(a) }}
+                onClick={(e) => { e.stopPropagation(); setConfirmDeleteName(a.fileName) }}
               >
                 Delete
               </button>

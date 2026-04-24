@@ -17,6 +17,7 @@ import { useDevices } from '../hooks/useDevices'
 import { useTrafficStream } from '../hooks/useTrafficStream'
 import { useTheme } from '../hooks/useTheme'
 import { useBackendHealth } from '../hooks/useBackendHealth'
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import type { CaptureFilters } from '../types/api'
 
 type ViewMode = 'list' | 'timeline' | 'packet-capture' | 'manipulation' | 'sessions'
@@ -54,6 +55,9 @@ export default function DashboardPage() {
 
   const { connectionState } = useTrafficStream({ onCapture: prependCapture })
   const backendStatus = useBackendHealth(connectionState)
+
+  // Escape key: deselect the active capture (closes the detail pane)
+  useKeyboardShortcuts({ onEscape: () => { if (selectedId) setSelectedId(null) } })
 
   const proxyStatus = proxy.status
   const isRunning = proxyStatus?.isRunning ?? false
