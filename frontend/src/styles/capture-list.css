@@ -177,8 +177,8 @@
 /* List */
 .capture-list {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .capture-list__toolbar {
@@ -285,6 +285,12 @@
   padding: var(--space-3);
 }
 
+.capture-list__loading-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .btn-load-more {
   padding: var(--space-2) var(--space-4);
   font-size: var(--font-size-sm);
@@ -320,11 +326,11 @@
   min-height: 40px;
 }
 
-.capture-row:nth-child(even of .capture-row) {
+.capture-row--even {
   background-color: rgba(255, 255, 255, 0.018);
 }
 
-[data-theme="light"] .capture-row:nth-child(even of .capture-row) {
+[data-theme="light"] .capture-row--even {
   background-color: rgba(0, 0, 0, 0.018);
 }
 

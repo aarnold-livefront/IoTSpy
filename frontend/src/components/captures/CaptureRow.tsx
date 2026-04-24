@@ -1,4 +1,5 @@
 import { memo } from 'react'
+import type { CSSProperties } from 'react'
 import type { CapturedRequestSummary } from '../../types/api'
 import '../../styles/capture-list.css'
 
@@ -6,7 +7,9 @@ interface Props {
   capture: CapturedRequestSummary
   selected: boolean
   isNew?: boolean
+  isEven?: boolean
   onSelect: (id: string) => void
+  style?: CSSProperties
 }
 
 function methodBadgeClass(method: string): string {
@@ -68,14 +71,15 @@ function protocolLabel(protocol: string, isTls: boolean): string | null {
   }
 }
 
-export default memo(function CaptureRow({ capture, selected, isNew, onSelect }: Props) {
+export default memo(function CaptureRow({ capture, selected, isNew, isEven, onSelect, style }: Props) {
   const { id, method, host, path, statusCode, durationMs, isTls, requestBodySize, protocol, timestamp } = capture
   const displayPath = path || '/'
   const proto = protocolLabel(protocol, isTls)
 
   return (
     <div
-      className={`capture-row${selected ? ' capture-row--selected' : ''}${isTls ? ' capture-row--tls' : ''}${rowStatusClass(statusCode)}${isNew ? ' capture-row--new' : ''}`}
+      style={style}
+      className={`capture-row${isEven ? ' capture-row--even' : ''}${selected ? ' capture-row--selected' : ''}${isTls ? ' capture-row--tls' : ''}${rowStatusClass(statusCode)}${isNew ? ' capture-row--new' : ''}`}
       onClick={() => onSelect(id)}
       role="row"
       aria-selected={selected}

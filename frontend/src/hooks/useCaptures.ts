@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { listCaptures } from '../api/captures'
 import type { CaptureFilters, CapturedRequestSummary, TrafficCaptureEvent } from '../types/api'
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 200
 
 export function useCaptures(filters: CaptureFilters) {
   const [captures, setCaptures] = useState<CapturedRequestSummary[]>([])
