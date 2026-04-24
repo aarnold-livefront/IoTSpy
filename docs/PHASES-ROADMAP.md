@@ -14,7 +14,7 @@ Beyond Phase 22 (including post-phase content rules decoupling and Manipulation 
 
 ### API & Backend Polish
 - **Bulk operations** — Batch enable/disable rules, cancel-all scans, bulk capture delete by filter; reduces multi-step workflows to single calls
-- **Export everywhere** — Fuzzer results, scan findings, and ruleset export as portable JSON; enables sharing configurations across environments
+- **Export everywhere** — See [export Everywhere plan](PLAN-EXPORT-EVERYWHERE.md). Capture → streaming asset (`.sse`/`.ndjson`), fuzzer results, scan findings, and ruleset bundle export as portable JSON; enables sharing configurations across environments
 - **Consistent pagination** — All list endpoints return `{ items, total, pages }`; currently only captures and scanner jobs do
 - **Configuration change audit trail** — Before/after diffs on rule, spec, policy, and breakpoint changes; extends `AuditEntry` with `OldValue`/`NewValue` fields
 - **Manipulation rule import/export** — Import/export rulesets as self-contained JSON bundles (rules + breakpoints + replacement rules + API spec); useful for sharing research setups
