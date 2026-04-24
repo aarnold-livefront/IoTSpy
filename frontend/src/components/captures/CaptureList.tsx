@@ -1,4 +1,7 @@
-import { useRef, useCallback, useEffect, useState } from 'react'
+import { useRef, useCallback, useEffect, useState, useMemo, memo } from 'react'
+import { FixedSizeList } from 'react-window'
+import type { ListOnItemsRenderedProps, ListChildComponentProps } from 'react-window'
+import { AutoSizer } from 'react-virtualized-auto-sizer'
 import CaptureFilterBar from './CaptureFilterBar'
 import CaptureRow from './CaptureRow'
 import LoadingSpinner from '../common/LoadingSpinner'
@@ -6,6 +9,33 @@ import ErrorBanner from '../common/ErrorBanner'
 import { exportCaptures } from '../../api/captures'
 import type { CaptureFilters, CapturedRequestSummary, Device } from '../../types/api'
 import '../../styles/capture-list.css'
+
+const ROW_HEIGHT = 40
+
+interface RowData {
+  captures: CapturedRequestSummary[]
+  selectedId: string | null
+  newId: string | null
+  onSelect: (id: string) => void
+}
+
+const VirtualRow = memo(function VirtualRow({ index, style, data }: ListChildComponentProps<RowData>) {
+  const { captures, selectedId, newId, onSelect } = data
+  if (index >= captures.length) {
+    return <div style={style} className="capture-list__loading-row"><LoadingSpinner /></div>
+  }
+  const c = captures[index]
+  return (
+    <CaptureRow
+      capture={c}
+      selected={c.id === selectedId}
+      isNew={c.id === newId}
+      isEven={index % 2 === 0}
+      onSelect={onSelect}
+      style={style}
+    />
+  )
+})
 
 interface Props {
   captures: CapturedRequestSummary[]
@@ -36,7 +66,7 @@ export default function CaptureList({
   onFiltersChange,
   onLoadMore,
 }: Props) {
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<FixedSizeList>(null)
   const prevFirstIdRef = useRef<string | null>(null)
   const seededRef = useRef(false)
   const [newId, setNewId] = useState<string | null>(null)
@@ -44,6 +74,7 @@ export default function CaptureList({
   const [exportOpen, setExportOpen] = useState(false)
   const exportRef = useRef<HTMLDivElement>(null)
 
+  // Detect new prepended captures, flash them, and scroll to top
   useEffect(() => {
     const currentFirstId = captures[0]?.id ?? null
     if (!seededRef.current) {
@@ -54,6 +85,7 @@ export default function CaptureList({
     if (currentFirstId && currentFirstId !== prevFirstIdRef.current) {
       prevFirstIdRef.current = currentFirstId
       setNewId(currentFirstId)
+      listRef.current?.scrollToItem(0, 'start')
       const timer = setTimeout(() => setNewId(null), 1400)
       return () => clearTimeout(timer)
     } else {
@@ -61,20 +93,12 @@ export default function CaptureList({
     }
   }, [captures])
 
-  const handleScroll = useCallback(() => {
-    const el = scrollRef.current
-    if (!el || loadingMore || !hasMore) return
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 80) {
+  // Trigger load-more when nearing the bottom of the visible window
+  const handleItemsRendered = useCallback(({ visibleStopIndex }: ListOnItemsRenderedProps) => {
+    if (hasMore && !loadingMore && visibleStopIndex >= captures.length - 10) {
       onLoadMore()
     }
-  }, [loadingMore, hasMore, onLoadMore])
-
-  useEffect(() => {
-    const el = scrollRef.current
-    if (!el) return
-    el.addEventListener('scroll', handleScroll, { passive: true })
-    return () => el.removeEventListener('scroll', handleScroll)
-  }, [handleScroll])
+  }, [captures.length, hasMore, loadingMore, onLoadMore])
 
   // Close export dropdown when clicking outside
   useEffect(() => {
@@ -99,6 +123,15 @@ export default function CaptureList({
       setExporting(false)
     }
   }
+
+  const itemData = useMemo<RowData>(() => ({
+    captures,
+    selectedId,
+    newId,
+    onSelect,
+  }), [captures, selectedId, newId, onSelect])
+
+  const itemCount = captures.length + (loadingMore ? 1 : 0)
 
   return (
     <div className="capture-list-pane">
@@ -136,7 +169,7 @@ export default function CaptureList({
         </div>
       </div>
 
-      <div className="capture-list" ref={scrollRef} role="grid">
+      <div className="capture-list" role="grid">
         {loading ? (
           <LoadingSpinner />
         ) : captures.length === 0 ? (
@@ -153,18 +186,22 @@ export default function CaptureList({
             </div>
           </div>
         ) : (
-          <>
-            {captures.map((c) => (
-              <CaptureRow
-                key={c.id}
-                capture={c}
-                selected={c.id === selectedId}
-                isNew={c.id === newId}
-                onSelect={onSelect}
-              />
-            ))}
-            {loadingMore && <LoadingSpinner />}
-          </>
+          <AutoSizer renderProp={({ height, width }: { height: number | undefined; width: number | undefined }) =>
+            height == null || width == null ? null : (
+              <FixedSizeList
+                ref={listRef}
+                height={height}
+                width={width}
+                itemCount={itemCount}
+                itemSize={ROW_HEIGHT}
+                itemData={itemData}
+                onItemsRendered={handleItemsRendered}
+                overscanCount={5}
+              >
+                {VirtualRow}
+              </FixedSizeList>
+            )
+          } />
         )}
       </div>
     </div>
