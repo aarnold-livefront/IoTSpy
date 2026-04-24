@@ -1,5 +1,5 @@
 import { apiFetch, getToken } from './client'
-import type { CaptureFilters, CaptureListResponse, CapturedRequest } from '../types/api'
+import type { CaptureFilters, CaptureListResponse, CapturedRequest, ExportCaptureAsAssetResult } from '../types/api'
 
 export function listCaptures(filters: CaptureFilters = {}): Promise<CaptureListResponse> {
   const params = new URLSearchParams()
@@ -23,6 +23,14 @@ export function getCapture(id: string): Promise<CapturedRequest> {
 
 export function deleteCapture(id: string): Promise<void> {
   return apiFetch<void>(`/api/captures/${id}`, { method: 'DELETE' })
+}
+
+export function exportAsAsset(id: string): Promise<ExportCaptureAsAssetResult> {
+  return apiFetch<ExportCaptureAsAssetResult>(`/api/captures/${id}/export-as-asset`, { method: 'POST' })
+}
+
+export function downloadBodyUrl(id: string): string {
+  return `/api/captures/${id}/download-body`
 }
 
 export async function exportCaptures(

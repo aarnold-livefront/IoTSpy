@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace IoTSpy.Api.Controllers;
 
@@ -169,6 +170,91 @@ public class CapturesController(ICaptureRepository captures) : ControllerBase
             })
         }
     };
+
+    // ── Streaming asset export (Phase 23.1) ──────────────────────────────────
+
+    [HttpPost("{id:guid}/export-as-asset")]
+    public async Task<IActionResult> ExportAsAsset(Guid id, CancellationToken ct)
+    {
+        var (capture, responseBody, contentType, ext, error) = await ResolveStreamingCapture(id, ct);
+        if (error is not null) return error;
+
+        var filename = BuildAssetFilename(capture!.Host, capture.Path, ext!);
+        var assetsDir = AssetsPaths.AssetsDirectory;
+        Directory.CreateDirectory(assetsDir);
+        var filePath = Path.Combine(assetsDir, filename);
+        await System.IO.File.WriteAllTextAsync(filePath, responseBody, Encoding.UTF8, ct);
+
+        return Ok(new ExportCaptureAsAssetResult(filename, filePath, contentType!, Encoding.UTF8.GetByteCount(responseBody!)));
+    }
+
+    [HttpGet("{id:guid}/download-body")]
+    public async Task<IActionResult> DownloadBody(Guid id, CancellationToken ct)
+    {
+        var (capture, responseBody, contentType, ext, error) = await ResolveStreamingCapture(id, ct);
+        if (error is not null) return error;
+
+        var filename = BuildAssetFilename(capture!.Host, capture.Path, ext!);
+        return File(Encoding.UTF8.GetBytes(responseBody!), contentType!, filename);
+    }
+
+    private async Task<(CapturedRequest? capture, string? body, string? contentType, string? ext, IActionResult? error)>
+        ResolveStreamingCapture(Guid id, CancellationToken ct)
+    {
+        var capture = await captures.GetByIdAsync(id, ct);
+        if (capture is null)
+            return (null, null, null, null, NotFound());
+
+        var body = capture.ResponseBody;
+        if (string.IsNullOrEmpty(body) || body.StartsWith("b64:", StringComparison.Ordinal))
+            return (null, null, null, null, UnprocessableEntity("Response body is absent or binary"));
+
+        var contentType = ParseContentType(capture.ResponseHeaders);
+        var ext = MapStreamingExtension(contentType);
+        if (ext is null)
+            return (null, null, null, null, UnprocessableEntity("Content-Type is not a supported streaming type"));
+
+        return (capture, body, contentType, ext, null);
+    }
+
+    private static string? ParseContentType(string? headersJson)
+    {
+        if (string.IsNullOrEmpty(headersJson)) return null;
+        try
+        {
+            var doc = JsonDocument.Parse(headersJson);
+            foreach (var prop in doc.RootElement.EnumerateObject())
+            {
+                if (prop.Name.Equals("content-type", StringComparison.OrdinalIgnoreCase))
+                    return prop.Value.GetString();
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    private static string? MapStreamingExtension(string? contentType)
+    {
+        if (contentType is null) return null;
+        var ct = contentType.Split(';')[0].Trim().ToLowerInvariant();
+        if (ct == "text/event-stream") return ".sse";
+        if (ct is "application/x-ndjson" or "application/json-stream" or "application/jsonlines") return ".ndjson";
+        return null;
+    }
+
+    private static string BuildAssetFilename(string host, string path, string ext)
+    {
+        static string Sanitize(string s) =>
+            Regex.Replace(s, @"[^a-zA-Z0-9_\-]", "_").Trim('_')[..Math.Min(32, Regex.Replace(s, @"[^a-zA-Z0-9_\-]", "_").Trim('_').Length)];
+
+        var h = Sanitize(host);
+        var p = Sanitize(path.Trim('/'));
+        return $"{h}_{p}_{Guid.NewGuid():N}{ext}";
+    }
+
+    // ── DTOs ──────────────────────────────────────────────────────────────────
+
+    public record ExportCaptureAsAssetResult(string FileName, string FilePath, string ContentType, long SizeBytes);
 
     private static string CsvEscape(string value)
     {
