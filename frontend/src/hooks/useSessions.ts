@@ -27,10 +27,15 @@ export function useSessions() {
 
   const reload = useCallback(
     (incl = false) => {
-      setIncludeInactive(incl)
-      void refetch()
+      if (incl === includeInactive) {
+        // Same value — query key won't change, so force a refetch manually
+        void refetch()
+      } else {
+        // Different value — query key change triggers auto-refetch
+        setIncludeInactive(incl)
+      }
     },
-    [refetch],
+    [includeInactive, refetch],
   )
 
   return {
