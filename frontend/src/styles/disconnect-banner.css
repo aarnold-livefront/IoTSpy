@@ -1,0 +1,26 @@
+.disconnect-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  flex-shrink: 0;
+  z-index: 9;
+}
+
+.disconnect-banner--down {
+  background-color: rgba(231, 76, 60, 0.12);
+  border-bottom: 1px solid var(--color-danger);
+  color: var(--color-danger);
+}
+
+.disconnect-banner--reconnecting {
+  background-color: rgba(243, 156, 18, 0.12);
+  border-bottom: 1px solid var(--color-warning);
+  color: var(--color-warning);
+}
+
+.disconnect-banner__icon {
+  flex-shrink: 0;
+}

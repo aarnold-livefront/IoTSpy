@@ -21,6 +21,43 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+
+  /* Manipulation tabs: scrollable on tablet */
+  .manip-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 0 var(--space-2);
+  }
+
+  .manip-tabs::-webkit-scrollbar { display: none; }
+
+  /* Manipulation form: stack all rows on tablet */
+  .manip-form__row {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .manip-form__label {
+    min-width: 0;
+    flex: none;
+    width: 100%;
+  }
+
+  .manip-form__input--narrow {
+    max-width: none;
+  }
+
+  /* Sessions panel: sidebar takes less space on tablet */
+  .sessions-panel__sidebar {
+    width: 200px;
+    min-width: 160px;
+  }
+
+  /* Scanner form: wrap to two columns on tablet */
+  .scan-form__row {
+    flex-wrap: wrap;
+  }
 }
 
 /* ── Mobile: <768px ──────────────────────────────────────────────────────── */
@@ -143,6 +180,11 @@
     display: none;
   }
 
+  /* Capture toolbar: toolbar count+export stacked on mobile */
+  .capture-list__toolbar {
+    padding: 2px var(--space-2);
+  }
+
   /* Count row */
   .capture-list__count {
     padding: var(--space-1) var(--space-2);
@@ -233,6 +275,90 @@
   .timeline-toolbar button {
     font-size: var(--font-size-xs);
     padding: var(--space-1) var(--space-2);
+  }
+
+  /* ── Sessions panel: stacked on mobile ──────────────────────────────────── */
+
+  .sessions-panel {
+    flex-direction: column;
+  }
+
+  .sessions-panel__sidebar {
+    width: 100%;
+    min-width: 0;
+    border-right: none;
+    border-bottom: 1px solid var(--color-border);
+    max-height: 220px;
+    flex-shrink: 0;
+  }
+
+  .sessions-panel__detail {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  /* ── Manipulation panel: full-width form fields ──────────────────────────── */
+
+  .manip-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .manip-tabs::-webkit-scrollbar { display: none; }
+
+  .manip-tab {
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+  }
+
+  .manip-form__row {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .manip-form__label {
+    min-width: 0;
+    width: 100%;
+    flex: none;
+  }
+
+  .manip-form__input--narrow {
+    max-width: none;
+  }
+
+  .manip-form__hint {
+    display: none;
+  }
+
+  /* ── Scanner form: full-width fields ────────────────────────────────────── */
+
+  .scan-form__row {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .scan-form__label {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .scan-form__input,
+  .scan-form__select {
+    width: 100%;
+  }
+
+  /* Scanner panel: stack left+right vertically */
+  .scanner-panel__body {
+    flex-direction: column;
+  }
+
+  .scanner-panel__left,
+  .scanner-panel__right {
+    width: 100%;
+    min-width: 0;
   }
 
   /* ── Auth pages ──────────────────────────────────────────────────────────── */
