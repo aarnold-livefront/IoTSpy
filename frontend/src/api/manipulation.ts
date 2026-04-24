@@ -11,17 +11,12 @@ import type {
   FuzzerJob,
   FuzzerResult,
   StartFuzzerRequest,
-  FuzzerJobStatus,
 } from '../types/api'
 
 // ── Rules ────────────────────────────────────────────────────────────────────
 
 export function listRules(): Promise<ManipulationRule[]> {
   return apiFetch<ManipulationRule[]>('/api/manipulation/rules')
-}
-
-export function getRule(id: string): Promise<ManipulationRule> {
-  return apiFetch<ManipulationRule>(`/api/manipulation/rules/${id}`)
 }
 
 export function createRule(request: CreateManipulationRuleRequest): Promise<ManipulationRule> {
@@ -48,10 +43,6 @@ export function listBreakpoints(): Promise<Breakpoint[]> {
   return apiFetch<Breakpoint[]>('/api/manipulation/breakpoints')
 }
 
-export function getBreakpoint(id: string): Promise<Breakpoint> {
-  return apiFetch<Breakpoint>(`/api/manipulation/breakpoints/${id}`)
-}
-
 export function createBreakpoint(request: CreateBreakpointRequest): Promise<Breakpoint> {
   return apiFetch<Breakpoint>('/api/manipulation/breakpoints', {
     method: 'POST',
@@ -74,10 +65,6 @@ export function deleteBreakpoint(id: string): Promise<void> {
 
 export function listReplays(): Promise<ReplaySession[]> {
   return apiFetch<ReplaySession[]>('/api/manipulation/replays')
-}
-
-export function getReplay(id: string): Promise<ReplaySession> {
-  return apiFetch<ReplaySession>(`/api/manipulation/replays/${id}`)
 }
 
 export function createReplay(request: CreateReplayRequest): Promise<ReplaySession> {
@@ -110,10 +97,6 @@ export function getFuzzerJob(id: string): Promise<FuzzerJob> {
 
 export function getFuzzerResults(id: string): Promise<FuzzerResult[]> {
   return apiFetch<FuzzerResult[]>(`/api/manipulation/fuzzer/jobs/${id}/results`)
-}
-
-export function getFuzzerStatus(id: string): Promise<{ status: FuzzerJobStatus }> {
-  return apiFetch<{ status: FuzzerJobStatus }>(`/api/manipulation/fuzzer/jobs/${id}/status`)
 }
 
 export function cancelFuzzerJob(id: string): Promise<void> {

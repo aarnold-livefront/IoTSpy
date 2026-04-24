@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ConfirmDialog from '../common/ConfirmDialog'
 import type { ReplaySession, CreateReplayRequest, CapturedRequestSummary } from '../../types/api'
 import '../../styles/manipulation.css'
 
@@ -20,9 +21,11 @@ export default function ReplayPanel({ replays, loading, error, captures, onRepla
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
   const [selectedReplay, setSelectedReplay] = useState<ReplaySession | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const handleCaptureSelect = (captureId: string) => {
     setSelectedCaptureId(captureId)
+    setSelectedReplay(null)
     const capture = captures.find((c) => c.id === captureId)
     if (capture) {
       setMethod(capture.method)
@@ -64,6 +67,17 @@ export default function ReplayPanel({ replays, loading, error, captures, onRepla
 
   return (
     <div className="manip-section">
+      {confirmDeleteId && (
+        <ConfirmDialog
+          title="Delete replay"
+          message="Delete this replay session? This cannot be undone."
+          confirmLabel="Delete"
+          danger
+          onConfirm={() => { onDelete(confirmDeleteId); setConfirmDeleteId(null) }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
+
       <div className="manip-section__header">
         <span className="manip-section__title">
           Request Replay {loading && <span className="manip-spinner" />}
@@ -184,7 +198,10 @@ export default function ReplayPanel({ replays, loading, error, captures, onRepla
       <div className="manip-table">
         <div className="manip-section__subtitle">Replay History</div>
         {replays.length === 0 ? (
-          <div className="manip-empty">No replay sessions yet.</div>
+          <div className="manip-empty">
+            <div className="manip-empty__message">No replay sessions yet.</div>
+            <div className="manip-empty__hint">Select a captured request, optionally edit the method/host/headers, then send it to inspect the response.</div>
+          </div>
         ) : (
           replays.map((r) => (
             <div
@@ -203,7 +220,7 @@ export default function ReplayPanel({ replays, loading, error, captures, onRepla
               <div className="manip-row__actions">
                 <button
                   className="manip-btn manip-btn--small manip-btn--danger"
-                  onClick={(e) => { e.stopPropagation(); onDelete(r.id) }}
+                  onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(r.id) }}
                 >
                   Delete
                 </button>
