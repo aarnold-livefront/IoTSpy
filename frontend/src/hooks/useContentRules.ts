@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   createContentRule,
   deleteContentRule,
@@ -10,54 +11,83 @@ import {
 import type { ContentReplacementRule } from '../types/api'
 
 export function useContentRules(host?: string) {
-  const [rules, setRules] = useState<ContentReplacementRule[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  const queryKey = ['content-rules', host ?? '']
 
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    try {
-      setRules(await listContentRules(host || undefined))
-      setError(null)
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }, [host])
+  const { data: rules = [], isLoading: loading, error: queryError, refetch } = useQuery({
+    queryKey,
+    queryFn: () => listContentRules(host || undefined),
+  })
 
-  useEffect(() => { void refresh() }, [refresh])
+  const refresh = useCallback(() => { void refetch() }, [refetch])
 
-  const addRule = useCallback(async (_specId: string, req: CreateContentRuleRequest) => {
-    try {
-      const created = await createContentRule(req)
-      setRules((prev) => [...prev, created])
-      return created
-    } catch (e) {
-      setError((e as Error).message)
-      return null
-    }
-  }, [])
+  const addMutation = useMutation({
+    mutationFn: (req: CreateContentRuleRequest) => createContentRule(req),
+    onSuccess: (created) => {
+      queryClient.setQueryData<ContentReplacementRule[]>(queryKey, (prev = []) => [
+        ...prev,
+        created,
+      ])
+    },
+  })
 
-  const editRule = useCallback(async (_specId: string, id: string, req: UpdateContentRuleRequest) => {
-    try {
-      const updated = await updateContentRule(id, req)
-      setRules((prev) => prev.map((r) => r.id === id ? updated : r))
-      return updated
-    } catch (e) {
-      setError((e as Error).message)
-      return null
-    }
-  }, [])
+  const editMutation = useMutation({
+    mutationFn: ({ id, req }: { id: string; req: UpdateContentRuleRequest }) =>
+      updateContentRule(id, req),
+    onSuccess: (updated) => {
+      queryClient.setQueryData<ContentReplacementRule[]>(queryKey, (prev = []) =>
+        prev.map((r) => (r.id === updated.id ? updated : r)),
+      )
+    },
+  })
 
-  const removeRule = useCallback(async (_specId: string, id: string) => {
-    try {
-      await deleteContentRule(id)
-      setRules((prev) => prev.filter((r) => r.id !== id))
-    } catch (e) {
-      setError((e as Error).message)
-    }
-  }, [])
+  const removeMutation = useMutation({
+    mutationFn: (id: string) => deleteContentRule(id),
+    onSuccess: (_data, id) => {
+      queryClient.setQueryData<ContentReplacementRule[]>(queryKey, (prev = []) =>
+        prev.filter((r) => r.id !== id),
+      )
+    },
+  })
 
-  return { rules, loading, error, refresh, addRule, editRule, removeRule }
+  const addRule = useCallback(
+    async (_specId: string, req: CreateContentRuleRequest) => {
+      try {
+        return await addMutation.mutateAsync(req)
+      } catch {
+        return null
+      }
+    },
+    [addMutation],
+  )
+
+  const editRule = useCallback(
+    async (_specId: string, id: string, req: UpdateContentRuleRequest) => {
+      try {
+        return await editMutation.mutateAsync({ id, req })
+      } catch {
+        return null
+      }
+    },
+    [editMutation],
+  )
+
+  const removeRule = useCallback(
+    async (_specId: string, id: string) => {
+      try {
+        await removeMutation.mutateAsync(id)
+      } catch { /* caller can check error state */ }
+    },
+    [removeMutation],
+  )
+
+  return {
+    rules,
+    loading,
+    error: queryError instanceof Error ? queryError.message : null,
+    refresh,
+    addRule,
+    editRule,
+    removeRule,
+  }
 }

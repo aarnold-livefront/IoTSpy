@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   listEvents,
   listPolicies,
@@ -18,98 +19,133 @@ import type {
   PiiAuditStats,
 } from '../types/api'
 
-export function useOpenRtb() {
-  // ── Events ──────────────────────────────────────────────────────────────────
-  const [events, setEvents] = useState<OpenRtbEvent[]>([])
-  const [eventsTotal, setEventsTotal] = useState(0)
-  const [eventsLoading, setEventsLoading] = useState(false)
-  const [eventsError, setEventsError] = useState<string | null>(null)
+const POLICIES_KEY = ['openrtb-policies']
 
-  const refreshEvents = useCallback(async (page = 1) => {
-    setEventsLoading(true)
-    setEventsError(null)
-    try {
-      const data = await listEvents({ page, pageSize: 50 })
-      setEvents(data.items)
-      setEventsTotal(data.total)
-    } catch (err) {
-      setEventsError(err instanceof Error ? err.message : 'Failed to fetch events')
-    } finally {
-      setEventsLoading(false)
-    }
-  }, [])
+export function useOpenRtb() {
+  const queryClient = useQueryClient()
+
+  // ── Events ──────────────────────────────────────────────────────────────────
+  const [eventsPage, setEventsPage] = useState(1)
+
+  const {
+    data: eventsData,
+    isLoading: eventsLoading,
+    error: eventsQueryError,
+    refetch: refetchEvents,
+  } = useQuery({
+    queryKey: ['openrtb-events', eventsPage],
+    queryFn: () => listEvents({ page: eventsPage, pageSize: 50 }),
+  })
+
+  const events: OpenRtbEvent[] = eventsData?.items ?? []
+  const eventsTotal = eventsData?.total ?? 0
+  const eventsError = eventsQueryError instanceof Error ? eventsQueryError.message : null
+
+  const refreshEvents = useCallback(
+    (page = 1) => {
+      setEventsPage(page)
+      void refetchEvents()
+    },
+    [refetchEvents],
+  )
 
   // ── Policies ────────────────────────────────────────────────────────────────
-  const [policies, setPolicies] = useState<OpenRtbPiiPolicy[]>([])
-  const [policiesLoading, setPoliciesLoading] = useState(false)
-  const [policiesError, setPoliciesError] = useState<string | null>(null)
+  const {
+    data: policies = [],
+    isLoading: policiesLoading,
+    error: policiesQueryError,
+    refetch: refetchPolicies,
+  } = useQuery({ queryKey: POLICIES_KEY, queryFn: listPolicies })
 
-  const refreshPolicies = useCallback(async () => {
-    setPoliciesLoading(true)
-    setPoliciesError(null)
-    try {
-      const data = await listPolicies()
-      setPolicies(data)
-    } catch (err) {
-      setPoliciesError(err instanceof Error ? err.message : 'Failed to fetch policies')
-    } finally {
-      setPoliciesLoading(false)
-    }
-  }, [])
+  const policiesError = policiesQueryError instanceof Error ? policiesQueryError.message : null
 
-  const addPolicy = useCallback(async (req: CreatePiiPolicyRequest) => {
-    const policy = await createPolicy(req)
-    setPolicies((prev) => [...prev, policy])
-    return policy
-  }, [])
+  const refreshPolicies = useCallback(() => { void refetchPolicies() }, [refetchPolicies])
 
-  const editPolicy = useCallback(async (id: string, req: UpdatePiiPolicyRequest) => {
-    const policy = await updatePolicy(id, req)
-    setPolicies((prev) => prev.map((p) => (p.id === id ? policy : p)))
-    return policy
-  }, [])
+  const addPolicyMutation = useMutation({
+    mutationFn: (req: CreatePiiPolicyRequest) => createPolicy(req),
+    onSuccess: (policy) => {
+      queryClient.setQueryData<OpenRtbPiiPolicy[]>(POLICIES_KEY, (prev = []) => [
+        ...prev,
+        policy,
+      ])
+    },
+  })
 
-  const removePolicy = useCallback(async (id: string) => {
-    await deletePolicy(id)
-    setPolicies((prev) => prev.filter((p) => p.id !== id))
-  }, [])
+  const editPolicyMutation = useMutation({
+    mutationFn: ({ id, req }: { id: string; req: UpdatePiiPolicyRequest }) =>
+      updatePolicy(id, req),
+    onSuccess: (policy) => {
+      queryClient.setQueryData<OpenRtbPiiPolicy[]>(POLICIES_KEY, (prev = []) =>
+        prev.map((p) => (p.id === policy.id ? policy : p)),
+      )
+    },
+  })
 
-  const resetPolicies = useCallback(async () => {
-    const defaults = await resetDefaultPolicies()
-    setPolicies(defaults)
-  }, [])
+  const removePolicyMutation = useMutation({
+    mutationFn: (id: string) => deletePolicy(id),
+    onSuccess: (_data, id) => {
+      queryClient.setQueryData<OpenRtbPiiPolicy[]>(POLICIES_KEY, (prev = []) =>
+        prev.filter((p) => p.id !== id),
+      )
+    },
+  })
+
+  const resetPoliciesMutation = useMutation({
+    mutationFn: () => resetDefaultPolicies(),
+    onSuccess: (defaults) => {
+      queryClient.setQueryData<OpenRtbPiiPolicy[]>(POLICIES_KEY, defaults)
+    },
+  })
+
+  const addPolicy = useCallback(
+    (req: CreatePiiPolicyRequest) => addPolicyMutation.mutateAsync(req),
+    [addPolicyMutation],
+  )
+
+  const editPolicy = useCallback(
+    (id: string, req: UpdatePiiPolicyRequest) => editPolicyMutation.mutateAsync({ id, req }),
+    [editPolicyMutation],
+  )
+
+  const removePolicy = useCallback(
+    (id: string) => removePolicyMutation.mutateAsync(id),
+    [removePolicyMutation],
+  )
+
+  const resetPolicies = useCallback(
+    async () => { await resetPoliciesMutation.mutateAsync() },
+    [resetPoliciesMutation],
+  )
 
   // ── Audit Log ───────────────────────────────────────────────────────────────
-  const [auditLogs, setAuditLogs] = useState<PiiStrippingLog[]>([])
-  const [auditTotal, setAuditTotal] = useState(0)
-  const [auditStats, setAuditStats] = useState<PiiAuditStats | null>(null)
-  const [auditLoading, setAuditLoading] = useState(false)
-  const [auditError, setAuditError] = useState<string | null>(null)
+  const [auditPage, setAuditPage] = useState(1)
 
-  const refreshAuditLog = useCallback(async (page = 1) => {
-    setAuditLoading(true)
-    setAuditError(null)
-    try {
-      const [logs, stats] = await Promise.all([
-        listAuditLogs({ page, pageSize: 50 }),
+  const {
+    data: auditData,
+    isLoading: auditLoading,
+    error: auditQueryError,
+    refetch: refetchAudit,
+  } = useQuery({
+    queryKey: ['openrtb-audit', auditPage],
+    queryFn: () =>
+      Promise.all([
+        listAuditLogs({ page: auditPage, pageSize: 50 }),
         getAuditStats(),
-      ])
-      setAuditLogs(logs.items)
-      setAuditTotal(logs.total)
-      setAuditStats(stats)
-    } catch (err) {
-      setAuditError(err instanceof Error ? err.message : 'Failed to fetch audit log')
-    } finally {
-      setAuditLoading(false)
-    }
-  }, [])
+      ]),
+  })
 
-  // ── Initial load ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    refreshEvents()
-    refreshPolicies()
-    refreshAuditLog()
-  }, [refreshEvents, refreshPolicies, refreshAuditLog])
+  const auditLogs: PiiStrippingLog[] = auditData?.[0]?.items ?? []
+  const auditTotal = auditData?.[0]?.total ?? 0
+  const auditStats: PiiAuditStats | null = auditData?.[1] ?? null
+  const auditError = auditQueryError instanceof Error ? auditQueryError.message : null
+
+  const refreshAuditLog = useCallback(
+    (page = 1) => {
+      setAuditPage(page)
+      void refetchAudit()
+    },
+    [refetchAudit],
+  )
 
   return {
     events, eventsTotal, eventsLoading, eventsError, refreshEvents,

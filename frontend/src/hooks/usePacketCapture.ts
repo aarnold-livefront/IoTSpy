@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import * as signalR from '@microsoft/signalr'
+import { useQuery } from '@tanstack/react-query'
 import { getToken, apiFetch } from '../api/client'
 import { importPcap } from '../api/packetCapture'
 import type { CapturedPacket, PcapImportResult } from '../types/api'
@@ -20,7 +21,6 @@ export interface CaptureDevice {
 }
 
 export function usePacketCapture() {
-  const [devices, setDevices] = useState<CaptureDevice[]>([])
   const [packets, setPackets] = useState<CapturedPacket[]>([])
   const [isCapturing, setIsCapturing] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
@@ -28,19 +28,11 @@ export function usePacketCapture() {
   const [error, setError] = useState<string | null>(null)
   const hubRef = useRef<signalR.HubConnection | null>(null)
 
-  // Load devices from API
-  useEffect(() => {
-    loadDevices()
-  }, [])
-
-  const loadDevices = async () => {
-    try {
-      const data = await apiFetch<CaptureDevice[]>('/api/packet-capture/devices')
-      setDevices(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-    }
-  }
+  const { data: devices = [] } = useQuery<CaptureDevice[]>({
+    queryKey: ['packet-capture-devices'],
+    queryFn: () => apiFetch<CaptureDevice[]>('/api/packet-capture/devices'),
+    staleTime: 60_000,
+  })
 
   // Connect to SignalR hub for live packets
   useEffect(() => {
@@ -59,8 +51,6 @@ export function usePacketCapture() {
       setPackets(prev => [packet, ...prev].slice(0, 10000))
     })
 
-    // Batch event emitted by the Channel consumer (Options A+C).
-    // Prepend newest-first so the most recent packet leads the list.
     connection.on('PacketCapturedBatch', (batch: CapturedPacket[]) => {
       setPackets(prev => [...batch.reverse(), ...prev].slice(0, 10000))
     })
@@ -72,7 +62,6 @@ export function usePacketCapture() {
     connection.on('ImportProgress', (data: ImportProgress) => {
       setImportProgress(data)
       if (data.percent === 100) {
-        // Clear progress indicator after a short delay
         setTimeout(() => setImportProgress(null), 2000)
       }
     })
@@ -139,6 +128,6 @@ export function usePacketCapture() {
     stopCapture,
     clearPackets,
     importPcapFile,
-    error
+    error,
   }
 }

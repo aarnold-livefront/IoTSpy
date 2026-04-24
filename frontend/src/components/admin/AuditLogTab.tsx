@@ -1,39 +1,26 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import type { AuditEntry } from '../../types/api'
 import { apiFetch } from '../../api/client'
 
 const PAGE_SIZE = 50
 
 export default function AuditLogTab() {
-  const [entries, setEntries] = useState<AuditEntry[]>([])
   const [page, setPage] = useState(1)
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(async (p: number) => {
-    setLoading(true)
-    setError(null)
-    try {
-      const all = await apiFetch<AuditEntry[]>(`/api/auth/audit?count=${PAGE_SIZE * p}`)
-      setTotal(all.length)
-      const start = (p - 1) * PAGE_SIZE
-      setEntries(all.slice(start, start + PAGE_SIZE))
-    } catch {
-      setError('Failed to load audit log')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { data, isLoading: loading, error: queryError } = useQuery<AuditEntry[]>({
+    queryKey: ['admin-audit', page],
+    queryFn: () => apiFetch<AuditEntry[]>(`/api/auth/audit?count=${PAGE_SIZE * page}`),
+  })
 
-  useEffect(() => {
-    void load(page)
-  }, [load, page])
-
+  const allEntries = data ?? []
+  const total = allEntries.length
+  const start = (page - 1) * PAGE_SIZE
+  const entries = allEntries.slice(start, start + PAGE_SIZE)
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
   if (loading) return <p style={{ color: 'var(--color-text-muted)' }}>Loading…</p>
-  if (error) return <p style={{ color: 'var(--color-error)' }}>{error}</p>
+  if (queryError) return <p style={{ color: 'var(--color-error)' }}>Failed to load audit log</p>
 
   return (
     <>

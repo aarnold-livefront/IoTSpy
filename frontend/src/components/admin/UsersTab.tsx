@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { UserSummary } from '../../types/api'
 import { apiFetch, ApiError } from '../../api/client'
 
@@ -7,107 +8,73 @@ interface Props {
 }
 
 const ROLES = ['admin', 'operator', 'viewer'] as const
+const USERS_KEY = ['admin-users']
 
 export default function UsersTab({ currentUsername }: Props) {
-  const [users, setUsers] = useState<UserSummary[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [confirmDelete, setConfirmDelete] = useState<UserSummary | null>(null)
-  const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [newUser, setNewUser] = useState({ username: '', password: '', displayName: '', role: 'viewer' as string })
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const list = await apiFetch<UserSummary[]>('/api/auth/users')
-      setUsers(list)
-    } catch {
-      setError('Failed to load users')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { data: users = [], isLoading: loading, error: queryError } = useQuery<UserSummary[]>({
+    queryKey: USERS_KEY,
+    queryFn: () => apiFetch<UserSummary[]>('/api/auth/users'),
+  })
 
-  useEffect(() => {
-    void load()
-  }, [load])
+  const roleToEnum = (r: string) => r.charAt(0).toUpperCase() + r.slice(1)
 
   const showToast = (msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(null), 3000)
   }
 
-  const roleToEnum = (r: string) => r.charAt(0).toUpperCase() + r.slice(1)
+  const updateMutation = useMutation({
+    mutationFn: ({ id, body }: { id: string; body: object }) =>
+      apiFetch(`/api/auth/users/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+    onSuccess: () => {
+      showToast(`Updated user`)
+      void queryClient.invalidateQueries({ queryKey: USERS_KEY })
+    },
+    onError: (err) => showToast(err instanceof ApiError ? err.message : 'Failed to update user'),
+  })
 
-  const updateRole = async (user: UserSummary, role: string) => {
-    setBusy(true)
-    try {
-      await apiFetch(`/api/auth/users/${user.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ role: roleToEnum(role) }),
-      })
-      showToast(`Updated ${user.username} to ${role}`)
-      await load()
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Failed to update role')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const updateDisplayName = async (user: UserSummary, displayName: string) => {
-    setBusy(true)
-    try {
-      await apiFetch(`/api/auth/users/${user.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ displayName }),
-      })
-      showToast(`Updated ${user.username} display name`)
-      await load()
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Failed to update display name')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const deleteUser = async (user: UserSummary) => {
-    setBusy(true)
-    try {
-      await apiFetch(`/api/auth/users/${user.id}`, { method: 'DELETE' })
+  const deleteMutation = useMutation({
+    mutationFn: (user: UserSummary) =>
+      apiFetch(`/api/auth/users/${user.id}`, { method: 'DELETE' }),
+    onSuccess: (_data, user) => {
       showToast(`Deleted user ${user.username}`)
-      await load()
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Failed to delete user')
-    } finally {
-      setBusy(false)
+      void queryClient.invalidateQueries({ queryKey: USERS_KEY })
       setConfirmDelete(null)
-    }
-  }
+    },
+    onError: (err) => showToast(err instanceof ApiError ? err.message : 'Failed to delete user'),
+  })
 
-  const createUser = async () => {
-    setBusy(true)
-    try {
-      await apiFetch('/api/auth/users', {
-        method: 'POST',
-        body: JSON.stringify({ ...newUser, role: roleToEnum(newUser.role) }),
-      })
+  const createMutation = useMutation({
+    mutationFn: (body: object) =>
+      apiFetch('/api/auth/users', { method: 'POST', body: JSON.stringify(body) }),
+    onSuccess: () => {
       showToast(`Created user ${newUser.username}`)
       setShowCreate(false)
       setNewUser({ username: '', password: '', displayName: '', role: 'viewer' })
-      await load()
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Failed to create user')
-    } finally {
-      setBusy(false)
-    }
-  }
+      void queryClient.invalidateQueries({ queryKey: USERS_KEY })
+    },
+    onError: (err) => showToast(err instanceof ApiError ? err.message : 'Failed to create user'),
+  })
+
+  const busy = updateMutation.isPending || deleteMutation.isPending || createMutation.isPending
+
+  const updateRole = (user: UserSummary, role: string) =>
+    updateMutation.mutate({ id: user.id, body: { role: roleToEnum(role) } })
+
+  const updateDisplayName = (user: UserSummary, displayName: string) =>
+    updateMutation.mutate({ id: user.id, body: { displayName } })
+
+  const createUser = () =>
+    createMutation.mutate({ ...newUser, role: roleToEnum(newUser.role) })
 
   if (loading) return <p style={{ color: 'var(--color-text-muted)' }}>Loading…</p>
-  if (error) return <p style={{ color: 'var(--color-error)' }}>{error}</p>
+  if (queryError) return <p style={{ color: 'var(--color-error)' }}>Failed to load users</p>
 
   return (
     <>
@@ -215,7 +182,7 @@ export default function UsersTab({ currentUsername }: Props) {
             <p>Delete account <strong>{confirmDelete.username}</strong>? This cannot be undone.</p>
             <div className="admin-dialog__actions">
               <button className="admin-btn" onClick={() => setConfirmDelete(null)}>Cancel</button>
-              <button className="admin-btn admin-btn--danger" disabled={busy} onClick={() => deleteUser(confirmDelete)}>Delete</button>
+              <button className="admin-btn admin-btn--danger" disabled={busy} onClick={() => deleteMutation.mutate(confirmDelete)}>Delete</button>
             </div>
           </div>
         </div>

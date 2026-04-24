@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { AdminStats } from '../../types/api'
 import { apiFetch, getToken } from '../../api/client'
 
 interface ConfirmState {
   title: string
   message: string
-  onConfirm: () => Promise<void>
+  onConfirm: () => Promise<unknown>
 }
 
 function formatBytes(bytes: number): string {
@@ -19,69 +20,53 @@ function formatDate(iso: string | null): string {
   return new Date(iso).toLocaleString()
 }
 
+const STATS_KEY = ['admin-stats']
+
 export default function DatabaseTab() {
-  const [stats, setStats] = useState<AdminStats | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [confirm, setConfirm] = useState<ConfirmState | null>(null)
-  const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
   const [captureDays, setCaptureDays] = useState(30)
   const [captureHost, setCaptureHost] = useState('')
   const [packetDays, setPacketDays] = useState(30)
 
-  const loadStats = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await apiFetch<AdminStats>('/api/admin/stats')
-      setStats(data)
-    } catch {
-      setError('Failed to load stats')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const {
+    data: stats,
+    isLoading: loading,
+    error: queryError,
+  } = useQuery<AdminStats>({
+    queryKey: STATS_KEY,
+    queryFn: () => apiFetch<AdminStats>('/api/admin/stats'),
+  })
 
-  useEffect(() => {
-    void loadStats()
-  }, [loadStats])
+  const purgeMutation = useMutation({
+    mutationFn: (url: string) =>
+      apiFetch<{ deleted: number }>(url, { method: 'DELETE' }),
+    onSuccess: (result, url) => {
+      const type = url.includes('captures') ? 'captures' : 'packets'
+      showToast(`Deleted ${result.deleted} ${type}`)
+      void queryClient.invalidateQueries({ queryKey: STATS_KEY })
+    },
+    onError: () => showToast('Purge failed'),
+  })
+
+  const busy = purgeMutation.isPending
 
   const showToast = (msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(null), 3000)
   }
 
-  const runWithConfirm = (title: string, message: string, action: () => Promise<void>) => {
+  const runWithConfirm = (title: string, message: string, action: () => Promise<unknown>) => {
     setConfirm({ title, message, onConfirm: action })
   }
 
-  const purgeCaptures = async (params: string) => {
-    setBusy(true)
-    try {
-      const result = await apiFetch<{ deleted: number }>(`/api/admin/captures?${params}`, { method: 'DELETE' })
-      showToast(`Deleted ${result.deleted} captures`)
-      await loadStats()
-    } catch {
-      showToast('Purge failed')
-    } finally {
-      setBusy(false)
-    }
-  }
+  const purgeCaptures = (params: string) =>
+    purgeMutation.mutateAsync(`/api/admin/captures?${params}`)
 
-  const purgePackets = async (params: string) => {
-    setBusy(true)
-    try {
-      const result = await apiFetch<{ deleted: number }>(`/api/admin/packets?${params}`, { method: 'DELETE' })
-      showToast(`Deleted ${result.deleted} packets`)
-      await loadStats()
-    } catch {
-      showToast('Purge failed')
-    } finally {
-      setBusy(false)
-    }
-  }
+  const purgePackets = (params: string) =>
+    purgeMutation.mutateAsync(`/api/admin/packets?${params}`)
 
   const downloadExport = async (url: string, filename: string) => {
     const token = getToken()
@@ -100,7 +85,7 @@ export default function DatabaseTab() {
   }
 
   if (loading) return <p style={{ color: 'var(--color-text-muted)' }}>Loading stats…</p>
-  if (error) return <p style={{ color: 'var(--color-error)' }}>{error}</p>
+  if (queryError) return <p style={{ color: 'var(--color-error)' }}>Failed to load stats</p>
   if (!stats) return null
 
   return (
@@ -126,7 +111,7 @@ export default function DatabaseTab() {
               runWithConfirm(
                 'Purge old captures',
                 `Delete all captures older than ${captureDays} days?`,
-                () => purgeCaptures(`olderThanDays=${captureDays}`)
+                () => purgeCaptures(`olderThanDays=${captureDays}`),
               )}>Purge by age</button>
           </div>
           <div style={{ marginBottom: 'var(--space-3)' }}>
@@ -141,7 +126,7 @@ export default function DatabaseTab() {
                 runWithConfirm(
                   'Purge captures by host',
                   `Delete all captures for host "${captureHost}"?`,
-                  () => purgeCaptures(`host=${encodeURIComponent(captureHost)}`)
+                  () => purgeCaptures(`host=${encodeURIComponent(captureHost)}`),
                 )}>Purge</button>
             </div>
           </div>
@@ -150,7 +135,7 @@ export default function DatabaseTab() {
               runWithConfirm(
                 'Purge all captures',
                 `Delete ALL ${stats.captures.count.toLocaleString()} captures? This cannot be undone.`,
-                () => purgeCaptures('purgeAll=true')
+                () => purgeCaptures('purgeAll=true'),
               )}>Purge all</button>
             <button className="admin-btn" onClick={() => downloadExport('/api/admin/export/logs?format=json', 'captures.json')}>Export JSON</button>
             <button className="admin-btn" onClick={() => downloadExport('/api/admin/export/logs?format=csv', 'captures.csv')}>Export CSV</button>
@@ -175,7 +160,7 @@ export default function DatabaseTab() {
               runWithConfirm(
                 'Purge old packets',
                 `Delete all packets older than ${packetDays} days?`,
-                () => purgePackets(`olderThanDays=${packetDays}`)
+                () => purgePackets(`olderThanDays=${packetDays}`),
               )}>Purge by age</button>
           </div>
           <div className="admin-card__actions">
@@ -183,7 +168,7 @@ export default function DatabaseTab() {
               runWithConfirm(
                 'Purge all packets',
                 `Delete ALL ${stats.packets.count.toLocaleString()} packets?`,
-                () => purgePackets('purgeAll=true')
+                () => purgePackets('purgeAll=true'),
               )}>Purge all</button>
             <button className="admin-btn" onClick={() => downloadExport('/api/admin/export/packets?format=json', 'packets.json')}>Export JSON</button>
             <button className="admin-btn" onClick={() => downloadExport('/api/admin/export/packets?format=csv', 'packets.csv')}>Export CSV</button>

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import * as signalR from '@microsoft/signalr'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getToken } from '../api/client'
 import {
   listSessions,
@@ -17,28 +18,31 @@ import type {
 } from '../types/sessions'
 
 export function useSessions() {
-  const [sessions, setSessions] = useState<InvestigationSession[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [includeInactive, setIncludeInactive] = useState(false)
 
-  const load = useCallback(async (includeInactive = false) => {
-    setLoading(true)
-    setError(null)
-    try {
-      setSessions(await listSessions(includeInactive))
-    } catch {
-      setError('Failed to load sessions')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { data: sessions = [], isLoading: loading, error: queryError, refetch } = useQuery({
+    queryKey: ['sessions', includeInactive],
+    queryFn: () => listSessions(includeInactive),
+  })
 
-  useEffect(() => { void load() }, [load])
+  const reload = useCallback(
+    (incl = false) => {
+      setIncludeInactive(incl)
+      void refetch()
+    },
+    [refetch],
+  )
 
-  return { sessions, loading, error, reload: load }
+  return {
+    sessions,
+    loading,
+    error: queryError instanceof Error ? queryError.message : null,
+    reload,
+  }
 }
 
 export function useSessionDetail(sessionId: string | null) {
+  const queryClient = useQueryClient()
   const [session, setSession] = useState<InvestigationSession | null>(null)
   const [captures, setCaptures] = useState<SessionCapture[]>([])
   const [annotations, setAnnotations] = useState<CaptureAnnotation[]>([])
@@ -48,26 +52,32 @@ export function useSessionDetail(sessionId: string | null) {
 
   const connRef = useRef<signalR.HubConnection | null>(null)
 
-  const loadData = useCallback(async (id: string) => {
-    setLoading(true)
-    try {
-      const [s, caps, anns, acts] = await Promise.all([
-        getSession(id),
-        getSessionCaptures(id),
-        getAnnotations(id),
-        getActivity(id),
-      ])
+  // Fetch all session detail data when sessionId is set
+  const { data: detailData } = useQuery({
+    queryKey: ['session-detail', sessionId],
+    queryFn: () =>
+      Promise.all([
+        getSession(sessionId!),
+        getSessionCaptures(sessionId!),
+        getAnnotations(sessionId!),
+        getActivity(sessionId!),
+      ]),
+    enabled: !!sessionId,
+    staleTime: 0,
+  })
+
+  // Sync query data into local state (which SignalR can also update)
+  useEffect(() => {
+    if (detailData) {
+      const [s, caps, anns, acts] = detailData
       setSession(s)
       setCaptures(caps)
       setAnnotations(anns)
       setActivity(acts)
-    } catch {
-      // ignore; caller can handle
-    } finally {
-      setLoading(false)
     }
-  }, [])
+  }, [detailData])
 
+  // Clear state when no session selected
   useEffect(() => {
     if (!sessionId) {
       setSession(null)
@@ -78,7 +88,7 @@ export function useSessionDetail(sessionId: string | null) {
       return
     }
 
-    void loadData(sessionId)
+    setLoading(true)
 
     // Connect SignalR
     const token = getToken()
@@ -106,6 +116,7 @@ export function useSessionDetail(sessionId: string | null) {
     conn.start()
       .then(() => conn.invoke('JoinSession', sessionId))
       .catch(() => { /* SignalR unavailable */ })
+      .finally(() => setLoading(false))
 
     connRef.current = conn
 
@@ -114,7 +125,13 @@ export function useSessionDetail(sessionId: string | null) {
       void conn.stop()
       connRef.current = null
     }
-  }, [sessionId, loadData])
+  }, [sessionId])
+
+  const reload = useCallback(() => {
+    if (sessionId) {
+      void queryClient.invalidateQueries({ queryKey: ['session-detail', sessionId] })
+    }
+  }, [queryClient, sessionId])
 
   return {
     session,
@@ -123,7 +140,7 @@ export function useSessionDetail(sessionId: string | null) {
     activity,
     presence,
     loading,
-    reload: sessionId ? () => loadData(sessionId) : () => {},
+    reload,
     setAnnotations,
     setActivity,
   }
