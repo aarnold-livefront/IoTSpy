@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ConfirmDialog from '../common/ConfirmDialog'
 import type {
   FuzzerJob,
   FuzzerResult,
@@ -47,6 +48,7 @@ export default function FuzzerPanel({
   const [concurrent, setConcurrent] = useState(5)
   const [starting, setStarting] = useState(false)
   const [viewingJobId, setViewingJobId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const handleStart = async () => {
     if (!captureId) return
@@ -68,6 +70,17 @@ export default function FuzzerPanel({
 
   return (
     <div className="manip-section">
+      {confirmDeleteId && (
+        <ConfirmDialog
+          title="Delete fuzzer job"
+          message="Delete this fuzzer job and its results? This cannot be undone."
+          confirmLabel="Delete"
+          danger
+          onConfirm={() => { onDelete(confirmDeleteId); setConfirmDeleteId(null) }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
+
       <div className="manip-section__header">
         <span className="manip-section__title">
           Mutation Fuzzer {loading && <span className="manip-spinner" />}
@@ -140,7 +153,10 @@ export default function FuzzerPanel({
       <div className="manip-table">
         <div className="manip-section__subtitle">Fuzzer Jobs</div>
         {jobs.length === 0 ? (
-          <div className="manip-empty">No fuzzer jobs yet.</div>
+          <div className="manip-empty">
+            <div className="manip-empty__message">No fuzzer jobs yet.</div>
+            <div className="manip-empty__hint">Select a captured request above and start a fuzzing run to probe for unexpected server behaviour.</div>
+          </div>
         ) : (
           jobs.map((job) => (
             <div
@@ -176,7 +192,7 @@ export default function FuzzerPanel({
                 {(job.status === 'Completed' || job.status === 'Failed' || job.status === 'Cancelled') && (
                   <button
                     className="manip-btn manip-btn--small manip-btn--ghost"
-                    onClick={(e) => { e.stopPropagation(); onDelete(job.id) }}
+                    onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(job.id) }}
                   >
                     Delete
                   </button>

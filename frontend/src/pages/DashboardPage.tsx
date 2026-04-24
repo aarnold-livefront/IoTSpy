@@ -10,11 +10,14 @@ import ManipulationPanel from '../components/manipulation/ManipulationPanel'
 import SessionsPanel from '../components/sessions/SessionsPanel'
 import PassiveCaptureSummary from '../components/passive/PassiveCaptureSummary'
 import ErrorBoundary from '../components/common/ErrorBoundary'
+import DisconnectBanner from '../components/common/DisconnectBanner'
 import { useProxy } from '../hooks/useProxy'
 import { useCaptures } from '../hooks/useCaptures'
 import { useDevices } from '../hooks/useDevices'
 import { useTrafficStream } from '../hooks/useTrafficStream'
 import { useTheme } from '../hooks/useTheme'
+import { useBackendHealth } from '../hooks/useBackendHealth'
+import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import type { CaptureFilters } from '../types/api'
 
 type ViewMode = 'list' | 'timeline' | 'packet-capture' | 'manipulation' | 'sessions'
@@ -51,6 +54,10 @@ export default function DashboardPage() {
   } = useCaptures(filters)
 
   const { connectionState } = useTrafficStream({ onCapture: prependCapture })
+  const backendStatus = useBackendHealth(connectionState)
+
+  // Escape key: deselect the active capture (closes the detail pane)
+  useKeyboardShortcuts({ onEscape: () => { if (selectedId) setSelectedId(null) } })
 
   const proxyStatus = proxy.status
   const isRunning = proxyStatus?.isRunning ?? false
@@ -74,6 +81,8 @@ export default function DashboardPage() {
         />
       }
     >
+      <DisconnectBanner status={backendStatus} />
+
       {/* View mode toggle */}
       <div className="view-toggle">
         {(['list', 'timeline', 'packet-capture', 'manipulation', 'sessions'] as const).map(mode => (

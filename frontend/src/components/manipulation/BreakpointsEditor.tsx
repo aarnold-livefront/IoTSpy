@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import ConfirmDialog from '../common/ConfirmDialog'
 import type {
   Breakpoint,
   CreateBreakpointRequest,
@@ -48,6 +49,7 @@ const emptyForm: CreateBreakpointRequest = {
 export default function BreakpointsEditor({ breakpoints, loading, error, onAdd, onEdit, onDelete }: Props) {
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState<CreateBreakpointRequest>({ ...emptyForm })
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const startNew = () => {
     setForm({ ...emptyForm })
@@ -83,6 +85,18 @@ export default function BreakpointsEditor({ breakpoints, loading, error, onAdd, 
     }
   }
 
+  // Keyboard shortcuts for the active form
+  useEffect(() => {
+    if (!editing) return
+    const handle = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); cancelEdit() }
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); void handleSave() }
+    }
+    document.addEventListener('keydown', handle)
+    return () => document.removeEventListener('keydown', handle)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, form])
+
   const updateField = <K extends keyof CreateBreakpointRequest>(
     key: K,
     value: CreateBreakpointRequest[K],
@@ -92,15 +106,27 @@ export default function BreakpointsEditor({ breakpoints, loading, error, onAdd, 
 
   const handleLanguageChange = (lang: ScriptLanguage) => {
     updateField('language', lang)
-    // If the script is the default for the old language, swap to the new default
     const oldDefault = defaultScript[form.language]
     if (form.scriptCode === oldDefault) {
       updateField('scriptCode', defaultScript[lang])
     }
   }
 
+  const confirmingBp = confirmDeleteId ? breakpoints.find((b) => b.id === confirmDeleteId) : null
+
   return (
     <div className="manip-section">
+      {confirmDeleteId && confirmingBp && (
+        <ConfirmDialog
+          title="Delete breakpoint"
+          message={`Delete "${confirmingBp.name}"? This cannot be undone.`}
+          confirmLabel="Delete"
+          danger
+          onConfirm={() => { onDelete(confirmDeleteId); setConfirmDeleteId(null) }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
+
       <div className="manip-section__header">
         <span className="manip-section__title">
           Scripted Breakpoints {loading && <span className="manip-spinner" />}
@@ -122,6 +148,7 @@ export default function BreakpointsEditor({ breakpoints, loading, error, onAdd, 
                 value={form.name}
                 onChange={(e) => updateField('name', e.target.value)}
                 placeholder="Breakpoint name"
+                autoFocus
               />
             </label>
             <label className="manip-form__label">
@@ -195,13 +222,17 @@ export default function BreakpointsEditor({ breakpoints, loading, error, onAdd, 
             <button className="manip-btn manip-btn--ghost" onClick={cancelEdit}>
               Cancel
             </button>
+            <span className="manip-form__hint">Ctrl+S to save · Esc to cancel</span>
           </div>
         </div>
       )}
 
       <div className="manip-table">
         {breakpoints.length === 0 && !editing ? (
-          <div className="manip-empty">No scripted breakpoints configured.</div>
+          <div className="manip-empty">
+            <div className="manip-empty__message">No scripted breakpoints yet.</div>
+            <div className="manip-empty__hint">Add a breakpoint to intercept matching requests and transform them with JavaScript or C#.</div>
+          </div>
         ) : (
           breakpoints.map((bp) => (
             <div key={bp.id} className={`manip-row ${!bp.enabled ? 'manip-row--disabled' : ''}`}>
@@ -228,7 +259,7 @@ export default function BreakpointsEditor({ breakpoints, loading, error, onAdd, 
                 </button>
                 <button
                   className="manip-btn manip-btn--small manip-btn--danger"
-                  onClick={() => onDelete(bp.id)}
+                  onClick={() => setConfirmDeleteId(bp.id)}
                 >
                   Delete
                 </button>

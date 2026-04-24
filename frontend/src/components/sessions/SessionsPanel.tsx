@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useSessions, useSessionDetail } from '../../hooks/useSessions'
 import PresenceIndicator from './PresenceIndicator'
 import AnnotationPanel from './AnnotationPanel'
+import ConfirmDialog from '../common/ConfirmDialog'
 import {
   createSession,
   deleteSession,
@@ -28,6 +29,10 @@ export default function SessionsPanel() {
   const [toast, setToast] = useState<string | null>(null)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
   const [selectedCaptureId, setSelectedCaptureId] = useState<string | null>(null)
+
+  // Confirmation dialog state
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null)
+  const [confirmRevoke, setConfirmRevoke] = useState(false)
 
   // Capture picker state
   const [showCapturePicker, setShowCapturePicker] = useState(false)
@@ -74,7 +79,6 @@ export default function SessionsPanel() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Close this session?')) return
     try {
       await deleteSession(id)
       if (activeSessionId === id) setActiveSessionId(null)
@@ -96,26 +100,18 @@ export default function SessionsPanel() {
       void reload()
 
       if (canNativeShare) {
-        // Best-effort: on HTTPS, modern browsers keep the transient user activation
-        // alive across a short await so this often succeeds directly.
         try {
           await navigator.share({ title: session?.name ?? 'Investigation Session', url })
-          return // share sheet opened — done
+          return
         } catch (err) {
-          if ((err as Error).name === 'AbortError') return // user cancelled — fine
-          // NotAllowedError: gesture expired (older iOS). URL bar is now visible;
-          // the "Share via…" button lets the user retry with a fresh gesture.
+          if ((err as Error).name === 'AbortError') return
         }
       }
-      // navigator.share unavailable (HTTP context) or gesture expired:
-      // URL bar is shown — user can copy or tap the link to open in Safari for AirDrop.
     } catch {
       showToast('Failed to generate share link')
     }
   }
 
-  // Wired to a direct button click so the user gesture is fresh (no preceding await).
-  // This is the reliable fallback when handleShare's best-effort attempt fails.
   const handleNativeShare = () => {
     if (!shareUrl || !canNativeShare) return
     navigator.share({ title: session?.name ?? 'Investigation Session', url: shareUrl })
@@ -133,9 +129,8 @@ export default function SessionsPanel() {
     showToast('URL copied')
   }
 
-  // Bug fix: reload detail so hasShareToken clears in the UI immediately
   const handleRevokeShare = async () => {
-    if (!activeSessionId || !confirm('Revoke the share link?')) return
+    if (!activeSessionId) return
     try {
       await revokeShareToken(activeSessionId)
       setShareUrl(null)
@@ -203,6 +198,28 @@ export default function SessionsPanel() {
     <div className="sessions-panel">
       {toast && <div className="toast toast--info">{toast}</div>}
 
+      {/* Confirmation dialogs */}
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Close session"
+          message={`Close "${confirmDelete.name}"? This will remove the session for all collaborators.`}
+          confirmLabel="Close Session"
+          danger
+          onConfirm={() => { void handleDelete(confirmDelete.id); setConfirmDelete(null) }}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+      {confirmRevoke && (
+        <ConfirmDialog
+          title="Revoke share link"
+          message="Revoke the share link? Anyone with the current link will lose access immediately."
+          confirmLabel="Revoke"
+          danger
+          onConfirm={() => { void handleRevokeShare(); setConfirmRevoke(false) }}
+          onCancel={() => setConfirmRevoke(false)}
+        />
+      )}
+
       {/* ── Sessions sidebar ─────────────────────────────────────────────────── */}
       <div className="sessions-panel__sidebar">
         <div className="sessions-panel__sidebar-header">
@@ -267,7 +284,7 @@ export default function SessionsPanel() {
               </div>
               <button
                 className="sessions-panel__item-close"
-                onClick={e => { e.stopPropagation(); void handleDelete(s.id) }}
+                onClick={e => { e.stopPropagation(); setConfirmDelete({ id: s.id, name: s.name }) }}
                 title="Close session"
               >
                 ×
@@ -314,14 +331,14 @@ export default function SessionsPanel() {
                   {session.hasShareToken ? 'Copy Link' : 'Share'}
                 </button>
                 {session.hasShareToken && (
-                  <button className="btn btn--sm btn--danger" onClick={handleRevokeShare}>
+                  <button className="btn btn--sm btn--danger" onClick={() => setConfirmRevoke(true)}>
                     Revoke
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Share URL bar — own row so it's always full-width and never clipped */}
+            {/* Share URL bar */}
             {shareUrl && (
               <div className="sessions-panel__share-bar">
                 <a

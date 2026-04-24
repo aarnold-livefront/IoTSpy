@@ -453,7 +453,7 @@ export default function BodyViewer({ body, headersJson, bodySize }: Props) {
 
             {/* XML / HTML / plain text */}
             {!isImage && pretty.kind !== 'json' && (
-              <pre className="bv-pretty">{pretty.kind === 'xml' ? pretty.text : pretty.text}</pre>
+              <pre className="bv-pretty">{pretty.text}</pre>
             )}
           </>
         )}

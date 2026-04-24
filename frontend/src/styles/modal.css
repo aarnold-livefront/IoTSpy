@@ -183,3 +183,27 @@
   background-color: var(--color-surface-2);
   color: var(--color-text);
 }
+
+.btn-modal-danger {
+  padding: var(--space-2) var(--space-5);
+  background-color: var(--color-danger);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition: background-color 0.15s;
+}
+
+.btn-modal-danger:hover:not(:disabled) {
+  background-color: var(--color-danger-hover);
+}
+
+.btn-modal-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.modal--sm {
+  max-width: 360px;
+}

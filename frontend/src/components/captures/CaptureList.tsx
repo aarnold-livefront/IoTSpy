@@ -3,6 +3,7 @@ import CaptureFilterBar from './CaptureFilterBar'
 import CaptureRow from './CaptureRow'
 import LoadingSpinner from '../common/LoadingSpinner'
 import ErrorBanner from '../common/ErrorBanner'
+import { exportCaptures } from '../../api/captures'
 import type { CaptureFilters, CapturedRequestSummary, Device } from '../../types/api'
 import '../../styles/capture-list.css'
 
@@ -39,11 +40,13 @@ export default function CaptureList({
   const prevFirstIdRef = useRef<string | null>(null)
   const seededRef = useRef(false)
   const [newId, setNewId] = useState<string | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const exportRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const currentFirstId = captures[0]?.id ?? null
     if (!seededRef.current) {
-      // Seed on first non-empty load — don't flash, it's not a live arrival
       if (currentFirstId) seededRef.current = true
       prevFirstIdRef.current = currentFirstId
       return
@@ -73,14 +76,64 @@ export default function CaptureList({
     return () => el.removeEventListener('scroll', handleScroll)
   }, [handleScroll])
 
+  // Close export dropdown when clicking outside
+  useEffect(() => {
+    if (!exportOpen) return
+    const handle = (e: MouseEvent) => {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setExportOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handle)
+    return () => document.removeEventListener('mousedown', handle)
+  }, [exportOpen])
+
+  const handleExport = async (format: 'csv' | 'json' | 'har') => {
+    setExportOpen(false)
+    setExporting(true)
+    try {
+      await exportCaptures(format, filters)
+    } catch {
+      // silent — download errors are rare and recoverable by the user retrying
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="capture-list-pane">
       <CaptureFilterBar devices={devices} filters={filters} onChange={onFiltersChange} />
 
       {error && <ErrorBanner message={error} />}
 
-      <div className="capture-list__count">
-        {total.toLocaleString()} capture{total !== 1 ? 's' : ''}
+      <div className="capture-list__toolbar">
+        <div className="capture-list__count">
+          {total.toLocaleString()} capture{total !== 1 ? 's' : ''}
+        </div>
+        <div className="capture-list__export" ref={exportRef}>
+          <button
+            className="capture-list__export-btn"
+            onClick={() => setExportOpen((o) => !o)}
+            disabled={exporting || total === 0}
+            title="Export captures"
+          >
+            {exporting ? 'Exporting…' : 'Export ▾'}
+          </button>
+          {exportOpen && (
+            <div className="capture-list__export-menu" role="menu">
+              {(['csv', 'json', 'har'] as const).map((fmt) => (
+                <button
+                  key={fmt}
+                  className="capture-list__export-item"
+                  role="menuitem"
+                  onClick={() => void handleExport(fmt)}
+                >
+                  {fmt.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="capture-list" ref={scrollRef} role="grid">
