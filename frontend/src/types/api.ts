@@ -52,6 +52,13 @@ export interface CapturedRequest {
   notes: string
 }
 
+export interface ExportCaptureAsAssetResult {
+  fileName: string
+  filePath: string
+  contentType: string
+  sizeBytes: number
+}
+
 export interface Device {
   id: string
   ipAddress: string

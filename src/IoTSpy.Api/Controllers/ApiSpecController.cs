@@ -15,8 +15,7 @@ public class ApiSpecController(
     IApiSpecRepository specRepo,
     ReplacementPreviewService previewService) : ControllerBase
 {
-    private static readonly string AssetsDirectory =
-        Path.Combine(AppContext.BaseDirectory, "data", "assets");
+    private static string AssetsDirectory => AssetsPaths.AssetsDirectory;
 
     // ── Spec CRUD ─────────────────────────────────────────────────────────────
 
