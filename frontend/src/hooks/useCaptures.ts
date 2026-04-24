@@ -1,82 +1,80 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback } from 'react'
+import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { listCaptures } from '../api/captures'
 import type { CaptureFilters, CapturedRequestSummary, TrafficCaptureEvent } from '../types/api'
+import type { CaptureListResponse } from '../types/api'
 
 const PAGE_SIZE = 200
 
 export function useCaptures(filters: CaptureFilters) {
-  const [captures, setCaptures] = useState<CapturedRequestSummary[]>([])
-  const [total, setTotal] = useState(0)
-  const [page, setPage] = useState(1)
-  const [pages, setPages] = useState(1)
-  const [loading, setLoading] = useState(false)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // Reset when filters change
-  const filtersRef = useRef(filters)
+  const queryClient = useQueryClient()
   const filtersKey = JSON.stringify(filters)
+  const queryKey = ['captures', filtersKey]
 
-  const fetchPage = useCallback(async (pageNum: number, replace: boolean) => {
-    const setter = replace ? setLoading : setLoadingMore
-    setter(true)
-    setError(null)
-    try {
-      const res = await listCaptures({ ...filtersRef.current, page: pageNum, pageSize: PAGE_SIZE })
-      if (replace) {
-        setCaptures(res.items)
-      } else {
-        setCaptures((prev) => [...prev, ...res.items])
-      }
-      setTotal(res.total)
-      setPage(res.page)
-      setPages(res.pages)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch captures')
-    } finally {
-      setter(false)
-    }
-  }, [])
+  const query = useInfiniteQuery({
+    queryKey,
+    queryFn: ({ pageParam }) =>
+      listCaptures({ ...filters, page: pageParam as number, pageSize: PAGE_SIZE }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage: CaptureListResponse) =>
+      lastPage.page < lastPage.pages ? lastPage.page + 1 : undefined,
+    staleTime: 0,
+  })
 
-  // Re-fetch when filters change
-  useEffect(() => {
-    filtersRef.current = filters
-    setPage(1)
-    void fetchPage(1, true)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filtersKey, fetchPage])
+  const captures = query.data?.pages.flatMap((p) => p.items) ?? []
+  const firstPage = query.data?.pages[0]
+  const lastPage = query.data?.pages[query.data.pages.length - 1]
+  const total = firstPage?.total ?? 0
 
   const loadMore = useCallback(() => {
-    if (!loadingMore && page < pages) {
-      void fetchPage(page + 1, false)
+    if (!query.isFetchingNextPage && query.hasNextPage) {
+      void query.fetchNextPage()
     }
-  }, [loadingMore, page, pages, fetchPage])
+  }, [query])
 
-  /** Prepend a live SignalR capture to the top of the list */
-  const prependCapture = useCallback((event: TrafficCaptureEvent) => {
-    const partial: CapturedRequestSummary = {
-      ...event,
-      requestHeaders: '',
-      responseHeaders: '',
-      tlsCipherSuite: '',
-      isModified: false,
-      notes: '',
-      device: undefined,
-    }
-    setCaptures((prev) => [partial, ...prev])
-    setTotal((t) => t + 1)
-  }, [])
+  const prependCapture = useCallback(
+    (event: TrafficCaptureEvent) => {
+      const partial: CapturedRequestSummary = {
+        ...event,
+        requestHeaders: '',
+        responseHeaders: '',
+        tlsCipherSuite: '',
+        isModified: false,
+        notes: '',
+        device: undefined,
+      }
+      queryClient.setQueryData(
+        queryKey,
+        (old: InfiniteData<CaptureListResponse> | undefined) => {
+          if (!old || old.pages.length === 0) return old
+          return {
+            ...old,
+            pages: [
+              {
+                ...old.pages[0],
+                items: [partial, ...old.pages[0].items],
+                total: old.pages[0].total + 1,
+              },
+              ...old.pages.slice(1),
+            ],
+          }
+        },
+      )
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [queryClient, filtersKey],
+  )
 
   return {
     captures,
     total,
-    page,
-    pages,
-    loading,
-    loadingMore,
-    error,
+    page: lastPage?.page ?? 1,
+    pages: lastPage?.pages ?? 1,
+    loading: query.isLoading,
+    loadingMore: query.isFetchingNextPage,
+    error: query.error instanceof Error ? query.error.message : null,
     loadMore,
     prependCapture,
-    hasMore: page < pages,
+    hasMore: query.hasNextPage ?? false,
   }
 }

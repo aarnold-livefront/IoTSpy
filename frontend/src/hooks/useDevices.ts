@@ -1,28 +1,20 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { listDevices } from '../api/devices'
-import type { Device } from '../types/api'
 
 export function useDevices() {
-  const [devices, setDevices] = useState<Device[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: devices = [], isLoading: loading, error: queryError, refetch } = useQuery({
+    queryKey: ['devices'],
+    queryFn: listDevices,
+    staleTime: 30_000,
+  })
 
-  const refresh = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const data = await listDevices()
-      setDevices(data)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch devices')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const refresh = useCallback(() => { void refetch() }, [refetch])
 
-  useEffect(() => {
-    void refresh()
-  }, [refresh])
-
-  return { devices, loading, error, refresh }
+  return {
+    devices,
+    loading,
+    error: queryError instanceof Error ? queryError.message : null,
+    refresh,
+  }
 }

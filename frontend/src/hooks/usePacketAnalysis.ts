@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import type {
   FreezeFrameDto,
   ProtocolDistributionDto,
@@ -17,6 +18,7 @@ import {
 } from '../api/packetCapture'
 
 export function usePacketAnalysis() {
+  const queryClient = useQueryClient()
   const [protocolDistribution, setProtocolDistribution] = useState<ProtocolDistributionDto | null>(null)
   const [patterns, setPatterns] = useState<CommunicationPatternDto[]>([])
   const [suspicious, setSuspicious] = useState<SuspiciousActivityDto[]>([])
@@ -29,49 +31,73 @@ export function usePacketAnalysis() {
     try {
       setLoading(true)
       setError(null)
-      const data = await getProtocolDistribution()
+      const data = await queryClient.fetchQuery({
+        queryKey: ['packet-analysis-protocols'],
+        queryFn: getProtocolDistribution,
+        staleTime: 10_000,
+      })
       setProtocolDistribution(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load protocol distribution')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [queryClient])
 
   const loadPatterns = useCallback(async (topN = 10) => {
     try {
       setLoading(true)
       setError(null)
-      const data = await getCommunicationPatterns(topN)
+      const data = await queryClient.fetchQuery({
+        queryKey: ['packet-analysis-patterns', topN],
+        queryFn: () => getCommunicationPatterns(topN),
+        staleTime: 10_000,
+      })
       setPatterns(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load communication patterns')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [queryClient])
 
   const loadSuspicious = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
-      const data = await getSuspiciousActivity()
+      const data = await queryClient.fetchQuery({
+        queryKey: ['packet-analysis-suspicious'],
+        queryFn: getSuspiciousActivity,
+        staleTime: 10_000,
+      })
       setSuspicious(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load suspicious activity')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [queryClient])
 
   const loadAll = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
       const [proto, pat, sus] = await Promise.all([
-        getProtocolDistribution(),
-        getCommunicationPatterns(),
-        getSuspiciousActivity(),
+        queryClient.fetchQuery({
+          queryKey: ['packet-analysis-protocols'],
+          queryFn: getProtocolDistribution,
+          staleTime: 10_000,
+        }),
+        queryClient.fetchQuery({
+          queryKey: ['packet-analysis-patterns', 10],
+          queryFn: () => getCommunicationPatterns(),
+          staleTime: 10_000,
+        }),
+        queryClient.fetchQuery({
+          queryKey: ['packet-analysis-suspicious'],
+          queryFn: getSuspiciousActivity,
+          staleTime: 10_000,
+        }),
       ])
       setProtocolDistribution(proto)
       setPatterns(pat)
@@ -81,12 +107,11 @@ export function usePacketAnalysis() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [queryClient])
 
   const loadFreezeFrame = useCallback(async (packetId: string) => {
     try {
       setError(null)
-      // Try to get existing, fall back to creating
       let frame: FreezeFrameDto
       try {
         frame = await getFreezeFrame(packetId)
@@ -120,7 +145,7 @@ export function usePacketAnalysis() {
       const status = await getFreezeStatus()
       setIsFrozen(status.isFrozen)
     } catch {
-      // Ignore — status check is best-effort
+      // Best-effort status check
     }
   }, [])
 

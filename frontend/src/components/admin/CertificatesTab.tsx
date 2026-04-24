@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { CertificateEntry } from '../../types/api'
 import { apiFetch } from '../../api/client'
 
@@ -11,69 +12,55 @@ interface RootCaInfo {
   certificatePem: string
 }
 
+const ROOT_CA_KEY = ['cert-root-ca']
+const LEAF_CERTS_KEY = ['cert-leaf']
+
 export default function CertificatesTab() {
-  const [rootCa, setRootCa] = useState<RootCaInfo | null>(null)
-  const [leafCerts, setLeafCerts] = useState<CertificateEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [confirm, setConfirm] = useState<'regenerate' | 'purge-leaf' | null>(null)
-  const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState<string | null>(null)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [ca, all] = await Promise.all([
-        apiFetch<RootCaInfo>('/api/certificates/root-ca'),
-        apiFetch<CertificateEntry[]>('/api/certificates'),
-      ])
-      setRootCa(ca)
-      setLeafCerts(all.filter(c => !c.isRootCa).slice(0, 50))
-    } catch {
-      setError('Failed to load certificate data')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  const { data: rootCa, isLoading: rootLoading } = useQuery<RootCaInfo>({
+    queryKey: ROOT_CA_KEY,
+    queryFn: () => apiFetch<RootCaInfo>('/api/certificates/root-ca'),
+  })
 
-  useEffect(() => {
-    void load()
-  }, [load])
+  const { data: allCerts = [], isLoading: certsLoading } = useQuery<CertificateEntry[]>({
+    queryKey: LEAF_CERTS_KEY,
+    queryFn: () => apiFetch<CertificateEntry[]>('/api/certificates'),
+  })
+
+  const leafCerts = allCerts.filter(c => !c.isRootCa).slice(0, 50)
+  const loading = rootLoading || certsLoading
 
   const showToast = (msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(null), 3000)
   }
 
-  const regenerateCa = async () => {
-    setBusy(true)
-    try {
-      await apiFetch('/api/certificates/root-ca/regenerate', { method: 'POST' })
+  const regenerateMutation = useMutation({
+    mutationFn: () => apiFetch('/api/certificates/root-ca/regenerate', { method: 'POST' }),
+    onSuccess: () => {
       showToast('Root CA regenerated successfully')
-      await load()
-    } catch {
-      showToast('Failed to regenerate CA')
-    } finally {
-      setBusy(false)
-    }
-  }
+      void queryClient.invalidateQueries({ queryKey: ROOT_CA_KEY })
+      void queryClient.invalidateQueries({ queryKey: LEAF_CERTS_KEY })
+    },
+    onError: () => showToast('Failed to regenerate CA'),
+  })
 
-  const purgeLeaf = async () => {
-    setBusy(true)
-    try {
-      const data = await apiFetch<{ deleted: number }>('/api/certificates/purge-leaf-certs', { method: 'DELETE' })
+  const purgeMutation = useMutation({
+    mutationFn: () =>
+      apiFetch<{ deleted: number }>('/api/certificates/purge-leaf-certs', { method: 'DELETE' }),
+    onSuccess: (data) => {
       showToast(`Purged ${data.deleted} leaf certificates`)
-      await load()
-    } catch {
-      showToast('Failed to purge leaf certificates')
-    } finally {
-      setBusy(false)
-    }
-  }
+      void queryClient.invalidateQueries({ queryKey: LEAF_CERTS_KEY })
+    },
+    onError: () => showToast('Failed to purge leaf certificates'),
+  })
+
+  const busy = regenerateMutation.isPending || purgeMutation.isPending
 
   if (loading) return <p style={{ color: 'var(--color-text-muted)' }}>Loading…</p>
-  if (error) return <p style={{ color: 'var(--color-error)' }}>{error}</p>
 
   return (
     <>
@@ -162,8 +149,8 @@ export default function CertificatesTab() {
             <div className="admin-dialog__actions">
               <button className="admin-btn" onClick={() => setConfirm(null)}>Cancel</button>
               <button className="admin-btn admin-btn--danger" disabled={busy} onClick={async () => {
-                if (confirm === 'regenerate') await regenerateCa()
-                else await purgeLeaf()
+                if (confirm === 'regenerate') await regenerateMutation.mutateAsync()
+                else await purgeMutation.mutateAsync()
                 setConfirm(null)
               }}>Confirm</button>
             </div>

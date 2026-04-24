@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { ApiKeyCreated, ApiKeySummary } from '../../types/api'
 import { listApiKeys, createApiKey, revokeApiKey, rotateApiKey } from '../../api/apiKeys'
 import { ApiError } from '../../api/client'
@@ -15,12 +16,11 @@ const AVAILABLE_SCOPES = [
   'admin',
 ] as const
 
+const KEYS_KEY = ['admin-api-keys']
+
 export default function ApiKeysTab() {
-  const [keys, setKeys] = useState<ApiKeySummary[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [toast, setToast] = useState<string | null>(null)
-  const [busy, setBusy] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
   const [newName, setNewName] = useState('')
   const [newScopes, setNewScopes] = useState<string[]>([])
@@ -28,73 +28,51 @@ export default function ApiKeysTab() {
   const [revealedKey, setRevealedKey] = useState<{ id: string; plaintext: string } | null>(null)
   const [confirmRevoke, setConfirmRevoke] = useState<ApiKeySummary | null>(null)
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      setKeys(await listApiKeys())
-    } catch {
-      setError('Failed to load API keys')
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => { void load() }, [load])
+  const { data: keys = [], isLoading: loading, error: queryError } = useQuery<ApiKeySummary[]>({
+    queryKey: KEYS_KEY,
+    queryFn: listApiKeys,
+  })
 
   const showToast = (msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(null), 4000)
   }
 
-  const handleCreate = async () => {
-    setBusy(true)
-    try {
-      const result: ApiKeyCreated = await createApiKey(
-        newName,
-        newScopes,
-        newExpiry ? new Date(newExpiry).toISOString() : null,
-      )
+  const createMutation = useMutation({
+    mutationFn: () =>
+      createApiKey(newName, newScopes, newExpiry ? new Date(newExpiry).toISOString() : null),
+    onSuccess: (result: ApiKeyCreated) => {
       setRevealedKey({ id: result.id, plaintext: result.key })
       setShowCreate(false)
       setNewName('')
       setNewScopes([])
       setNewExpiry('')
-      await load()
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Failed to create key')
-    } finally {
-      setBusy(false)
-    }
-  }
+      void queryClient.invalidateQueries({ queryKey: KEYS_KEY })
+    },
+    onError: (err) => showToast(err instanceof ApiError ? err.message : 'Failed to create key'),
+  })
 
-  const handleRevoke = async (key: ApiKeySummary) => {
-    setBusy(true)
-    try {
-      await revokeApiKey(key.id)
+  const revokeMutation = useMutation({
+    mutationFn: (key: ApiKeySummary) => revokeApiKey(key.id),
+    onSuccess: (_data, key) => {
       showToast(`Revoked key "${key.name}"`)
-      await load()
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Failed to revoke key')
-    } finally {
-      setBusy(false)
+      void queryClient.invalidateQueries({ queryKey: KEYS_KEY })
       setConfirmRevoke(null)
-    }
-  }
+    },
+    onError: (err) => showToast(err instanceof ApiError ? err.message : 'Failed to revoke key'),
+  })
 
-  const handleRotate = async (key: ApiKeySummary) => {
-    setBusy(true)
-    try {
-      const result = await rotateApiKey(key.id)
+  const rotateMutation = useMutation({
+    mutationFn: (key: ApiKeySummary) => rotateApiKey(key.id),
+    onSuccess: (result, key) => {
       setRevealedKey({ id: result.id, plaintext: result.key })
       showToast(`Rotated key "${key.name}" — copy the new key now`)
-      await load()
-    } catch (err) {
-      showToast(err instanceof ApiError ? err.message : 'Failed to rotate key')
-    } finally {
-      setBusy(false)
-    }
-  }
+      void queryClient.invalidateQueries({ queryKey: KEYS_KEY })
+    },
+    onError: (err) => showToast(err instanceof ApiError ? err.message : 'Failed to rotate key'),
+  })
+
+  const busy = createMutation.isPending || revokeMutation.isPending || rotateMutation.isPending
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -111,7 +89,7 @@ export default function ApiKeysTab() {
     )
 
   if (loading) return <p style={{ color: 'var(--color-text-muted)' }}>Loading…</p>
-  if (error) return <p style={{ color: 'var(--color-error)' }}>{error}</p>
+  if (queryError) return <p style={{ color: 'var(--color-error)' }}>Failed to load API keys</p>
 
   return (
     <>
@@ -123,7 +101,6 @@ export default function ApiKeysTab() {
         </button>
       </div>
 
-      {/* Revealed key banner — shown after create or rotate */}
       {revealedKey && (
         <div className="admin-key-reveal">
           <p style={{ marginBottom: 'var(--space-2)', color: 'var(--color-warning, #f59e0b)', fontWeight: 600 }}>
@@ -187,7 +164,7 @@ export default function ApiKeysTab() {
                         className="admin-btn"
                         style={{ padding: '1px 8px' }}
                         disabled={busy}
-                        onClick={() => handleRotate(k)}
+                        onClick={() => rotateMutation.mutate(k)}
                       >
                         Rotate
                       </button>
@@ -208,7 +185,6 @@ export default function ApiKeysTab() {
         </table>
       </div>
 
-      {/* Create dialog */}
       {showCreate && (
         <div className="admin-overlay">
           <div className="admin-dialog" style={{ minWidth: 400 }}>
@@ -262,7 +238,7 @@ export default function ApiKeysTab() {
               <button
                 className="admin-btn admin-btn--primary"
                 disabled={busy || !newName.trim() || newScopes.length === 0}
-                onClick={handleCreate}
+                onClick={() => createMutation.mutate()}
               >
                 Create
               </button>
@@ -271,7 +247,6 @@ export default function ApiKeysTab() {
         </div>
       )}
 
-      {/* Revoke confirmation */}
       {confirmRevoke && (
         <div className="admin-overlay">
           <div className="admin-dialog">
@@ -282,7 +257,7 @@ export default function ApiKeysTab() {
               <button
                 className="admin-btn admin-btn--danger"
                 disabled={busy}
-                onClick={() => handleRevoke(confirmRevoke)}
+                onClick={() => revokeMutation.mutate(confirmRevoke)}
               >
                 Revoke
               </button>

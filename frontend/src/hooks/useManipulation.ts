@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   listRules,
   createRule,
@@ -32,240 +33,275 @@ import type {
   StartFuzzerRequest,
 } from '../types/api'
 
+const RULES_KEY = ['manipulation-rules']
+const BP_KEY = ['manipulation-breakpoints']
+const REPLAYS_KEY = ['manipulation-replays']
+const FUZZER_KEY = ['fuzzer-jobs']
+
 export function useManipulation() {
+  const queryClient = useQueryClient()
+  const [selectedFuzzerResults, setSelectedFuzzerResults] = useState<FuzzerResult[]>([])
+
   // ── Rules ──────────────────────────────────────────────────────────────────
-  const [rules, setRules] = useState<ManipulationRule[]>([])
-  const [rulesLoading, setRulesLoading] = useState(false)
-  const [rulesError, setRulesError] = useState<string | null>(null)
 
-  const refreshRules = useCallback(async () => {
-    setRulesLoading(true)
-    setRulesError(null)
-    try {
-      const data = await listRules()
-      setRules(data)
-    } catch (err) {
-      setRulesError(err instanceof Error ? err.message : 'Failed to fetch rules')
-    } finally {
-      setRulesLoading(false)
-    }
-  }, [])
+  const {
+    data: rules = [],
+    isLoading: rulesLoading,
+    error: rulesQueryError,
+  } = useQuery({ queryKey: RULES_KEY, queryFn: listRules })
 
-  const addRule = useCallback(async (req: CreateManipulationRuleRequest) => {
-    setRulesError(null)
-    try {
-      const rule = await createRule(req)
-      setRules((prev) => [...prev, rule])
-      return rule
-    } catch (err) {
-      setRulesError(err instanceof Error ? err.message : 'Failed to create rule')
-      return null
-    }
-  }, [])
+  const rulesError = rulesQueryError instanceof Error ? rulesQueryError.message : null
 
-  const editRule = useCallback(async (id: string, req: UpdateManipulationRuleRequest) => {
-    setRulesError(null)
-    try {
-      const rule = await updateRule(id, req)
-      setRules((prev) => prev.map((r) => (r.id === id ? rule : r)))
-      return rule
-    } catch (err) {
-      setRulesError(err instanceof Error ? err.message : 'Failed to update rule')
-      return null
-    }
-  }, [])
+  const addRuleMutation = useMutation({
+    mutationFn: (req: CreateManipulationRuleRequest) => createRule(req),
+    onSuccess: (rule) => {
+      queryClient.setQueryData<ManipulationRule[]>(RULES_KEY, (prev = []) => [...prev, rule])
+    },
+  })
 
-  const removeRule = useCallback(async (id: string) => {
-    setRulesError(null)
-    try {
-      await deleteRule(id)
-      setRules((prev) => prev.filter((r) => r.id !== id))
-    } catch (err) {
-      setRulesError(err instanceof Error ? err.message : 'Failed to delete rule')
-    }
-  }, [])
+  const editRuleMutation = useMutation({
+    mutationFn: ({ id, req }: { id: string; req: UpdateManipulationRuleRequest }) =>
+      updateRule(id, req),
+    onSuccess: (rule) => {
+      queryClient.setQueryData<ManipulationRule[]>(RULES_KEY, (prev = []) =>
+        prev.map((r) => (r.id === rule.id ? rule : r)),
+      )
+    },
+  })
+
+  const removeRuleMutation = useMutation({
+    mutationFn: (id: string) => deleteRule(id),
+    onSuccess: (_data, id) => {
+      queryClient.setQueryData<ManipulationRule[]>(RULES_KEY, (prev = []) =>
+        prev.filter((r) => r.id !== id),
+      )
+    },
+  })
+
+  const addRule = useCallback(
+    async (req: CreateManipulationRuleRequest) => {
+      try {
+        return await addRuleMutation.mutateAsync(req)
+      } catch {
+        return null
+      }
+    },
+    [addRuleMutation],
+  )
+
+  const editRule = useCallback(
+    async (id: string, req: UpdateManipulationRuleRequest) => {
+      try {
+        return await editRuleMutation.mutateAsync({ id, req })
+      } catch {
+        return null
+      }
+    },
+    [editRuleMutation],
+  )
+
+  const removeRule = useCallback(
+    async (id: string) => {
+      try {
+        await removeRuleMutation.mutateAsync(id)
+      } catch { /* swallow */ }
+    },
+    [removeRuleMutation],
+  )
 
   // ── Breakpoints ────────────────────────────────────────────────────────────
-  const [breakpoints, setBreakpoints] = useState<Breakpoint[]>([])
-  const [breakpointsLoading, setBreakpointsLoading] = useState(false)
-  const [breakpointsError, setBreakpointsError] = useState<string | null>(null)
 
-  const refreshBreakpoints = useCallback(async () => {
-    setBreakpointsLoading(true)
-    setBreakpointsError(null)
-    try {
-      const data = await listBreakpoints()
-      setBreakpoints(data)
-    } catch (err) {
-      setBreakpointsError(err instanceof Error ? err.message : 'Failed to fetch breakpoints')
-    } finally {
-      setBreakpointsLoading(false)
-    }
-  }, [])
+  const {
+    data: breakpoints = [],
+    isLoading: breakpointsLoading,
+    error: bpQueryError,
+  } = useQuery({ queryKey: BP_KEY, queryFn: listBreakpoints })
 
-  const addBreakpoint = useCallback(async (req: CreateBreakpointRequest) => {
-    setBreakpointsError(null)
-    try {
-      const bp = await createBreakpoint(req)
-      setBreakpoints((prev) => [...prev, bp])
-      return bp
-    } catch (err) {
-      setBreakpointsError(err instanceof Error ? err.message : 'Failed to create breakpoint')
-      return null
-    }
-  }, [])
+  const breakpointsError = bpQueryError instanceof Error ? bpQueryError.message : null
 
-  const editBreakpoint = useCallback(async (id: string, req: UpdateBreakpointRequest) => {
-    setBreakpointsError(null)
-    try {
-      const bp = await updateBreakpoint(id, req)
-      setBreakpoints((prev) => prev.map((b) => (b.id === id ? bp : b)))
-      return bp
-    } catch (err) {
-      setBreakpointsError(err instanceof Error ? err.message : 'Failed to update breakpoint')
-      return null
-    }
-  }, [])
+  const addBpMutation = useMutation({
+    mutationFn: (req: CreateBreakpointRequest) => createBreakpoint(req),
+    onSuccess: (bp) => {
+      queryClient.setQueryData<Breakpoint[]>(BP_KEY, (prev = []) => [...prev, bp])
+    },
+  })
 
-  const removeBreakpoint = useCallback(async (id: string) => {
-    setBreakpointsError(null)
-    try {
-      await deleteBreakpoint(id)
-      setBreakpoints((prev) => prev.filter((b) => b.id !== id))
-    } catch (err) {
-      setBreakpointsError(err instanceof Error ? err.message : 'Failed to delete breakpoint')
-    }
-  }, [])
+  const editBpMutation = useMutation({
+    mutationFn: ({ id, req }: { id: string; req: UpdateBreakpointRequest }) =>
+      updateBreakpoint(id, req),
+    onSuccess: (bp) => {
+      queryClient.setQueryData<Breakpoint[]>(BP_KEY, (prev = []) =>
+        prev.map((b) => (b.id === bp.id ? bp : b)),
+      )
+    },
+  })
+
+  const removeBpMutation = useMutation({
+    mutationFn: (id: string) => deleteBreakpoint(id),
+    onSuccess: (_data, id) => {
+      queryClient.setQueryData<Breakpoint[]>(BP_KEY, (prev = []) =>
+        prev.filter((b) => b.id !== id),
+      )
+    },
+  })
+
+  const addBreakpoint = useCallback(
+    async (req: CreateBreakpointRequest) => {
+      try {
+        return await addBpMutation.mutateAsync(req)
+      } catch {
+        return null
+      }
+    },
+    [addBpMutation],
+  )
+
+  const editBreakpoint = useCallback(
+    async (id: string, req: UpdateBreakpointRequest) => {
+      try {
+        return await editBpMutation.mutateAsync({ id, req })
+      } catch {
+        return null
+      }
+    },
+    [editBpMutation],
+  )
+
+  const removeBreakpoint = useCallback(
+    async (id: string) => {
+      try {
+        await removeBpMutation.mutateAsync(id)
+      } catch { /* swallow */ }
+    },
+    [removeBpMutation],
+  )
 
   // ── Replay ─────────────────────────────────────────────────────────────────
-  const [replays, setReplays] = useState<ReplaySession[]>([])
-  const [replaysLoading, setReplaysLoading] = useState(false)
-  const [replaysError, setReplaysError] = useState<string | null>(null)
 
-  const refreshReplays = useCallback(async () => {
-    setReplaysLoading(true)
-    setReplaysError(null)
-    try {
-      const data = await listReplays()
-      setReplays(data)
-    } catch (err) {
-      setReplaysError(err instanceof Error ? err.message : 'Failed to fetch replays')
-    } finally {
-      setReplaysLoading(false)
-    }
-  }, [])
+  const {
+    data: replays = [],
+    isLoading: replaysLoading,
+    error: replaysQueryError,
+  } = useQuery({ queryKey: REPLAYS_KEY, queryFn: listReplays })
 
-  const replay = useCallback(async (req: CreateReplayRequest) => {
-    setReplaysError(null)
-    try {
-      const session = await createReplay(req)
-      setReplays((prev) => [session, ...prev])
-      return session
-    } catch (err) {
-      setReplaysError(err instanceof Error ? err.message : 'Failed to replay request')
-      return null
-    }
-  }, [])
+  const replaysError = replaysQueryError instanceof Error ? replaysQueryError.message : null
 
-  const removeReplay = useCallback(async (id: string) => {
-    setReplaysError(null)
-    try {
-      await deleteReplay(id)
-      setReplays((prev) => prev.filter((r) => r.id !== id))
-    } catch (err) {
-      setReplaysError(err instanceof Error ? err.message : 'Failed to delete replay')
-    }
-  }, [])
+  const replayMutation = useMutation({
+    mutationFn: (req: CreateReplayRequest) => createReplay(req),
+    onSuccess: (session) => {
+      queryClient.setQueryData<ReplaySession[]>(REPLAYS_KEY, (prev = []) => [session, ...prev])
+    },
+  })
+
+  const removeReplayMutation = useMutation({
+    mutationFn: (id: string) => deleteReplay(id),
+    onSuccess: (_data, id) => {
+      queryClient.setQueryData<ReplaySession[]>(REPLAYS_KEY, (prev = []) =>
+        prev.filter((r) => r.id !== id),
+      )
+    },
+  })
+
+  const replay = useCallback(
+    async (req: CreateReplayRequest) => {
+      try {
+        return await replayMutation.mutateAsync(req)
+      } catch {
+        return null
+      }
+    },
+    [replayMutation],
+  )
+
+  const removeReplay = useCallback(
+    async (id: string) => {
+      try {
+        await removeReplayMutation.mutateAsync(id)
+      } catch { /* swallow */ }
+    },
+    [removeReplayMutation],
+  )
 
   // ── Fuzzer ─────────────────────────────────────────────────────────────────
-  const [fuzzerJobs, setFuzzerJobs] = useState<FuzzerJob[]>([])
-  const [selectedFuzzerResults, setSelectedFuzzerResults] = useState<FuzzerResult[]>([])
-  const [fuzzerLoading, setFuzzerLoading] = useState(false)
-  const [fuzzerError, setFuzzerError] = useState<string | null>(null)
-  const fuzzerPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  const refreshFuzzer = useCallback(async () => {
-    setFuzzerLoading(true)
-    setFuzzerError(null)
-    try {
-      const data = await listFuzzerJobs()
-      setFuzzerJobs(data)
-    } catch (err) {
-      setFuzzerError(err instanceof Error ? err.message : 'Failed to fetch fuzzer jobs')
-    } finally {
-      setFuzzerLoading(false)
-    }
-  }, [])
+  const {
+    data: fuzzerJobs = [],
+    isLoading: fuzzerLoading,
+    error: fuzzerQueryError,
+  } = useQuery({
+    queryKey: FUZZER_KEY,
+    queryFn: listFuzzerJobs,
+    staleTime: 0,
+    refetchInterval: (query) => {
+      const data = query.state.data as FuzzerJob[] | undefined
+      const hasRunning =
+        Array.isArray(data) &&
+        data.some((j) => j.status === 'Running' || j.status === 'Pending')
+      return hasRunning ? 3000 : false
+    },
+  })
 
-  // Poll for running fuzzer jobs
-  useEffect(() => {
-    const hasRunning = fuzzerJobs.some((j) => j.status === 'Running' || j.status === 'Pending')
-    if (hasRunning) {
-      fuzzerPollRef.current = setInterval(() => void refreshFuzzer(), 3000)
-    } else if (fuzzerPollRef.current) {
-      clearInterval(fuzzerPollRef.current)
-      fuzzerPollRef.current = null
-    }
-    return () => {
-      if (fuzzerPollRef.current) clearInterval(fuzzerPollRef.current)
-    }
-  }, [fuzzerJobs, refreshFuzzer])
+  const fuzzerError = fuzzerQueryError instanceof Error ? fuzzerQueryError.message : null
 
-  const fuzz = useCallback(async (req: StartFuzzerRequest) => {
-    setFuzzerError(null)
-    try {
-      const job = await startFuzzer(req)
-      setFuzzerJobs((prev) => [job, ...prev])
-      return job
-    } catch (err) {
-      setFuzzerError(err instanceof Error ? err.message : 'Failed to start fuzzer')
-      return null
-    }
-  }, [])
+  const fuzzMutation = useMutation({
+    mutationFn: (req: StartFuzzerRequest) => startFuzzer(req),
+    onSuccess: (job) => {
+      queryClient.setQueryData<FuzzerJob[]>(FUZZER_KEY, (prev = []) => [job, ...prev])
+    },
+  })
+
+  const cancelFuzzerMutation = useMutation({
+    mutationFn: (id: string) => cancelFuzzerJob(id),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: FUZZER_KEY }),
+  })
+
+  const removeFuzzerMutation = useMutation({
+    mutationFn: (id: string) => deleteFuzzerJob(id),
+    onSuccess: (_data, id) => {
+      queryClient.setQueryData<FuzzerJob[]>(FUZZER_KEY, (prev = []) =>
+        prev.filter((j) => j.id !== id),
+      )
+    },
+  })
+
+  const fuzz = useCallback(
+    async (req: StartFuzzerRequest) => {
+      try {
+        return await fuzzMutation.mutateAsync(req)
+      } catch {
+        return null
+      }
+    },
+    [fuzzMutation],
+  )
 
   const viewFuzzerResults = useCallback(async (id: string) => {
-    setFuzzerError(null)
     try {
-      // Refresh job details and results
-      const [job, results] = await Promise.all([
-        getFuzzerJob(id),
-        getFuzzerResults(id),
-      ])
-      setFuzzerJobs((prev) => prev.map((j) => (j.id === id ? job : j)))
+      const [job, results] = await Promise.all([getFuzzerJob(id), getFuzzerResults(id)])
+      queryClient.setQueryData<FuzzerJob[]>(FUZZER_KEY, (prev = []) =>
+        prev.map((j) => (j.id === id ? job : j)),
+      )
       setSelectedFuzzerResults(results)
-    } catch (err) {
-      setFuzzerError(err instanceof Error ? err.message : 'Failed to fetch fuzzer results')
-    }
-  }, [])
+    } catch { /* swallow */ }
+  }, [queryClient])
 
-  const cancelFuzzer = useCallback(async (id: string) => {
-    setFuzzerError(null)
-    try {
-      await cancelFuzzerJob(id)
-      void refreshFuzzer()
-    } catch (err) {
-      setFuzzerError(err instanceof Error ? err.message : 'Failed to cancel fuzzer')
-    }
-  }, [refreshFuzzer])
+  const cancelFuzzer = useCallback(
+    async (id: string) => {
+      try {
+        await cancelFuzzerMutation.mutateAsync(id)
+      } catch { /* swallow */ }
+    },
+    [cancelFuzzerMutation],
+  )
 
-  const removeFuzzer = useCallback(async (id: string) => {
-    setFuzzerError(null)
-    try {
-      await deleteFuzzerJob(id)
-      setFuzzerJobs((prev) => prev.filter((j) => j.id !== id))
-    } catch (err) {
-      setFuzzerError(err instanceof Error ? err.message : 'Failed to delete fuzzer job')
-    }
-  }, [])
-
-  // ── Init ───────────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    void refreshRules()
-    void refreshBreakpoints()
-    void refreshReplays()
-    void refreshFuzzer()
-  }, [refreshRules, refreshBreakpoints, refreshReplays, refreshFuzzer])
+  const removeFuzzer = useCallback(
+    async (id: string) => {
+      try {
+        await removeFuzzerMutation.mutateAsync(id)
+      } catch { /* swallow */ }
+    },
+    [removeFuzzerMutation],
+  )
 
   return {
     // Rules
