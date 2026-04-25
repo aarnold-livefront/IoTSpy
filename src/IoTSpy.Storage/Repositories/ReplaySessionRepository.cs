@@ -34,6 +34,9 @@ public class ReplaySessionRepository(IoTSpyDbContext db) : IReplaySessionReposit
             .Take(pageSize)
             .ToListAsync(ct);
 
+    public Task<int> CountAsync(CancellationToken ct = default) =>
+        db.ReplaySessions.CountAsync(ct);
+
     public async Task DeleteAsync(Guid id, CancellationToken ct = default)
     {
         var session = await db.ReplaySessions.FindAsync([id], ct);

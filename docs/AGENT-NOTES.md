@@ -10,14 +10,15 @@ This document is for Claude Code AI agents resuming work on the IoTSpy codebase.
 ```bash
 cd /path/to/IoTSpy
 
-# Required env var (≥32 chars)
-export Auth__JwtSecret="replace-with-32-char-minimum-secret"
+# Set JWT secret via .NET user secrets (one-time; stored outside the repo)
+dotnet user-secrets set "Auth:JwtSecret" "your-32-char-minimum-secret" \
+  --project src/IoTSpy.Api
 
 # Build & test
 dotnet build
 dotnet test
 
-# Run the API
+# Run the API (user secrets are loaded automatically in Development)
 dotnet run --project src/IoTSpy.Api
 # → http://localhost:5000
 # → Scalar API docs: http://localhost:5000/scalar (Development mode only)
@@ -28,8 +29,11 @@ dotnet run --project src/IoTSpy.Api
 cd frontend
 npm install
 npm run dev
-# → http://localhost:3000
+# → http://localhost:5173
 ```
+
+### VS Code (optional)
+`.vscode/launch.json` and `.vscode/tasks.json` are committed. Use the **"Full Stack: API + Frontend"** compound launch config (F5) to start both with the debugger attached. User secrets are loaded automatically — no env var export needed.
 
 ### Docker
 ```bash

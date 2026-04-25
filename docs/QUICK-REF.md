@@ -10,8 +10,9 @@ Common commands and shortcuts for daily development.
 # Clone & navigate
 git clone <repo-url> && cd IoTSpy
 
-# Required env var (keep in shell profile or .env)
-export Auth__JwtSecret="your-32-char-minimum-secret-here"
+# Set JWT secret via .NET user secrets (stored in OS user profile, not the repo)
+dotnet user-secrets set "Auth:JwtSecret" "your-32-char-minimum-secret" \
+  --project src/IoTSpy.Api
 
 # Backend dependencies
 dotnet build
@@ -26,8 +27,8 @@ cd frontend && npm install && cd ..
 
 ### Start everything
 ```bash
-# Terminal 1: Backend (auto-reload on file changes)
-export Auth__JwtSecret="..." && dotnet watch --project src/IoTSpy.Api
+# Terminal 1: Backend (auto-reload on file changes; user secrets loaded automatically)
+dotnet watch --project src/IoTSpy.Api
 
 # Terminal 2: Frontend
 cd frontend && npm run dev
@@ -38,9 +39,21 @@ dotnet test --watch
 
 **Access points:**
 - API: `http://localhost:5000`
-- Frontend: `http://localhost:3000`
+- Frontend: `http://localhost:5173` (Vite default)
 - API docs (dev): `http://localhost:5000/scalar`
 - Proxy: `:8888` (explicit mode, `:9999` transparent)
+
+### VS Code (alternative to terminal)
+The repo ships `.vscode/launch.json` and `.vscode/tasks.json`. These files are committed and safe to use as-is.
+
+| Launch config | What it does |
+|---|---|
+| **Full Stack: API + Frontend** | Starts both with one press of F5 |
+| **API: Debug (IoTSpy.Api)** | API only, C# debugger attached |
+| **Frontend: Vite Dev Server** | Frontend only |
+| **Frontend: Attach Chrome Debugger** | Attach to Chrome on port 9222 for JS breakpoints |
+
+User secrets (`Auth:JwtSecret`) are picked up automatically — no env var needed.
 
 ---
 
@@ -346,8 +359,8 @@ git push origin your-branch
 
 ### App won't start
 ```bash
-# Check env vars
-echo $Auth__JwtSecret
+# Check user secrets are set
+dotnet user-secrets list --project src/IoTSpy.Api
 
 # Check port is free
 lsof -i :5000  # Linux/macOS

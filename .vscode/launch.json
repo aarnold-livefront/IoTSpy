@@ -1,0 +1,65 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "API: Debug (IoTSpy.Api)",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: IoTSpy.Api",
+            "program": "${workspaceFolder}/src/IoTSpy.Api/bin/Debug/net10.0/IoTSpy.Api.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/IoTSpy.Api",
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            },
+            "stopAtEntry": false,
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            "console": "integratedTerminal",
+            "sourceFileMap": {
+                "/Views": "${workspaceFolder}/Views"
+            }
+        },
+        {
+            "name": "Frontend: Vite Dev Server",
+            "type": "node",
+            "request": "launch",
+            "runtimeExecutable": "npm",
+            "runtimeArgs": ["run", "dev"],
+            "cwd": "${workspaceFolder}/frontend",
+            "console": "integratedTerminal",
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "Local:\\s+(http://\\S+)"
+            }
+        },
+        {
+            "name": "Frontend: Attach Chrome Debugger",
+            "type": "chrome",
+            "request": "attach",
+            "port": 9222,
+            "url": "http://localhost:5173",
+            "webRoot": "${workspaceFolder}/frontend/src",
+            "sourceMapPathOverrides": {
+                "/@fs/*": "${workspaceFolder}/frontend/*"
+            }
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Full Stack: API + Frontend",
+            "configurations": [
+                "API: Debug (IoTSpy.Api)",
+                "Frontend: Vite Dev Server"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "",
+                "order": 1
+            }
+        }
+    ]
+}

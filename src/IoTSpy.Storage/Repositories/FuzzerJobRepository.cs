@@ -27,6 +27,9 @@ public class FuzzerJobRepository(IoTSpyDbContext db) : IFuzzerJobRepository
             .Take(pageSize)
             .ToListAsync(ct);
 
+    public Task<int> CountAsync(CancellationToken ct = default) =>
+        db.FuzzerJobs.CountAsync(ct);
+
     public async Task<FuzzerJob> UpdateAsync(FuzzerJob job, CancellationToken ct = default)
     {
         db.FuzzerJobs.Update(job);

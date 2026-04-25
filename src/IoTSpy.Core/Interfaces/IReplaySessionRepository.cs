@@ -8,5 +8,6 @@ public interface IReplaySessionRepository
     Task<ReplaySession?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<List<ReplaySession>> GetByCaptureIdAsync(Guid captureId, CancellationToken ct = default);
     Task<List<ReplaySession>> GetAllAsync(int page = 1, int pageSize = 20, CancellationToken ct = default);
+    Task<int> CountAsync(CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
 }

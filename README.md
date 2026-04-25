@@ -146,8 +146,9 @@ After granting capabilities, restart the IoTSpy API. Network interfaces will app
 git clone <repo>
 cd IoTSpy
 
-# Set a JWT secret (required, minimum 32 characters)
-export Auth__JwtSecret="replace-with-a-32+-char-secret"
+# Set JWT secret via .NET user secrets (one-time; stored in your OS user profile, not the repo)
+dotnet user-secrets set "Auth:JwtSecret" "your-32-char-minimum-secret" \
+  --project src/IoTSpy.Api
 
 dotnet run --project src/IoTSpy.Api
 ```

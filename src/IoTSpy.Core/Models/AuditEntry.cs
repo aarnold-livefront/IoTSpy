@@ -9,6 +9,8 @@ public class AuditEntry
     public string EntityType { get; set; } = string.Empty;
     public string? EntityId { get; set; }
     public string? Details { get; set; }
+    public string? OldValue { get; set; }
+    public string? NewValue { get; set; }
     public string IpAddress { get; set; } = string.Empty;
     public DateTimeOffset Timestamp { get; set; } = DateTimeOffset.UtcNow;
 }

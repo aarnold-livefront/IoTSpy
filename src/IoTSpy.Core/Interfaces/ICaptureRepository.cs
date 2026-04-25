@@ -12,6 +12,7 @@ public interface ICaptureRepository
     Task UpdateAsync(CapturedRequest capture, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
     Task ClearAsync(Guid? deviceId = null, CancellationToken ct = default);
+    Task ClearByFilterAsync(CaptureFilter filter, CancellationToken ct = default);
 }
 
 public record CaptureFilter(

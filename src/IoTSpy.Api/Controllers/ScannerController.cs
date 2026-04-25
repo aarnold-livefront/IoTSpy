@@ -2,6 +2,8 @@ using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text;
+using System.Text.Json;
 
 namespace IoTSpy.Api.Controllers;
 
@@ -37,8 +39,16 @@ public class ScannerController(
     }
 
     [HttpGet("jobs")]
-    public async Task<IActionResult> ListJobs([FromQuery] int page = 1, [FromQuery] int pageSize = 20) =>
-        Ok(await scanJobs.GetAllAsync(page, pageSize));
+    public async Task<IActionResult> ListJobs(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+    {
+        pageSize = Math.Clamp(pageSize, 1, 200);
+        var itemsTask = scanJobs.GetAllAsync(page, pageSize, ct);
+        var totalTask = scanJobs.CountAsync(ct);
+        var items = await itemsTask;
+        var total = await totalTask;
+        return Ok(new { items, total, page, pageSize, pages = (int)Math.Ceiling(total / (double)pageSize) });
+    }
 
     [HttpGet("jobs/{id:guid}")]
     public async Task<IActionResult> GetJob(Guid id)
@@ -90,6 +100,27 @@ public class ScannerController(
     {
         await scanJobs.DeleteAsync(id);
         return NoContent();
+    }
+
+    [HttpPost("jobs/cancel-all")]
+    public async Task<IActionResult> CancelAllScans(CancellationToken ct)
+    {
+        var allJobs = await scanJobs.GetAllAsync(1, 1000, ct);
+        var runningIds = allJobs.Where(j => scanner.IsScanRunning(j.Id)).Select(j => j.Id).ToList();
+        foreach (var id in runningIds)
+            await scanner.CancelScanAsync(id);
+        return Ok(new { cancelled = runningIds.Count });
+    }
+
+    [HttpGet("jobs/{id:guid}/export")]
+    public async Task<IActionResult> ExportFindings(Guid id, CancellationToken ct)
+    {
+        var job = await scanJobs.GetByIdAsync(id, ct);
+        if (job is null) return NotFound();
+        var findings = await scanJobs.GetFindingsAsync(id, ct);
+        var bundle = new { jobId = id, deviceId = job.DeviceId, exportedAt = DateTimeOffset.UtcNow, findings };
+        var json = JsonSerializer.Serialize(bundle, new JsonSerializerOptions { WriteIndented = true });
+        return File(Encoding.UTF8.GetBytes(json), "application/json", $"scan-{id}.json");
     }
 }
 

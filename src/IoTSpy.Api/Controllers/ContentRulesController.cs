@@ -4,6 +4,8 @@ using IoTSpy.Core.Models;
 using IoTSpy.Manipulation.ApiSpec;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using System.Text.Json;
 
 namespace IoTSpy.Api.Controllers;
 
@@ -12,15 +14,27 @@ namespace IoTSpy.Api.Controllers;
 [Route("api/contentrules")]
 public class ContentRulesController(
     IApiSpecRepository repo,
-    ReplacementPreviewService previewService) : ControllerBase
+    ReplacementPreviewService previewService,
+    IAuditRepository auditRepo) : ControllerBase
 {
+    private Guid? CurrentUserId => Guid.TryParse(
+        HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id) ? id : null;
+    private string CurrentUsername => HttpContext.User.Identity?.Name ?? "system";
+    private string CurrentIp => HttpContext.Connection.RemoteIpAddress?.ToString() ?? "";
+
     [HttpGet]
-    public async Task<IActionResult> List([FromQuery] string? host, CancellationToken ct)
+    public async Task<IActionResult> List(
+        [FromQuery] string? host,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 100,
+        CancellationToken ct = default)
     {
-        var rules = host is not null
+        pageSize = Math.Clamp(pageSize, 1, 500);
+        var allRules = host is not null
             ? await repo.GetStandaloneRulesForHostAsync(host, ct)
             : await repo.GetAllStandaloneRulesAsync(ct);
-        return Ok(rules);
+        var items = allRules.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return Ok(new { items, total = allRules.Count, page, pageSize, pages = (int)Math.Ceiling(allRules.Count / (double)pageSize) });
     }
 
     [HttpPost]
@@ -55,9 +69,11 @@ public class ContentRulesController(
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateContentRuleDto dto, CancellationToken ct)
     {
-        var rules = await repo.GetAllStandaloneRulesAsync(ct);
-        var rule = rules.FirstOrDefault(r => r.Id == id);
+        var allRules = await repo.GetAllStandaloneRulesAsync(ct);
+        var rule = allRules.FirstOrDefault(r => r.Id == id);
         if (rule is null) return NotFound();
+
+        var oldValue = JsonSerializer.Serialize(rule);
 
         if (dto.Host is not null) rule.Host = dto.Host.Trim();
         if (dto.Name is not null) rule.Name = dto.Name;
@@ -75,12 +91,26 @@ public class ContentRulesController(
         if (dto.SseLoop is not null) rule.SseLoop = dto.SseLoop;
 
         var updated = await repo.UpdateReplacementRuleAsync(rule, ct);
+        await auditRepo.AddAsync(new AuditEntry
+        {
+            UserId = CurrentUserId, Username = CurrentUsername,
+            Action = "Update", EntityType = "ContentReplacementRule", EntityId = id.ToString(),
+            OldValue = oldValue, NewValue = JsonSerializer.Serialize(updated), IpAddress = CurrentIp
+        }, ct);
         return Ok(updated);
     }
 
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
+        var rule = await repo.GetRuleByIdAsync(id, ct);
+        if (rule is not null)
+            await auditRepo.AddAsync(new AuditEntry
+            {
+                UserId = CurrentUserId, Username = CurrentUsername,
+                Action = "Delete", EntityType = "ContentReplacementRule", EntityId = id.ToString(),
+                OldValue = JsonSerializer.Serialize(rule), IpAddress = CurrentIp
+            }, ct);
         await repo.DeleteReplacementRuleAsync(id, ct);
         return NoContent();
     }

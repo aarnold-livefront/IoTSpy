@@ -1,6 +1,6 @@
-# IoTSpy — Completed Phases (1–16, 18–22 + post-phase work)
+# IoTSpy — Completed Phases
 
-This document details all implemented phases. Phases 1–16 and 18–22 are complete and production-ready. Phase 17 has been archived (hardware-dependent non-IP IoT protocols); see [PHASES-ARCHIVED.md](PHASES-ARCHIVED.md). See [PHASES-ROADMAP.md](PHASES-ROADMAP.md) for the Phase 23+ roadmap.
+This document details all implemented phases in sequential order. All phases are complete and production-ready. Phase 17 has been archived (hardware-dependent non-IP IoT protocols); see [PHASES-ARCHIVED.md](PHASES-ARCHIVED.md). See [PHASES-ROADMAP.md](PHASES-ROADMAP.md) for the future roadmap.
 
 ---
 
@@ -28,7 +28,7 @@ AI mock engine with pluggable providers (Claude/OpenAI/Ollama). CoAP UDP decoder
 
 SharpPcap live capture with ring buffer (10k). Protocol distribution, communication patterns, suspicious activity detection (port scan, ARP spoof, DNS anomaly, retransmission burst). Hex dump + freeze frame. PCAP export. `PacketCaptureController` (14 endpoints) + `PacketCaptureHub` SignalR.
 
-## OpenRTB inspection
+## Phase 6.5 — OpenRTB inspection
 
 OpenRTB 2.5 bid request/response decoding. PII detection + policy-based redaction. Inline detection in both proxy servers. `OpenRtbController` + frontend (traffic list, inspector, PII policy editor, audit log).
 
@@ -48,7 +48,7 @@ HTML/PDF scan report generation (`ReportController`). Capture export (CSV/JSON/H
 
 WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy (TCP MITM, topic-level wildcard filtering, SignalR message publishing). CoAP UDP forward proxy (message decoding, device registration, capture). gRPC/Protobuf decoder (LPM framing + schema-less field extraction). Modbus TCP decoder (MBAP, function codes 1-16). `ProtocolProxyController` (6 endpoints).
 
-## TLS Passthrough & SSL Stripping
+## Phase 10.5 — TLS Passthrough & SSL Stripping
 
 **Goal:** HTTPS visibility for IoT devices where CA installation is not possible.
 
@@ -141,6 +141,19 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Tests** — `SessionsControllerTests` (14 tests): list, create, viewer-forbid, update, add capture, conflict, annotation CRUD, share token, AirDrop endpoint
 - **Frontend** — `frontend/src/api/sessions.ts`, `frontend/src/types/sessions.ts`, `frontend/src/hooks/useSessions.ts`; `SessionsPanel` (list/create/detail), `AnnotationPanel` (per-capture notes + tags), `PresenceIndicator` (avatar chips); "Sessions" tab in DashboardPage
 
+## Phase 16 — Deployment & Operations
+
+**Goal:** Make IoTSpy production-ready for team deployments with proper TLS, container orchestration, observability, alerting, and package distribution.
+
+- **Kestrel HTTPS (16.1)** — `HttpsCertificateHolder` singleton + `CertesLetsEncryptService`; certificate file or Let's Encrypt via `Certes`; HTTPS on port 5001
+- **Kubernetes Helm chart (16.2)** — `deploy/helm/iotspy/` — Chart.yaml, values.yaml, Deployment, Service, ConfigMap, Secret, Ingress, PVC, HPA, ServiceAccount
+- **Docker Compose improvements (16.3)** — `docker-compose.prod.yml` with Postgres 17, pgAdmin, Traefik v3 reverse proxy with automatic TLS
+- **Plugin system for protocol decoders (16.4)** — `IPluginDecoder` + `IPluginRegistry` in Core; `PluginLoaderService` via `AssemblyLoadContext`; `PluginsController` REST API
+- **Metrics endpoint (16.6)** — `/metrics` via `prometheus-net.AspNetCore`; `IoTSpyMetrics` with proxy requests, scan durations, anomaly alerts, capture queue depth
+- **Alerting integrations (16.7)** — Slack (blocks API), Teams (MessageCard), PagerDuty Events API v2; severity threshold filtering
+- **NAS APK package support (16.9)** — `docker-compose.nas.yml`; `deploy/nas/asustor/` APK (apkg.info, lifecycle scripts, webman CGI); `scripts/build-asustor-apk.sh`; multi-arch `release.yml` CI publishing to GHCR
+- **Deprioritized within Phase 16** — LDAP/SAML SSO (16.5) and distributed multi-node mode (16.8) remain out of scope; see [GAPS.md](GAPS.md)
+
 ## Phase 18 — React Frontend Performance & Correctness
 
 **Goal:** Fix React best-practices issues identified in code audit; improve rendering performance and eliminate memory leaks.
@@ -198,19 +211,6 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Stream rendering** — `detectStream()` identifies SSE (`text/event-stream`) and NDJSON (`application/x-ndjson`, `application/jsonl`); `StreamEventRow` component renders collapsible per-event rows with chevron, index, label, byte count, optional SSE metadata; expand/collapse-all toggle
 - **Integration tests** — `AdminControllerTests` (10 tests), `CertificatesControllerTests` (2 tests), `UserSafetyGuardsTests` (3 tests)
 
-## Phase 16 — Deployment & Operations
-
-**Goal:** Make IoTSpy production-ready for team deployments with proper TLS, container orchestration, observability, alerting, and package distribution.
-
-- **Kestrel HTTPS (16.1)** — `HttpsCertificateHolder` singleton + `CertesLetsEncryptService`; certificate file or Let's Encrypt via `Certes`; HTTPS on port 5001
-- **Kubernetes Helm chart (16.2)** — `deploy/helm/iotspy/` — Chart.yaml, values.yaml, Deployment, Service, ConfigMap, Secret, Ingress, PVC, HPA, ServiceAccount
-- **Docker Compose improvements (16.3)** — `docker-compose.prod.yml` with Postgres 17, pgAdmin, Traefik v3 reverse proxy with automatic TLS
-- **Plugin system for protocol decoders (16.4)** — `IPluginDecoder` + `IPluginRegistry` in Core; `PluginLoaderService` via `AssemblyLoadContext`; `PluginsController` REST API
-- **Metrics endpoint (16.6)** — `/metrics` via `prometheus-net.AspNetCore`; `IoTSpyMetrics` with proxy requests, scan durations, anomaly alerts, capture queue depth
-- **Alerting integrations (16.7)** — Slack (blocks API), Teams (MessageCard), PagerDuty Events API v2; severity threshold filtering
-- **NAS APK package support (16.9)** — `docker-compose.nas.yml`; `deploy/nas/asustor/` APK (apkg.info, lifecycle scripts, webman CGI); `scripts/build-asustor-apk.sh`; multi-arch `release.yml` CI publishing to GHCR
-- **Deprioritized within Phase 16** — LDAP/SAML SSO (16.5) and distributed multi-node mode (16.8) remain out of scope; see [GAPS.md](GAPS.md)
-
 ## Phase 21 — Passive Proxy Mode
 
 **Goal:** Enable lightweight traffic monitoring with optional persistence, supporting API discovery, compliance auditing, and low-resource deployments — without interception, manipulation, or DB write overhead.
@@ -258,3 +258,43 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **"Assets" promoted to top-level Manipulation tab** — moved out of the nested Content Rules sub-tab; is now a peer tab (Traffic Rules | Breakpoints | Replay | Fuzzer | Content Rules | Assets | API Spec)
 - **"Host" column added** to Content Rules table — visible when rules from multiple hosts are shown together
 - **`ContentReplacementRule` TS type** — `host?: string` field added (was missing from frontend type despite being returned by the backend)
+
+## API & Backend Polish
+
+**Goal:** Consistent API ergonomics, exportable data, and first-class audit trails across all endpoints.
+
+### Export Everywhere
+- **Capture → streaming asset** — `POST /api/captures/{id}/export-as-asset` writes SSE/NDJSON body to `data/assets/` and returns path; `GET /api/captures/{id}/download-body` streams to browser as download; `AssetsPaths.AssetsDirectory` extracted as shared constant; 422 for binary (`b64:`) or non-streaming content types
+- **Fuzzer results export** — `GET /api/manipulation/fuzzer/jobs/{id}/export` returns `application/json` attachment `fuzzer-{id}.json` with all `FuzzerResult` records for the run
+- **Scan findings export** — `GET /api/scanner/jobs/{id}/export` returns `application/json` attachment `scan-{id}.json` with job metadata + all `ScanFinding` records
+- **Ruleset bundle export** — `GET /api/manipulation/export` (optional `?specId=`) returns self-contained JSON bundle: `trafficRules`, `breakpoints`, `contentReplacementRules`, `apiSpecs` (each with embedded `rules`), `referencedAssets` (filenames only, not embedded); archived plan: [docs/archive/2026-04-24-export-everywhere-plan.md](archive/2026-04-24-export-everywhere-plan.md)
+
+### Bulk Operations
+- **Bulk rule enable/disable** — `PATCH /api/manipulation/rules/bulk` with `{ ids, enabled }` body; sets `IsEnabled` on each matching rule; skips missing IDs silently; returns updated count
+- **Cancel-all scans** — `POST /api/scanner/jobs/cancel-all`; iterates running jobs, calls `CancelScanAsync` on each; returns `{ cancelled: N }`
+- **Bulk capture delete by filter** — `DELETE /api/captures` extended with `host`, `method`, `statusCode`, `from`, `to`, `clientIp` query params; routes to `ClearByFilterAsync` (EF Core `ExecuteDeleteAsync`) when any filter is present; falls back to legacy `ClearAsync(deviceId)` when none are
+
+### Consistent Pagination
+- All list endpoints now return `{ items, total, page, pageSize, pages }` envelope — previously only captures and scanner jobs did
+- Endpoints updated: `GET /api/manipulation/rules`, `/api/manipulation/breakpoints`, `/api/manipulation/replays`, `/api/manipulation/fuzzer/jobs`, `/api/scanner/jobs`, `/api/devices`, `/api/apispec`, `/api/contentrules`
+- Frontend API functions transparently unwrap `.items` so React Query hooks remain unchanged
+- Large-dataset endpoints (replays, fuzzer jobs, scan jobs) run `CountAsync` + `GetAllAsync` in parallel; small-dataset endpoints fetch all and slice in the controller
+
+### Configuration Change Audit Trail
+- **`AuditEntry` extended** — `OldValue` and `NewValue` nullable string columns; stores JSON-serialized before/after snapshots of changed entities
+- **EF migration `AddAuditDiffs`** — adds `OldValue TEXT` and `NewValue TEXT` to `AuditEntries`
+- **Controllers updated** — `ManipulationController` (rule + breakpoint update/delete), `ContentRulesController` (content rule update/delete), `ApiSpecController` (spec activate/deactivate) all capture `oldValue = JsonSerializer.Serialize(entity)` before mutation and write `AuditEntry` with both fields
+
+### Manipulation Rule Import
+- **`POST /api/manipulation/import`** — accepts `ImportRulesetDto` bundle (`trafficRules`, `breakpoints`, `contentReplacementRules`, `apiSpecs`); all imported entities receive fresh `Guid.NewGuid()` IDs to avoid conflicts; standalone content rules have `ApiSpecDocumentId` nulled; spec-linked rules are re-linked to the newly created spec's ID; returns `{ rulesImported, breakpointsImported, contentRulesImported, apiSpecsImported }`
+- **Tests** — `BulkOperationsTests` (bulk enable/disable, cancel-all, clear with filter), `PaginationTests` (all 7 paginated list endpoints), `RulesetImportTests` (ID reset, standalone content rules, empty bundle, spec+rules linking); 644 backend tests total, all passing
+
+
+## Frontend Usability Enhancements
+
+**Goal:** Improve day-to-day ergonomics with keyboard shortcuts, security hardening, capture list performance, and a modern data-fetching layer.
+
+- **Keyboard shortcuts** — Global `useKeyboardShortcuts` hook; `Delete` on selected capture row, `Ctrl+S` to save active rule/breakpoint, `Escape` to close modals and dismiss dialogs
+- **Security headers** — CSP, HSTS, `X-Frame-Options`, `X-Content-Type-Options` middleware registered in `Program.cs`; applies to all non-development environments
+- **Virtual scrolling** — Capture list migrated to `react-window` (`VariableSizeList`); handles 100k+ rows without DOM thrashing; row height measured dynamically to accommodate variable-length URLs and response bodies
+- **React Query migration** — All data-fetching hooks migrated from manual `useState`/`useEffect` cycles to TanStack Query (React Query v5); automatic background refetch, stale-while-revalidate caching, and request deduplication across panels; `queryClient.invalidateQueries` replaces manual state resets after mutations

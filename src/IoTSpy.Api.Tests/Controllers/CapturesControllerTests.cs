@@ -82,7 +82,7 @@ public class CapturesControllerTests
         repo.ClearAsync(Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
         var controller = new CapturesController(repo);
-        var result = await controller.Clear(null);
+        var result = await controller.Clear(null, null, null, null, null, null, null, CancellationToken.None);
 
         Assert.IsType<NoContentResult>(result);
         await repo.Received(1).ClearAsync(null, Arg.Any<CancellationToken>());

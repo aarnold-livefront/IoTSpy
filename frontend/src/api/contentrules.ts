@@ -37,7 +37,7 @@ export interface UpdateContentRuleRequest {
 
 export function listContentRules(host?: string): Promise<ContentReplacementRule[]> {
   const qs = host ? `?host=${encodeURIComponent(host)}` : ''
-  return apiFetch<ContentReplacementRule[]>(`/api/contentrules${qs}`)
+  return apiFetch<{ items: ContentReplacementRule[] }>(`/api/contentrules${qs}`).then(r => r.items)
 }
 
 export function createContentRule(req: CreateContentRuleRequest): Promise<ContentReplacementRule> {

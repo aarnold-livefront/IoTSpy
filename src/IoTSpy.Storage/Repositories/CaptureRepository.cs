@@ -59,6 +59,26 @@ public class CaptureRepository(IoTSpyDbContext db) : ICaptureRepository
         await db.SaveChangesAsync(ct);
     }
 
+    public async Task ClearByFilterAsync(CaptureFilter filter, CancellationToken ct = default)
+    {
+        var q = db.Captures.AsQueryable();
+        if (filter.DeviceId.HasValue)
+            q = q.Where(c => c.DeviceId == filter.DeviceId);
+        if (!string.IsNullOrEmpty(filter.HostContains))
+            q = q.Where(c => c.Host.Contains(filter.HostContains));
+        if (!string.IsNullOrEmpty(filter.Method))
+            q = q.Where(c => c.Method == filter.Method.ToUpper());
+        if (filter.StatusCode.HasValue)
+            q = q.Where(c => c.StatusCode == filter.StatusCode);
+        if (filter.From.HasValue)
+            q = q.Where(c => c.Timestamp >= filter.From);
+        if (filter.To.HasValue)
+            q = q.Where(c => c.Timestamp <= filter.To);
+        if (!string.IsNullOrEmpty(filter.ClientIp))
+            q = q.Where(c => c.ClientIp.Contains(filter.ClientIp));
+        await q.ExecuteDeleteAsync(ct);
+    }
+
     private IQueryable<CapturedRequest> ApplyFilter(CaptureFilter filter)
     {
         var q = db.Captures.AsNoTracking();

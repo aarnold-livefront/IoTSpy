@@ -2,7 +2,7 @@ import { apiFetch } from './client'
 import type { Device, DevicePatchRequest } from '../types/api'
 
 export function listDevices(): Promise<Device[]> {
-  return apiFetch<Device[]>('/api/devices')
+  return apiFetch<{ items: Device[] }>('/api/devices').then(r => r.items)
 }
 
 export function getDevice(id: string): Promise<Device> {

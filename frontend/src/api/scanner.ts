@@ -9,7 +9,11 @@ export function startScan(request: StartScanRequest): Promise<ScanJob> {
 }
 
 export function listScanJobs(): Promise<ScanJob[]> {
-  return apiFetch<ScanJob[]>('/api/scanner/jobs')
+  return apiFetch<{ items: ScanJob[] }>('/api/scanner/jobs').then(r => r.items)
+}
+
+export function cancelAllScanJobs(): Promise<{ cancelled: number }> {
+  return apiFetch<{ cancelled: number }>('/api/scanner/jobs/cancel-all', { method: 'POST' })
 }
 
 export function getScanJob(id: string): Promise<ScanJob> {

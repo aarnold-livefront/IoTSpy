@@ -65,7 +65,7 @@ See `.dev/claude-skills/README.md` for full details.
 
 ## Workflow rules
 
-- **Always run `dotnet test` before committing.** All 300+ backend tests must stay green.
+- **Always run `dotnet test` before committing.** All 644 backend tests must stay green.
 - New backend logic needs a corresponding test. Use NSubstitute for mocks; use EF Core SQLite in-memory for repository tests.
 - New EF entities require a migration (`dotnet ef migrations add ...`).
 - Keep `IoTSpy.Core` free of infrastructure dependencies.
@@ -74,12 +74,19 @@ See `.dev/claude-skills/README.md` for full details.
 
 ## Current state
 
-All phases 1–16, 18–22 plus OpenRTB inspection, TLS passthrough/SSL stripping, API Spec Generation & Content-Aware Mocking, collaboration, passive proxy mode, rich-media/SSE content replacement, and content rules decoupling are complete:
-- 608+ backend tests across 8 test projects; 13+ frontend component tests
-- 19 REST controllers, 125+ endpoints (added `PassiveCaptureController`; Phase 22 added rule preview + public asset-content routes; `ContentRulesController` added for standalone content rules at `/api/contentrules`)
-- 18 EF Core migrations up through `DecoupleContentRules`
+All phases 1–16, 18–22 plus API & Backend Polish and Frontend Usability enhancements are complete:
+- 644 backend tests across 8 test projects; 13+ frontend component tests
+- 19 REST controllers, 130+ endpoints
+- 19 EF Core migrations up through `AddAuditDiffs`
 - GitHub Actions CI at `.github/workflows/ci.yml`
 - Helm chart at `deploy/helm/iotspy/`; production Docker Compose at `docker-compose.prod.yml`
+
+### API & Backend Polish (latest)
+- All list endpoints return `{ items, total, page, pageSize, pages }` pagination envelope
+- Bulk rule enable/disable (`PATCH /api/manipulation/rules/bulk`), cancel-all scans (`POST /api/scanner/jobs/cancel-all`), bulk capture delete by filter
+- Fuzzer export (`GET /api/manipulation/fuzzer/jobs/{id}/export`), scan export (`GET /api/scanner/jobs/{id}/export`), ruleset bundle export (`GET /api/manipulation/export`)
+- `AuditEntry` extended with `OldValue`/`NewValue` JSON snapshots; all rule/spec/breakpoint mutations recorded with before/after diff
+- Ruleset import (`POST /api/manipulation/import`) — always resets entity IDs to avoid conflicts
 
 ### Content Rules (post-Phase 22 decoupling)
 `ContentReplacementRule` is now a first-class entity — no API spec required. Standalone rules are scoped by `Host` directly. The proxy pipeline (`ApiSpecMockService.ApplyMockAsync`) merges spec-attached and standalone rules by priority. UI: Manipulation panel has 7 tabs — **Traffic Rules** (header/body/status/delay/drop), **Breakpoints**, **Replay**, **Fuzzer**, **Content Rules** (all rules loaded immediately, host input is a live filter, no gate), **Assets** (promoted to top-level), **API Spec** (documentation-only: generate/import/export/refine).
@@ -94,5 +101,5 @@ Restart the API after running `setcap`. See AGENT.md for full details.
 
 **JSON enum serialization:** `Program.cs` must configure `JsonStringEnumConverter` on *both* `AddControllers().AddJsonOptions(...)` and `AddSignalR().AddJsonProtocol(...)`. Missing the SignalR call causes numeric enum values in live-streamed captures, which crashes the frontend timeline.
 
-See `docs/PLAN.md` for the full phased task list, per-phase details, and roadmap.
+See `docs/PHASES-COMPLETED.md` for full phase details and `docs/PHASES-ROADMAP.md` for the future roadmap.
 See `docs/ARCHITECTURE.md` for the full architecture spec.

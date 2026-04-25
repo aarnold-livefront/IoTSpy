@@ -53,7 +53,9 @@ public class DevicesEndpointTests : IAsyncLifetime
     {
         var response = await _client.GetAsync("/api/devices", TestContext.Current.CancellationToken);
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-        Assert.Equal("[]", body.Trim());
+        var doc = JsonDocument.Parse(body);
+        Assert.True(doc.RootElement.TryGetProperty("items", out var items));
+        Assert.Equal(0, items.GetArrayLength());
     }
 
     [Fact]
