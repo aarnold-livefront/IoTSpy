@@ -2,6 +2,8 @@ using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text;
+using System.Text.Json;
 
 namespace IoTSpy.Api.Controllers;
 
@@ -90,6 +92,17 @@ public class ScannerController(
     {
         await scanJobs.DeleteAsync(id);
         return NoContent();
+    }
+
+    [HttpGet("jobs/{id:guid}/export")]
+    public async Task<IActionResult> ExportFindings(Guid id, CancellationToken ct)
+    {
+        var job = await scanJobs.GetByIdAsync(id, ct);
+        if (job is null) return NotFound();
+        var findings = await scanJobs.GetFindingsAsync(id, ct);
+        var bundle = new { jobId = id, deviceId = job.DeviceId, exportedAt = DateTimeOffset.UtcNow, findings };
+        var json = JsonSerializer.Serialize(bundle, new JsonSerializerOptions { WriteIndented = true });
+        return File(Encoding.UTF8.GetBytes(json), "application/json", $"scan-{id}.json");
     }
 }
 

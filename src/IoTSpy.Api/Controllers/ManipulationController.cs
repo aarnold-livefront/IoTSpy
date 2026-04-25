@@ -3,6 +3,8 @@ using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Text;
+using System.Text.Json;
 
 namespace IoTSpy.Api.Controllers;
 
@@ -16,6 +18,7 @@ public class ManipulationController(
     IReplaySessionRepository replaySessions,
     IFuzzerJobRepository fuzzerJobs,
     ICaptureRepository captures,
+    IApiSpecRepository apiSpecs,
     IAiMockService? aiMockService = null) : ControllerBase
 {
     // ── Rules ────────────────────────────────────────────────────────────────
@@ -266,6 +269,59 @@ public class ManipulationController(
     {
         await fuzzerJobs.DeleteAsync(id);
         return NoContent();
+    }
+
+    [HttpGet("fuzzer/jobs/{id:guid}/export")]
+    public async Task<IActionResult> ExportFuzzerResults(Guid id, CancellationToken ct)
+    {
+        var job = await fuzzerJobs.GetByIdAsync(id, ct);
+        if (job is null) return NotFound();
+        var results = await fuzzerJobs.GetResultsAsync(id, ct);
+        var bundle = new { fuzzerId = id, exportedAt = DateTimeOffset.UtcNow, results };
+        var json = JsonSerializer.Serialize(bundle, new JsonSerializerOptions { WriteIndented = true });
+        return File(Encoding.UTF8.GetBytes(json), "application/json", $"fuzzer-{id}.json");
+    }
+
+    // ── Ruleset bundle ────────────────────────────────────────────────────────
+
+    [HttpGet("export")]
+    public async Task<IActionResult> ExportRuleset([FromQuery] Guid? specId, CancellationToken ct)
+    {
+        var allRules = await rules.GetAllAsync(ct);
+        var allBreakpoints = await breakpoints.GetAllAsync(ct);
+        var standaloneContentRules = await apiSpecs.GetAllStandaloneRulesAsync(ct);
+        var allSpecs = await apiSpecs.GetAllAsync(ct);
+        var specsToExport = specId.HasValue ? allSpecs.Where(s => s.Id == specId.Value).ToList() : allSpecs;
+
+        var specRuleMap = new Dictionary<Guid, List<ContentReplacementRule>>();
+        foreach (var spec in specsToExport)
+            specRuleMap[spec.Id] = await apiSpecs.GetReplacementRulesAsync(spec.Id, ct);
+
+        var apiSpecBundles = specsToExport
+            .Select(s => new { document = s, rules = specRuleMap[s.Id] })
+            .ToList();
+
+        var allContentRules = standaloneContentRules
+            .Concat(specRuleMap.Values.SelectMany(r => r));
+
+        var referencedAssets = allContentRules
+            .Where(r => r.ReplacementFilePath is not null)
+            .Select(r => Path.GetFileName(r.ReplacementFilePath!))
+            .Distinct()
+            .ToList();
+
+        var bundle = new
+        {
+            exportedAt = DateTimeOffset.UtcNow,
+            trafficRules = allRules,
+            breakpoints = allBreakpoints,
+            contentReplacementRules = standaloneContentRules,
+            apiSpecs = apiSpecBundles,
+            referencedAssets
+        };
+
+        var json = JsonSerializer.Serialize(bundle, new JsonSerializerOptions { WriteIndented = true });
+        return File(Encoding.UTF8.GetBytes(json), "application/json", "ruleset.json");
     }
 
     // ── AI Mock ──────────────────────────────────────────────────────────────
