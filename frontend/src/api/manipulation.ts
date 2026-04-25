@@ -16,7 +16,21 @@ import type {
 // ── Rules ────────────────────────────────────────────────────────────────────
 
 export function listRules(): Promise<ManipulationRule[]> {
-  return apiFetch<ManipulationRule[]>('/api/manipulation/rules')
+  return apiFetch<{ items: ManipulationRule[] }>('/api/manipulation/rules').then(r => r.items)
+}
+
+export function bulkUpdateRules(ids: string[], enabled: boolean): Promise<{ updated: number }> {
+  return apiFetch<{ updated: number }>('/api/manipulation/rules/bulk', {
+    method: 'PATCH',
+    body: JSON.stringify({ ids, enabled }),
+  })
+}
+
+export function importRuleset(bundle: unknown): Promise<{ rulesImported: number; breakpointsImported: number; contentRulesImported: number; apiSpecsImported: number }> {
+  return apiFetch('/api/manipulation/import', {
+    method: 'POST',
+    body: JSON.stringify(bundle),
+  })
 }
 
 export function createRule(request: CreateManipulationRuleRequest): Promise<ManipulationRule> {
@@ -40,7 +54,7 @@ export function deleteRule(id: string): Promise<void> {
 // ── Breakpoints ──────────────────────────────────────────────────────────────
 
 export function listBreakpoints(): Promise<Breakpoint[]> {
-  return apiFetch<Breakpoint[]>('/api/manipulation/breakpoints')
+  return apiFetch<{ items: Breakpoint[] }>('/api/manipulation/breakpoints').then(r => r.items)
 }
 
 export function createBreakpoint(request: CreateBreakpointRequest): Promise<Breakpoint> {
@@ -64,7 +78,7 @@ export function deleteBreakpoint(id: string): Promise<void> {
 // ── Replay ───────────────────────────────────────────────────────────────────
 
 export function listReplays(): Promise<ReplaySession[]> {
-  return apiFetch<ReplaySession[]>('/api/manipulation/replays')
+  return apiFetch<{ items: ReplaySession[] }>('/api/manipulation/replays').then(r => r.items)
 }
 
 export function createReplay(request: CreateReplayRequest): Promise<ReplaySession> {
@@ -81,7 +95,7 @@ export function deleteReplay(id: string): Promise<void> {
 // ── Fuzzer ───────────────────────────────────────────────────────────────────
 
 export function listFuzzerJobs(): Promise<FuzzerJob[]> {
-  return apiFetch<FuzzerJob[]>('/api/manipulation/fuzzer/jobs')
+  return apiFetch<{ items: FuzzerJob[] }>('/api/manipulation/fuzzer/jobs').then(r => r.items)
 }
 
 export function startFuzzer(request: StartFuzzerRequest): Promise<FuzzerJob> {

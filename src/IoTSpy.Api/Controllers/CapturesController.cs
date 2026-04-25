@@ -74,9 +74,25 @@ public class CapturesController(ICaptureRepository captures) : ControllerBase
     }
 
     [HttpDelete]
-    public async Task<IActionResult> Clear([FromQuery] Guid? deviceId)
+    public async Task<IActionResult> Clear(
+        [FromQuery] Guid? deviceId,
+        [FromQuery] string? host,
+        [FromQuery] string? method,
+        [FromQuery] int? statusCode,
+        [FromQuery] DateTimeOffset? from,
+        [FromQuery] DateTimeOffset? to,
+        [FromQuery] string? clientIp,
+        CancellationToken ct)
     {
-        await captures.ClearAsync(deviceId);
+        if (host is not null || method is not null || statusCode.HasValue || from.HasValue || to.HasValue || clientIp is not null)
+        {
+            var filter = new CaptureFilter(deviceId, host, method, statusCode, from, to, null, clientIp);
+            await captures.ClearByFilterAsync(filter, ct);
+        }
+        else
+        {
+            await captures.ClearAsync(deviceId, ct);
+        }
         return NoContent();
     }
 

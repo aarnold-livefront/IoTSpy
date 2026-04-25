@@ -31,7 +31,8 @@ public class RulesetBundleExportTests
             Substitute.For<IReplaySessionRepository>(),
             Substitute.For<IFuzzerJobRepository>(),
             Substitute.For<ICaptureRepository>(),
-            apiSpecs);
+            apiSpecs,
+            Substitute.For<IAuditRepository>());
 
         return (controller, rules, breakpoints, apiSpecs);
     }

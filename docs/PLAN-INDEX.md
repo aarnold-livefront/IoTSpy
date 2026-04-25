@@ -21,7 +21,7 @@ This is the primary navigation hub for all project planning, architecture, and i
 → **[docs/ARCHITECTURE.md](ARCHITECTURE.md)** — Full architecture spec, data flow, project structure
 
 ### For Future Planning
-→ **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** — Phases 21–22+, deprioritized Phase 17, long-term vision
+→ **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** — Future enhancement areas, deprioritized Phase 17, long-term vision
 
 ### For Known Issues
 → **[GAPS.md](GAPS.md)** — Technical debt, testing gaps, performance hotspots
@@ -32,10 +32,10 @@ This is the primary navigation hub for all project planning, architecture, and i
 
 | Metric | Value |
 |---|---|
-| **Phases complete** | 1–16, 18–20 (21 of 21 active phases) |
-| **Backend tests** | 517 (all passing) |
-| **Controllers** | 17 REST + 3 SignalR hubs |
-| **Migrations** | 15 |
+| **Phases complete** | 1–16, 18–22 + API & Backend Polish + Frontend Usability |
+| **Backend tests** | 644 (all passing) |
+| **Controllers** | 19 REST + 3 SignalR hubs |
+| **Migrations** | 19 |
 | **Protocols supported** | HTTP/HTTPS, MQTT, DNS, CoAP, WebSocket, gRPC, Modbus, OpenRTB, Telemetry |
 | **Proxy modes** | 3 (explicit, gateway, ARP spoof) |
 | **Auth** | Multi-user RBAC (Admin/Operator/Viewer) |
@@ -51,10 +51,14 @@ This is the primary navigation hub for all project planning, architecture, and i
 |---|---|---|---|
 | **[AGENT-NOTES.md](AGENT-NOTES.md)** | Quick setup, testing, session handoff | Claude Code agents | ~400 lines |
 | **[SKILLS-PLUGINS.md](SKILLS-PLUGINS.md)** | When/how to use skills and plugins | Claude Code agents | ~300 lines |
-| **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** | Detailed phase descriptions (1-16, 18-20) | Contributors, architects | ~550 lines |
-| **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** | Phases 21–22+, deprioritized (Phase 17) | Product managers, strategists | ~200 lines |
+| **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** | All completed phases (1–16, 18–22, API & Backend Polish, Frontend Usability) | Contributors, architects | ~600 lines |
+| **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** | Future enhancement areas (no numbered phases remaining) | Product managers, strategists | ~100 lines |
+| **[PHASES-ARCHIVED.md](PHASES-ARCHIVED.md)** | Archived / formally deprioritized phases (Phase 17) | Reference only | ~50 lines |
 | **[GAPS.md](GAPS.md)** | Known issues, API gaps, security hardening, tech debt | QA, tech leads | ~350 lines |
 | **[DESIGN-DECISIONS.md](DESIGN-DECISIONS.md)** | Architecture decisions, naming, patterns | Architects, senior engineers | ~400 lines |
+| **[CODE-PATTERNS.md](CODE-PATTERNS.md)** | Protocol decoder patterns, common code conventions | Backend engineers | ~200 lines |
+| **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Common debugging scenarios and fixes | All contributors | ~150 lines |
+| **[QUICK-REF.md](QUICK-REF.md)** | Quick command and API reference cheat sheet | All contributors | ~100 lines |
 
 ### Reference Guides
 
@@ -102,16 +106,20 @@ This is the primary navigation hub for all project planning, architecture, and i
 ```
 PLAN-INDEX.md           ~250 lines (this file)
 AGENT-NOTES.md          ~400 lines (setup + checklist)
-PHASES-COMPLETED.md     ~500 lines (all 20 phases)
-PHASES-ROADMAP.md       ~200 lines (future work)
+PHASES-COMPLETED.md     ~600 lines (all phases incl. polish + usability)
+PHASES-ROADMAP.md       ~100 lines (future work — no numbered phases)
+PHASES-ARCHIVED.md       ~50 lines (Phase 17, formally archived)
 GAPS.md                 ~350 lines (issues + API gaps + security hardening)
 DESIGN-DECISIONS.md     ~400 lines (patterns + rationale)
+CODE-PATTERNS.md        ~200 lines (protocol decoder + code conventions)
+TROUBLESHOOTING.md      ~150 lines (debugging scenarios)
+QUICK-REF.md            ~100 lines (command + API cheat sheet)
 ARCHITECTURE.md         ~700 lines (full architecture)
-README.md              ~590 lines (features + API ref)
-CLAUDE.md              ~100 lines (skills + commands)
+README.md               ~590 lines (features + API ref)
+CLAUDE.md               ~100 lines (skills + commands)
 ```
 
-**Total:** ~3,700 lines across 9 files, organized for efficient lookup without requiring full file read.
+**Total:** ~4,000 lines across 13 files, organized for efficient lookup without requiring full file read.
 
 > Line counts are approximate and may drift as content evolves.
 
@@ -132,7 +140,7 @@ CLAUDE.md              ~100 lines (skills + commands)
 | Know when to use `/security-code-review`? | [SKILLS-PLUGINS.md](SKILLS-PLUGINS.md#security-code-review) |
 | Add a protocol decoder? | [CODE-PATTERNS.md](CODE-PATTERNS.md#protocol-decoder-pattern) |
 | Debug a problem? | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
-| Find what's deprioritized? | [PHASES-ROADMAP.md](PHASES-ROADMAP.md#phase-17--protocol-expansion-non-ip-iot-%EF%B8%8F-deprioritized) |
+| Find archived/deprioritized phases? | [PHASES-ARCHIVED.md](PHASES-ARCHIVED.md) |
 | See known issues? | [GAPS.md](GAPS.md#active-gaps) |
 | Understand the architecture? | [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md#core-design-decisions) |
 
@@ -140,11 +148,12 @@ CLAUDE.md              ~100 lines (skills + commands)
 
 | Topic | Answer |
 |---|---|
-| Phases 1-16? | ✅ Complete — see [PHASES-COMPLETED.md](PHASES-COMPLETED.md) |
-| Phases 18-20? | ✅ Complete — see [PHASES-COMPLETED.md](PHASES-COMPLETED.md) (last 3 entries) |
-| Phase 17? | ⏸️ Deprioritized — see [PHASES-ROADMAP.md](PHASES-ROADMAP.md#phase-17--protocol-expansion-non-ip-iot-%EF%B8%8F-deprioritized) |
-| Phase 21? | 📋 Planned — see [PHASES-ROADMAP.md](PHASES-ROADMAP.md#phase-21--passive-proxy-mode-toggle-able-observation) |
-| Phase 22? | 📋 Planned — see [PHASES-ROADMAP.md](PHASES-ROADMAP.md#phase-22--rich-media--stream-content-replacement) |
+| Phases 1–16? | ✅ Complete — see [PHASES-COMPLETED.md](PHASES-COMPLETED.md) |
+| Phases 18–22? | ✅ Complete — see [PHASES-COMPLETED.md](PHASES-COMPLETED.md) |
+| API & Backend Polish? | ✅ Complete — see [PHASES-COMPLETED.md](PHASES-COMPLETED.md) |
+| Frontend Usability? | ✅ Complete — see [PHASES-COMPLETED.md](PHASES-COMPLETED.md) |
+| Phase 17? | 🗄️ Archived — see [PHASES-ARCHIVED.md](PHASES-ARCHIVED.md) |
+| Future work? | 🔭 See [PHASES-ROADMAP.md](PHASES-ROADMAP.md) |
 | Known bugs? | 🔗 See [GAPS.md](GAPS.md#active-gaps) |
 | Tech debt? | 🔗 See [GAPS.md](GAPS.md#technical-debt-items) |
 
@@ -158,15 +167,10 @@ CLAUDE.md              ~100 lines (skills + commands)
 3. Pick a small issue from [GAPS.md](GAPS.md) (severity: Low) and fix it
 4. Submit PR with clear description
 
-### For Phase 21 Work (Passive Mode)
-- Read [PHASES-ROADMAP.md](PHASES-ROADMAP.md#phase-21--passive-proxy-mode-toggle-able-observation)
-- Start with task 21.1 (add enum value, toggle in UI)
+### For New Feature Work
+- Review [PHASES-ROADMAP.md](PHASES-ROADMAP.md) for enhancement areas (Scanner & Anomaly, Protocol Decoder Depth, Longer-Horizon)
+- Check [GAPS.md](GAPS.md#active-gaps) for actionable technical debt
 - Follow feature checklist in [AGENT-NOTES.md](AGENT-NOTES.md#adding-features-checklist)
-
-### For Phase 22 Work (Rich Media Content Replacement)
-- Read [PHASES-ROADMAP.md](PHASES-ROADMAP.md#phase-22--rich-media--stream-content-replacement)
-- Review [GAPS.md](GAPS.md#active-gaps) for the content replacement gap description
-- Start with task 22.1 (binary-safe pipeline in `ContentReplacer.cs`) before touching the UI
 
 ### For Architecture Reviews
 - Read [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md)

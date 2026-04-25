@@ -20,8 +20,14 @@ public class ApiSpecController(
     // ── Spec CRUD ─────────────────────────────────────────────────────────────
 
     [HttpGet]
-    public async Task<IActionResult> List() =>
-        Ok(await specRepo.GetAllAsync());
+    public async Task<IActionResult> List(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 100, CancellationToken ct = default)
+    {
+        pageSize = Math.Clamp(pageSize, 1, 500);
+        var allItems = await specRepo.GetAllAsync(ct);
+        var items = allItems.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+        return Ok(new { items, total = allItems.Count, page, pageSize, pages = (int)Math.Ceiling(allItems.Count / (double)pageSize) });
+    }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> Get(Guid id)

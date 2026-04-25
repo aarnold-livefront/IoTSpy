@@ -8,6 +8,7 @@ public interface IScanJobRepository
     Task<ScanJob?> GetByIdAsync(Guid id, CancellationToken ct = default);
     Task<List<ScanJob>> GetByDeviceIdAsync(Guid deviceId, CancellationToken ct = default);
     Task<List<ScanJob>> GetAllAsync(int page = 1, int pageSize = 20, CancellationToken ct = default);
+    Task<int> CountAsync(CancellationToken ct = default);
     Task<ScanJob> UpdateAsync(ScanJob job, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
     Task AddFindingAsync(ScanFinding finding, CancellationToken ct = default);

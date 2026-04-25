@@ -34,6 +34,9 @@ public class ScanJobRepository(IoTSpyDbContext db) : IScanJobRepository
             .Take(pageSize)
             .ToListAsync(ct);
 
+    public Task<int> CountAsync(CancellationToken ct = default) =>
+        db.ScanJobs.CountAsync(ct);
+
     public async Task<ScanJob> UpdateAsync(ScanJob job, CancellationToken ct = default)
     {
         db.ScanJobs.Update(job);

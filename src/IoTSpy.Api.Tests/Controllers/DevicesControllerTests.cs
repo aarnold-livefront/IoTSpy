@@ -23,11 +23,12 @@ public class DevicesControllerTests
         repo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(new List<Device> { MakeDevice(), MakeDevice() });
 
         var controller = new DevicesController(repo);
-        var result = await controller.List() as OkObjectResult;
+        var result = await controller.List(1, 100, CancellationToken.None) as OkObjectResult;
 
         Assert.NotNull(result);
-        var devices = Assert.IsType<List<Device>>(result.Value);
-        Assert.Equal(2, devices.Count);
+        var json = System.Text.Json.JsonSerializer.Serialize(result.Value);
+        Assert.Contains("\"total\":2", json);
+        Assert.Contains("\"items\"", json);
     }
 
     [Fact]

@@ -23,7 +23,8 @@ public class FuzzerExportTests
             Substitute.For<IReplaySessionRepository>(),
             fuzzerJobs,
             Substitute.For<ICaptureRepository>(),
-            apiSpecs ?? Substitute.For<IApiSpecRepository>());
+            apiSpecs ?? Substitute.For<IApiSpecRepository>(),
+            Substitute.For<IAuditRepository>());
     }
 
     [Fact]

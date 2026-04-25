@@ -15,7 +15,7 @@ import type {
 // ── Specs ───────────────────────────────────────────────────────────────────
 
 export function listSpecs(): Promise<ApiSpecDocument[]> {
-  return apiFetch<ApiSpecDocument[]>('/api/apispec')
+  return apiFetch<{ items: ApiSpecDocument[] }>('/api/apispec').then(r => r.items)
 }
 
 export function getSpec(id: string): Promise<ApiSpecDocument> {

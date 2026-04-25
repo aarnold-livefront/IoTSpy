@@ -55,11 +55,12 @@ public class ApiSpecControllerTests
             .Returns([MakeSpec(), MakeSpec()]);
 
         var controller = CreateController(repo: repo);
-        var result = await controller.List() as OkObjectResult;
+        var result = await controller.List(1, 100, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
-        var specs = Assert.IsType<List<ApiSpecDocument>>(result.Value);
-        Assert.Equal(2, specs.Count);
+        var json = System.Text.Json.JsonSerializer.Serialize(result.Value);
+        Assert.Contains("\"total\":2", json);
+        Assert.Contains("\"items\"", json);
     }
 
     // ── Get ───────────────────────────────────────────────────────────────────
