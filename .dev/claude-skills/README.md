@@ -36,4 +36,4 @@ Once installed, skills activate automatically when Claude detects relevant conte
 
 ## Updating skills
 
-Edit the `SKILL.md` file in the relevant skill directory directly (both the top-level copy and `skills/<name>/SKILL.md`). Skills are loaded from disk, so changes take effect in the next session without reinstalling.
+Edit the `SKILL.md` file at `<plugin>/skills/<name>/SKILL.md`. Skills are loaded from disk, so changes take effect in the next session without reinstalling.
