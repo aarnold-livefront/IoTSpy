@@ -1,487 +1,165 @@
 # IoTSpy — Skills & Plugins Guide
 
-Instructions for when and how to use Claude Code skills and project-specific plugins to enhance development workflow.
-
----
-
-## Table of Contents
-1. [Quick Reference](#quick-reference)
-2. [Global Skills](#global-skills)
-3. [Project-Specific Skills](#project-specific-skills)
-4. [When to Use Each Skill](#when-to-use-each-skill)
-5. [How to Invoke](#how-to-invoke)
-6. [Skill Decision Matrix](#skill-decision-matrix)
+When and how to use Claude Code skills while developing IoTSpy. This guide is **workflow-only** — the skills themselves describe what they cover. For "what does this skill do?" read the SKILL.md inside each plugin under `.dev/claude-skills/<plugin>/skills/<name>/SKILL.md`.
 
 ---
 
 ## Quick Reference
 
-| Skill | Type | When to Use | Example |
-|---|---|---|---|
-| `/dotnet-engineer` | Project | ASP.NET Core/EF Core architecture guidance | "Design a new repository" |
-| `/security-code-review` | Project | Security review before merging | "Review for OWASP issues" |
-| `/threat-modeling` | Project | Threat analysis for new features | "What are the attack vectors?" |
-| `/review` | Global | General code review | Use before major PRs |
-| `/security-review` | Global | Security audit | Use before sensitive PRs |
-| `/simplify` | Global | Code quality cleanup | "Simplify this code" |
-| `/update-config` | Global | Config/settings changes | "Allow npm commands" |
-| `/loop` | Global | Recurring tasks | "Run tests every 5m" |
-| `/claude-api` | Global | Claude API/SDK work | Only if working with API client |
-| `/init` | Global | CLAUDE.md setup | Only for new projects |
+| Skill | Type | Use when |
+|---|---|---|
+| `/dotnet-engineer` | Project | Designing or debugging .NET code (architecture, EF Core, SignalR, Polly, tests) |
+| `/security-code-review` | Project | Reviewing code for security before merging |
+| `/threat-modeling` | Project | Modeling threats for a new feature or design change |
+| `/iotspy-context` | Project | Working in this repo — pair with any of the above for IoTSpy-specific facts and risks |
+| `/review` | Global | General code review |
+| `/security-review` | Global | Security audit of pending changes |
+| `/simplify` | Global | Refactor for clarity after code works |
+| `/update-config` | Global | Settings, hooks, permissions |
+| `/loop` | Global | Recurring tasks |
+| `/claude-api` | Global | Anthropic SDK work (rarely needed here) |
+| `/init` | Global | New CLAUDE.md (already exists) |
+
+Project skills live in `.dev/claude-skills/`. See [`.dev/claude-skills/README.md`](../.dev/claude-skills/README.md) for install commands and the canonical skill list.
 
 ---
 
-## Global Skills
+## Workflow recipes
 
-Available in any Claude Code session (project-agnostic).
+### Adding a new REST endpoint
 
-### `/review`
-**Purpose:** General code review before merging  
-**When:** Before submitting PRs that touch critical code  
-**Example:**
-```
-/review
-# Agent will review current branch changes for quality
-```
+1. `/dotnet-engineer` (+ `/iotspy-context` if unsure of project conventions) — design the controller/repository
+2. Implement following [`CODE-PATTERNS.md`](CODE-PATTERNS.md)
+3. `/review` — code quality
+4. `/security-code-review` — if it touches auth/data
+5. `/simplify` — if the code grew complex
+6. `dotnet test`, then commit
 
-**Covers:**
-- Best practices
-- Code style
-- Potential bugs
-- Performance issues
+### Implementing a new feature (e.g., next phase)
 
----
+1. `/threat-modeling` + `/iotspy-context` — analyze risks upfront, including dual-use tool considerations
+2. `/dotnet-engineer` — architecture
+3. Implement per [`CODE-PATTERNS.md`](CODE-PATTERNS.md)
+4. `/review` then `/security-code-review` (with `/iotspy-context`) before PR
+5. `/simplify` (optional)
+6. `dotnet test`, commit, PR
 
-### `/security-review`
-**Purpose:** Security audit of code changes  
-**When:** Before merging anything handling auth, data, or external input  
-**Example:**
-```
-/security-review
-# Agent will audit for OWASP Top 10 vulnerabilities
-```
+### Fixing a bug
 
-**Covers:**
-- SQL injection / command injection
-- XSS / CSRF
-- Authentication/authorization flaws
-- Sensitive data exposure
-- Cryptography issues
-- Dependency vulnerabilities
+1. Reproduce and diagnose first
+2. `/dotnet-engineer` if the fix path is unclear
+3. Fix, add a regression test, run tests
+4. `/simplify` if surrounding code needs cleanup
+5. Commit
 
----
+### Urgent security fix
 
-### `/simplify`
-**Purpose:** Refactor code for clarity and efficiency  
-**When:** After feature is working; before code review  
-**Example:**
-```
-/simplify
-# Agent will review code for reuse, quality, efficiency
-```
+1. `/security-review` — identify scope
+2. `/dotnet-engineer` if architecture is involved
+3. Implement
+4. `/security-code-review` + `/iotspy-context` — verify the fix and check IoTSpy-specific risks weren't missed (single-user JWT, scripted breakpoints, captured-data exposure)
+5. Tests, commit (mark `SECURITY:`)
 
-**Covers:**
-- Dead code removal
-- DRY violations
-- Inefficient patterns
-- Readability improvements
+### Adding a protocol decoder
 
-**Note:** Use AFTER functionality is complete, not during active development
+1. `/dotnet-engineer` + `/iotspy-context` — pattern guidance
+2. Follow "Protocol Decoder Pattern" in [`CODE-PATTERNS.md`](CODE-PATTERNS.md)
+3. Implement, add packet-fixture tests
+4. `/review`
+5. Commit
+
+### Setting up a new environment / web session
+
+1. `/update-config` — permissions, env vars
+2. `/session-start-hook` — for Claude Code on the web
+3. See `docs/AGENT-NOTES.md` and `docs/QUICK-REF.md`
 
 ---
 
-### `/update-config`
-**Purpose:** Modify Claude Code settings and hooks  
-**When:** Setting up IDE integrations, permissions, environment variables  
-**Example:**
+## Decision matrix
+
 ```
-/update-config
-# Configure settings.json, add permissions, set env vars
-```
-
-**Handles:**
-- Permission management
-- Environment variables
-- Hook configuration
-- IDE settings
-
----
-
-### `/loop`
-**Purpose:** Run tasks on a recurring schedule  
-**When:** Monitoring long-running tasks (builds, deployments, test suites)  
-**Example:**
-```
-/loop 5m dotnet test
-# Run tests every 5 minutes
-```
-
-**Use cases:**
-- Watch for build failures
-- Monitor deployment health
-- Track test suite regressions
-- Poll for CI status
-
----
-
-### `/claude-api`
-**Purpose:** Build/debug Claude API integration  
-**When:** Only if working on code that uses Anthropic SDK  
-**Example:**
-```
-/claude-api
-# Help with Claude API implementation, caching, etc.
-```
-
-**Covers:**
-- Anthropic SDK usage
-- Prompt engineering
-- Token counting
-- Structured outputs
-- Prompt caching
-
-**Note:** Rarely needed for IoTSpy (already has AI mock integration)
-
----
-
-### `/keybindings-help`
-**Purpose:** Configure keyboard shortcuts  
-**When:** Customizing IDE keybindings  
-**Example:**
-```
-/keybindings-help
-# Customize keyboard shortcuts
+What am I doing?           Best skill(s)                            Fallback
+────────────────────────────────────────────────────────────────────────────
+Adding endpoint            /dotnet-engineer + /iotspy-context        /review
+Adding repository          /dotnet-engineer + /iotspy-context        /review
+SignalR hub                /dotnet-engineer + /iotspy-context        /review
+EF Core migration          /dotnet-engineer + /iotspy-context        /review
+Auth code                  /security-code-review + /iotspy-context   /dotnet-engineer
+User CRUD / API keys       /security-code-review                     /dotnet-engineer
+Scripted breakpoint code   /security-code-review + /iotspy-context   /threat-modeling
+Capture/replay/export      /security-code-review + /iotspy-context   /review
+New big feature            /threat-modeling + /iotspy-context        /dotnet-engineer
+Decoder implementation     /dotnet-engineer                          /review
+Frontend code              /review                                   /simplify
+Code cleanup               /simplify                                 /review
+Before any PR              /review (+ /security-code-review)         —
+────────────────────────────────────────────────────────────────────────────
+When uncertain → start with /dotnet-engineer + /iotspy-context
+When security involved → add /security-code-review
+When designing a new feature → add /threat-modeling
 ```
 
 ---
 
-### `/session-start-hook`
-**Purpose:** Set up initialization hooks for web sessions  
-**When:** Setting up Claude Code on the web for this project  
-**Example:**
-```
-/session-start-hook
-# Create SessionStart hook to run setup on web
-```
+## How to invoke
 
----
-
-### `/init`
-**Purpose:** Initialize CLAUDE.md for new projects  
-**When:** Only for NEW projects (not needed here)  
-**Example:**
-```
-/init
-# Create initial CLAUDE.md
-```
-
----
-
-## Project-Specific Skills
-
-Located in `.dev/claude-skills/`. Install once from repo root:
-
-```bash
-# 1. Register local marketplace
-claude plugin marketplace add "$(pwd)/.dev/claude-skills" --scope project
-
-# 2. Install each skill
-claude plugin install dotnet-engineer@iotspy-skills --scope project
-claude plugin install security-code-review@iotspy-skills --scope project
-claude plugin install threat-modeling@iotspy-skills --scope project
-```
-
-### `/dotnet-engineer`
-**Purpose:** ASP.NET Core + EF Core architecture guidance  
-**When:** Designing backend features, troubleshooting .NET issues  
-**Example:**
 ```
 /dotnet-engineer
-Design a new controller for handling device status updates
-```
-
-**Covers:**
-- ASP.NET Core patterns (DI, middleware, filters)
-- EF Core best practices (queries, migrations, relationships)
-- SignalR hub design
-- Polly resilience patterns
-- xUnit / NSubstitute testing
-- Multi-tenant or RBAC patterns
-
-**You should use this for:**
-- ✅ Designing a new REST endpoint
-- ✅ Setting up a new repository
-- ✅ Creating a SignalR hub
-- ✅ Configuring EF Core migrations
-- ✅ Debugging EF Core issues
-- ✅ Planning resilience strategy
-- ✅ Writing integration tests
-- ❌ Frontend code (use `/review` instead)
-- ❌ Protocol decoders (general architecture applies)
-
----
-
-### `/security-code-review`
-**Purpose:** OWASP Top 10 + auth/injection vulnerability review  
-**When:** Before submitting PR, especially for auth/data features  
-**Example:**
-```
-/security-code-review
-Review the new API key endpoint for security issues
-```
-
-**Covers:**
-- OWASP Top 10 vulnerabilities
-- Authentication/authorization flaws
-- SQL injection & command injection
-- XSS & CSRF
-- Sensitive data exposure
-- Cryptographic weaknesses
-- Access control issues
-- Input validation
-
-**You should use this for:**
-- ✅ Auth controller endpoints
-- ✅ API key management code
-- ✅ User CRUD operations
-- ✅ Admin-only endpoints
-- ✅ Data export features
-- ✅ Password hashing logic
-- ✅ Token generation
-- ⚠️  Before merging ANY user-facing endpoint
-- ❌ Decoder implementations (less critical)
-
----
-
-### `/threat-modeling`
-**Purpose:** Structured threat analysis for new features  
-**When:** Designing new feature (especially involving users, data, or external systems)  
-**Example:**
-```
-/threat-modeling
-Analyze threats for the new collaboration/real-time sharing feature
-```
-
-**Covers:**
-- Attack vectors
-- Threat actors
-- Data flow risks
-- Authentication/authorization gaps
-- Denial of service vectors
-- Supply chain risks
-- Mitigation strategies
-
-**You should use this for:**
-- ✅ New features involving user data
-- ✅ Network-exposed APIs
-- ✅ Features with multi-user access
-- ✅ Data export/sharing features
-- ✅ Admin operations
-- ✅ External integrations
-- ⚠️  Phase 21+ (Passive Mode)
-- ❌ Pure decoder/protocol work
-- ❌ Internal utility services
-
----
-
-## When to Use Each Skill
-
-### Scenario 1: Adding a new REST endpoint
-```
-1. Design with /dotnet-engineer (architecture)
-2. Implement following CODE-PATTERNS.md
-3. Review with /review (code quality)
-4. Security audit with /security-code-review (if touching auth/data)
-5. /simplify if code is complex
-6. Commit
-```
-
-### Scenario 2: Implementing new feature (e.g., Phase 21)
-```
-1. /threat-modeling (analyze risks upfront)
-2. /dotnet-engineer (design architecture)
-3. CODE-PATTERNS.md (follow patterns)
-4. /review (code quality)
-5. /security-code-review (before PR)
-6. /simplify (optional cleanup)
-7. Commit & PR
-```
-
-### Scenario 3: Fixing a bug
-```
-1. Reproduce & diagnose
-2. /review if unclear on fix approach
-3. Fix using CODE-PATTERNS.md as reference
-4. Test thoroughly
-5. /simplify if touching related code
-6. Commit
-```
-
-### Scenario 4: Urgent security fix
-```
-1. /security-review (identify scope)
-2. /dotnet-engineer if architecture unclear
-3. Implement fix
-4. /security-code-review (verify fix)
-5. Test
-6. Commit (mark as SECURITY)
-```
-
-### Scenario 5: Adding protocol decoder
-```
-1. /dotnet-engineer (decoder pattern guidance)
-2. CODE-PATTERNS.md ("Protocol Decoder Pattern")
-3. Implement following pattern
-4. /review (code quality)
-5. Test with real packet fixtures
-6. Commit
-```
-
-### Scenario 6: Setting up new environment
-```
-1. /update-config (permissions, env vars)
-2. /session-start-hook (if web session)
-3. AGENT-NOTES.md (setup steps)
-4. Run commands from QUICK-REF.md
-```
-
----
-
-## Skill Decision Matrix
-
-```
-What am I doing?           Best skill(s)              Fallback
-─────────────────────────────────────────────────────────────────
-Adding endpoint            /dotnet-engineer           /review
-Adding repository          /dotnet-engineer           /review
-Adding controller          /dotnet-engineer           /review
-Adding SignalR hub         /dotnet-engineer           /review
-EF Core migration          /dotnet-engineer           /review
-Auth code                  /security-code-review      /dotnet-engineer
-User CRUD                  /security-code-review      /dotnet-engineer
-API keys / tokens          /security-code-review      /dotnet-engineer
-Data export                /security-code-review      /review
-New feature (big)          /threat-modeling           /dotnet-engineer
-Decoder implementation     /dotnet-engineer           /review
-Frontend code              /review                    /simplify
-Code cleanup               /simplify                  /review
-Before PR                  /security-code-review      /review
-General review             /review                    /simplify
-Bug fix                    /review (if unclear)       (none needed)
-Protocol work              /dotnet-engineer           /review
-Test writing               /dotnet-engineer           /review
-─────────────────────────────────────────────────────────────────
-When uncertain → /dotnet-engineer (most general)
-When security involved → /security-code-review
-When designing → /threat-modeling
-When polishing → /simplify
-```
-
----
-
-## How to Invoke
-
-### Using the `/` shorthand (easiest)
-```
-/dotnet-engineer
-Design a repository for the new feature
+Design a repository for managing API keys.
 
 /security-code-review
-Check the auth code for vulnerabilities
+Review the auth controller changes on this branch.
 
 /threat-modeling
-What are the risks in the new collaboration feature?
+What are the risks in the new "share capture by link" feature?
+
+/iotspy-context
+What conventions matter for adding a new SignalR hub here?
 ```
 
-The skill system will automatically:
-- Load the skill definition
-- Expand the prompt
-- Run the skill with full context
-
-### Using the Skill tool (explicit)
-```
-/skill dotnet-engineer
-"Design repository pattern for managing API keys"
-
-/skill security-code-review
-"Review the auth controller for OWASP issues"
-
-/skill threat-modeling
-"Analyze risks in the passive mode feature"
-```
+Skills also activate automatically when relevant context is detected.
 
 ---
 
-## Best Practices
+## Best practices
 
-### ✅ DO
-- Use `/dotnet-engineer` early (design phase, not after coding)
-- Use `/security-code-review` **before pushing** (not after merge)
-- Use `/threat-modeling` **during feature design** (not after implementation)
+**Do**
+- Use `/dotnet-engineer` *during design*, not after coding
+- Use `/security-code-review` *before pushing*, not after merge
+- Use `/threat-modeling` *during feature design*, not after implementation
+- Pair `/iotspy-context` with any of the project skills when working in this repo so IoTSpy-specific risks (dual-use tool, single-user JWT, scripted breakpoints, captured-data confidentiality) get factored in
 - Chain skills: design → code → review → simplify → commit
-- Save skill output in comments (reference for future work)
 
-### ❌ DON'T
-- Use `/dotnet-engineer` for frontend code (use `/review` instead)
-- Ignore `/security-code-review` for auth/data features
-- Skip `/threat-modeling` for user-facing features
-- Use `/simplify` during active development (creates conflicts)
-- Use `/loop` without clear stopping condition (can waste tokens)
-- Use `/claude-api` unless you're actually working with Claude API
+**Don't**
+- Use `/dotnet-engineer` for frontend code (use `/review`)
+- Skip `/security-code-review` for auth, capture/export, or scripted-breakpoint changes
+- Skip `/threat-modeling` for user-facing or network-exposed features
+- Use `/simplify` mid-development (creates merge churn)
+- Use `/loop` without a clear stopping condition
 
 ---
 
-## Skill Output Usage
+## Saving skill output
 
-When a skill completes, save the output in:
-- Code comments (for decisions made)
-- Commit messages (reference architecture review)
-- PR descriptions (link to security review)
+Reference skill output in commit messages and PR descriptions when it shaped a decision. Example:
 
-Example commit:
 ```
 Add API key management endpoints
 
-Reviewed with /security-code-review for:
-- Hash storage safety
-- Scope validation
-- Token generation entropy
-- Audit logging
-
-All OWASP checks passed.
-
-https://claude.ai/code/session_01T6WuGUXCVN5FiXGTruvFx5
+Reviewed with /security-code-review + /iotspy-context for:
+- Hash storage and BCrypt cost factor
+- Scope validation against the single-user JWT model
+- Audit logging coverage
+- Captured-data redaction in audit entries
 ```
 
 ---
 
-## Project-Specific Skill Details
+## See also
 
-See `.dev/claude-skills/README.md` for:
-- Full skill source code
-- Detailed capability documentation
-- Advanced usage examples
-- Customization options
-
-Install them once, then use via `/skill-name` shorthand in any session.
-
----
-
-## Summary: Quick Decision
-
-**Before you code:** Ask yourself these questions
-
-1. **Is this a new backend feature?** → Use `/dotnet-engineer`
-2. **Does it handle auth, data, or users?** → Use `/security-code-review` before PR
-3. **Is it a brand new feature (Phase 21+)?** → Use `/threat-modeling` upfront
-4. **Is my code complex/unclear?** → Use `/simplify` after it works
-5. **Before submitting PR?** → Use `/security-code-review` + `/review`
-
-**Default workflow:**
-```
-Design → Code (per patterns) → Review → Security check → Simplify → Commit
-  ↓       (follow docs)        ↓          ↓             ↓         ↓
- /dotnet  CODE-PATTERNS    /review  /security-review /simplify  git commit
-```
-
-See [PLAN.md](PLAN.md) for task-driven guide, [CODE-PATTERNS.md](CODE-PATTERNS.md) for implementation patterns.
+- [`.dev/claude-skills/README.md`](../.dev/claude-skills/README.md) — install and update instructions
+- Each plugin's `SKILL.md` under `.dev/claude-skills/<plugin>/skills/<name>/SKILL.md` — what the skill covers
+- [`CODE-PATTERNS.md`](CODE-PATTERNS.md) — implementation patterns
+- [`PLAN.md`](PLAN.md) — task-driven guide
+- `CLAUDE.md` and `AGENT.md` — current project state and operational requirements

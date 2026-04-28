@@ -1,9 +1,0 @@
-{
-  "name": "iotspy-skills",
-  "description": "Project-specific Claude Code skills for IoTSpy — .NET engineering, security code review, and threat modeling",
-  "version": "1.0.0",
-  "author": {
-    "name": "IoTSpy"
-  },
-  "license": "MIT"
-}

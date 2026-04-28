@@ -53,13 +53,15 @@ claude plugin marketplace add "$(pwd)/.dev/claude-skills" --scope project
 claude plugin install dotnet-engineer@iotspy-skills --scope project
 claude plugin install security-code-review@iotspy-skills --scope project
 claude plugin install threat-modeling@iotspy-skills --scope project
+claude plugin install iotspy-context@iotspy-skills --scope project
 ```
 
 | Skill | When to use |
 |---|---|
-| `/dotnet-engineer` | ASP.NET Core, EF Core, SignalR, Polly, xUnit/NSubstitute architecture guidance |
-| `/security-code-review` | OWASP Top 10 + auth/injection vulnerability review before merging |
-| `/threat-modeling` | Structured threat analysis for new features or design changes |
+| `/dotnet-engineer` | ASP.NET Core, EF Core, SignalR, Polly, xUnit/NSubstitute architecture guidance (project-agnostic) |
+| `/security-code-review` | Systematic security review across input handling, authz, resources, errors, crypto, secrets, and supply chain |
+| `/threat-modeling` | Structured threat modeling with calibrated severity and dual-use tool considerations |
+| `/iotspy-context` | IoTSpy-specific architecture, conventions, and security caveats — pair with the above when in this repo |
 
 See `.dev/claude-skills/README.md` for full details.
 
