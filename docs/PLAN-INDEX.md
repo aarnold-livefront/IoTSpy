@@ -33,7 +33,7 @@ This is the primary navigation hub for all project planning, architecture, and i
 | Metric | Value |
 |---|---|
 | **Phases complete** | 1–16, 18–22 + API & Backend Polish + Frontend Usability |
-| **Backend tests** | 644 (all passing) |
+| **Backend tests** | 610 (all passing, last verified 2026-04-29) |
 | **Controllers** | 19 REST + 3 SignalR hubs |
 | **Migrations** | 19 |
 | **Protocols supported** | HTTP/HTTPS, MQTT, DNS, CoAP, WebSocket, gRPC, Modbus, OpenRTB, Telemetry |
@@ -98,30 +98,6 @@ This is the primary navigation hub for all project planning, architecture, and i
 - Roadmap: [PHASES-ROADMAP.md](PHASES-ROADMAP.md)
 - Design decisions: [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md)
 - Current gaps: [GAPS.md](GAPS.md)
-
----
-
-## 📚 Document Sizes (optimized for token usage)
-
-```
-PLAN-INDEX.md           ~250 lines (this file)
-AGENT-NOTES.md          ~400 lines (setup + checklist)
-PHASES-COMPLETED.md     ~600 lines (all phases incl. polish + usability)
-PHASES-ROADMAP.md       ~100 lines (future work — no numbered phases)
-PHASES-ARCHIVED.md       ~50 lines (Phase 17, formally archived)
-GAPS.md                 ~350 lines (issues + API gaps + security hardening)
-DESIGN-DECISIONS.md     ~400 lines (patterns + rationale)
-CODE-PATTERNS.md        ~200 lines (protocol decoder + code conventions)
-TROUBLESHOOTING.md      ~150 lines (debugging scenarios)
-QUICK-REF.md            ~100 lines (command + API cheat sheet)
-ARCHITECTURE.md         ~700 lines (full architecture)
-README.md               ~590 lines (features + API ref)
-CLAUDE.md               ~100 lines (skills + commands)
-```
-
-**Total:** ~4,000 lines across 13 files, organized for efficient lookup without requiring full file read.
-
-> Line counts are approximate and may drift as content evolves.
 
 ---
 

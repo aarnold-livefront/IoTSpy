@@ -119,7 +119,7 @@ SignalR hubs:
 
 ## Testing guidance
 
-- Run `dotnet test` before committing; all 350+ backend tests must pass.
+- Run `dotnet test` before committing; all 610 backend tests must pass.
 - New backend code needs corresponding tests. Prefer unit tests with NSubstitute mocks; use EF Core SQLite in-memory for repository tests.
 - Frontend tests use Vitest + React Testing Library (`npm test` inside `frontend/`).
 - CI runs on every push/PR via `.github/workflows/ci.yml`.
@@ -207,6 +207,41 @@ SQLite migrations that call `AlterColumn` generate `PRAGMA foreign_keys = 0` sta
 **Workaround:** Replace `AlterColumn` with direct `migrationBuilder.Sql(...)` calls (e.g. `UPDATE` statements to backfill defaults). See `20260322032005_AddBodyCaptureDefaults.cs` for an example.
 
 Every migration must have a matching `.Designer.cs` file with the `[Migration("...")]` attribute. Without it EF Core never discovers the migration. The Designer file can have a stub `BuildTargetModel` body — the full model is in `IoTSpyDbContextModelSnapshot.cs`.
+
+## Quick workflows
+
+### Add a new controller endpoint
+
+1. Define models in `IoTSpy.Core/Models/`
+2. Define interface in `IoTSpy.Core/Interfaces/`
+3. Implement repository in `IoTSpy.Storage/Repositories/`
+4. Implement controller in `IoTSpy.Api/Controllers/`
+5. Add unit tests in `IoTSpy.Api.Tests/Controllers/`
+6. Run `dotnet test` to verify all tests pass
+
+### Add a new protocol decoder
+
+1. Define `IProtocolDecoder` in `IoTSpy.Core/Interfaces/`
+2. Implement decoder in `IoTSpy.Protocols/Decoders/`
+3. Register in `IoTSpy.Api/Program.cs` (if needed)
+4. Add tests in `IoTSpy.Protocols.Tests/`
+
+### Add a rule or manipulation feature
+
+1. Define models + interfaces in `IoTSpy.Core/`
+2. Implement rules engine logic in `IoTSpy.Manipulation/`
+3. Add EF entity + migration in `IoTSpy.Storage/`
+4. Expose via REST endpoint in `IoTSpy.Api/Controllers/ManipulationController.cs`
+5. Test with `IoTSpy.Manipulation.Tests/`
+
+## Before committing
+
+- [ ] All backend tests pass: `dotnet test`
+- [ ] Frontend tests pass: `cd frontend && npm test`
+- [ ] New backend code has unit tests
+- [ ] No infrastructure dependencies added to `IoTSpy.Core`
+- [ ] New EF entities have a migration (`dotnet ef migrations add ...`)
+- [ ] SignalR changes include `JsonStringEnumConverter` on both controllers and SignalR hub
 
 ## What to avoid
 
