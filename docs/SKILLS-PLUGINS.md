@@ -9,16 +9,17 @@ When and how to use Claude Code skills while developing IoTSpy. This guide is **
 | Skill | Type | Use when |
 |---|---|---|
 | `/dotnet-engineer` | Project | Designing or debugging .NET code (architecture, EF Core, SignalR, Polly, tests) |
-| `/security-code-review` | Project | Reviewing code for security before merging |
+| `/security-code-review` | Project | Reviewing code for security — methodology and IoTSpy-specific risks. **Canonical security review for this repo.** |
 | `/threat-modeling` | Project | Modeling threats for a new feature or design change |
 | `/iotspy-context` | Project | Working in this repo — pair with any of the above for IoTSpy-specific facts and risks |
 | `/review` | Global | General code review |
-| `/security-review` | Global | Security audit of pending changes |
 | `/simplify` | Global | Refactor for clarity after code works |
 | `/update-config` | Global | Settings, hooks, permissions |
 | `/loop` | Global | Recurring tasks |
 | `/claude-api` | Global | Anthropic SDK work (rarely needed here) |
 | `/init` | Global | New CLAUDE.md (already exists) |
+
+> **On security review:** the global `/security-review` skill (auto-audit of pending branch changes) still exists, but for IoTSpy use `/security-code-review` — it carries the methodology, applies cleanly when paired with `/iotspy-context`, and gives consistent output across reviewers. Treat the global one as a fallback for quick ad-hoc audits, not the recommended workflow.
 
 Project skills live in `.dev/claude-skills/`. See [`.dev/claude-skills/README.md`](../.dev/claude-skills/README.md) for install commands and the canonical skill list.
 
@@ -54,10 +55,10 @@ Project skills live in `.dev/claude-skills/`. See [`.dev/claude-skills/README.md
 
 ### Urgent security fix
 
-1. `/security-review` — identify scope
+1. `/security-code-review` + `/iotspy-context` — identify scope and confirm IoTSpy-specific risk surface (single-user JWT, scripted breakpoints, captured-data exposure)
 2. `/dotnet-engineer` if architecture is involved
 3. Implement
-4. `/security-code-review` + `/iotspy-context` — verify the fix and check IoTSpy-specific risks weren't missed (single-user JWT, scripted breakpoints, captured-data exposure)
+4. `/security-code-review` + `/iotspy-context` — verify the fix lands cleanly and didn't open a new surface
 5. Tests, commit (mark `SECURITY:`)
 
 ### Adding a protocol decoder

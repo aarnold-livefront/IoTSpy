@@ -50,7 +50,7 @@ This is the primary navigation hub for all project planning, architecture, and i
 | Document | Purpose | Audience | Length |
 |---|---|---|---|
 | **[AGENT-NOTES.md](AGENT-NOTES.md)** | Quick setup, testing, session handoff | Claude Code agents | ~400 lines |
-| **[SKILLS-PLUGINS.md](SKILLS-PLUGINS.md)** | When/how to use skills and plugins | Claude Code agents | ~300 lines |
+| **[SKILLS-PLUGINS.md](SKILLS-PLUGINS.md)** | When/how to use skills and plugins (workflow recipes + decision matrix) | Claude Code agents | ~165 lines |
 | **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** | All completed phases (1–16, 18–22, API & Backend Polish, Frontend Usability) | Contributors, architects | ~600 lines |
 | **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** | Future enhancement areas (no numbered phases remaining) | Product managers, strategists | ~100 lines |
 | **[PHASES-ARCHIVED.md](PHASES-ARCHIVED.md)** | Archived / formally deprioritized phases (Phase 17) | Reference only | ~50 lines |
@@ -135,9 +135,11 @@ CLAUDE.md               ~100 lines (skills + commands)
 | Run tests? | [AGENT-NOTES.md](AGENT-NOTES.md#testing-before-commit) |
 | Add a new feature? | [AGENT-NOTES.md](AGENT-NOTES.md#adding-features-checklist) |
 | Create an EF Core migration? | [AGENT-NOTES.md](AGENT-NOTES.md#ef-core-migrations) |
-| Use a skill or plugin? | [SKILLS-PLUGINS.md](SKILLS-PLUGINS.md#when-to-use-each-skill) |
-| Know when to use `/dotnet-engineer`? | [SKILLS-PLUGINS.md](SKILLS-PLUGINS.md#dotnet-engineer) |
-| Know when to use `/security-code-review`? | [SKILLS-PLUGINS.md](SKILLS-PLUGINS.md#security-code-review) |
+| Use a skill or plugin? | [SKILLS-PLUGINS.md](SKILLS-PLUGINS.md#workflow-recipes) |
+| Know what `/dotnet-engineer` covers? | [`dotnet-engineer/SKILL.md`](../.dev/claude-skills/dotnet-engineer/skills/dotnet-engineer/SKILL.md) |
+| Know what `/security-code-review` covers? | [`security-code-review/SKILL.md`](../.dev/claude-skills/security-code-review/skills/security-code-review/SKILL.md) |
+| Know what `/threat-modeling` covers? | [`threat-modeling/SKILL.md`](../.dev/claude-skills/threat-modeling/skills/threat-modeling/SKILL.md) |
+| IoTSpy-specific conventions and security caveats? | [`iotspy-context/SKILL.md`](../.dev/claude-skills/iotspy-context/skills/iotspy-context/SKILL.md) |
 | Add a protocol decoder? | [CODE-PATTERNS.md](CODE-PATTERNS.md#protocol-decoder-pattern) |
 | Debug a problem? | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | Find archived/deprioritized phases? | [PHASES-ARCHIVED.md](PHASES-ARCHIVED.md) |

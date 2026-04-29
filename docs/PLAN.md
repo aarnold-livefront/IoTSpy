@@ -75,8 +75,9 @@ export Auth__JwtSecret="your-32-char-secret" && dotnet build && dotnet test
    - Solutions for 30+ problems with step-by-step fixes
    - Best for: "X is broken, how do I fix it?"
 
-5. **[SKILLS-PLUGINS.md](SKILLS-PLUGINS.md)** (300 lines)
-   - When/how to use `/dotnet-engineer`, `/security-code-review`, `/threat-modeling`
+5. **[SKILLS-PLUGINS.md](SKILLS-PLUGINS.md)** (~165 lines)
+   - Workflow recipes, decision matrix, and best practices for `/dotnet-engineer`, `/security-code-review`, `/threat-modeling`, `/iotspy-context`
+   - For *what each skill covers*, read the SKILL.md files under `.dev/claude-skills/`
    - Best for: "When should I use a skill? How do I invoke it?"
 
 ### Planning & Design
