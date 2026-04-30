@@ -519,7 +519,7 @@ src/
   IoTSpy.Scanner/       # Port scan, fingerprinting, CVE lookup, packet capture
   IoTSpy.Manipulation/  # Rules engine, replay, fuzzer, AI mock, OpenRTB PII, packet analysis, API spec generation, content replacement
   IoTSpy.Storage/       # EF Core DbContext, repositories, migrations
-  IoTSpy.Api/           # ASP.NET Core host, 18 controllers, 3 SignalR hubs
+  IoTSpy.Api/           # ASP.NET Core host, 19 controllers, 3 SignalR hubs
 frontend/               # Vite 6 + React 19 + TypeScript dashboard
 docs/
   ARCHITECTURE.md       # Full architecture spec
