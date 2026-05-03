@@ -319,6 +319,29 @@ app.UseSerilogRequestLogging(opts =>
 });
 
 app.UseCors();
+
+// ── Security headers ──────────────────────────────────────────────────────────
+app.Use(async (ctx, next) =>
+{
+    var headers = ctx.Response.Headers;
+    headers["X-Frame-Options"] = "DENY";
+    headers["X-Content-Type-Options"] = "nosniff";
+    headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
+    headers["X-Permitted-Cross-Domain-Policies"] = "none";
+    headers["Content-Security-Policy"] =
+        "default-src 'self'; " +
+        "script-src 'self'; " +
+        "style-src 'self' 'unsafe-inline'; " +
+        "img-src 'self' data: blob:; " +
+        "font-src 'self'; " +
+        "connect-src 'self' ws: wss:; " +
+        "worker-src 'self' blob:; " +
+        "frame-ancestors 'none'";
+    if (!app.Environment.IsDevelopment())
+        headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains";
+    await next();
+});
+
 app.UseAuthentication();
 app.UseAuthorization();
 

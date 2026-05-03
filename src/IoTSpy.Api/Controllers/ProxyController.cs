@@ -50,6 +50,10 @@ public class ProxyController(IProxyService proxy) : ControllerBase
         settings.NetworkInterface = dto.NetworkInterface ?? settings.NetworkInterface;
         settings.SslStrip = dto.SslStrip ?? settings.SslStrip;
         settings.AutoStart = dto.AutoStart ?? settings.AutoStart;
+        if (!string.IsNullOrWhiteSpace(dto.CaCommonName)) settings.CaCommonName = dto.CaCommonName;
+        if (!string.IsNullOrWhiteSpace(dto.CaOrganization)) settings.CaOrganization = dto.CaOrganization;
+        if (!string.IsNullOrWhiteSpace(dto.CaCountry)) settings.CaCountry = dto.CaCountry;
+        if (dto.CaValidityYears is > 0 and <= 30) settings.CaValidityYears = dto.CaValidityYears.Value;
         if (dto.IsPassive == true) settings.Mode = ProxyMode.Passive;
         await proxy.UpdateSettingsAsync(settings, ct);
         return Ok(proxy.GetSettings());
@@ -70,5 +74,9 @@ public record UpdateProxySettingsDto(
     string? NetworkInterface = null,
     bool? SslStrip = null,
     bool? AutoStart = null,
-    bool? IsPassive = null
+    bool? IsPassive = null,
+    string? CaCommonName = null,
+    string? CaOrganization = null,
+    string? CaCountry = null,
+    int? CaValidityYears = null
 );

@@ -90,6 +90,11 @@ export interface ProxySettings {
   targetDeviceIp: string
   gatewayIp: string
   networkInterface: string
+  // CA customization
+  caCommonName: string
+  caOrganization: string
+  caCountry: string
+  caValidityYears: number
 }
 
 export interface CertificateEntry {
@@ -284,6 +289,10 @@ export interface ProxySettingsUpdate {
   targetDeviceIp?: string
   gatewayIp?: string
   networkInterface?: string
+  caCommonName?: string
+  caOrganization?: string
+  caCountry?: string
+  caValidityYears?: number
 }
 
 // ── Filter params ─────────────────────────────────────────────────────────────
