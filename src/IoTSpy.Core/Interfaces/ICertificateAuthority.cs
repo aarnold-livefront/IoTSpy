@@ -12,4 +12,10 @@ public interface ICertificateAuthority
 
     /// <summary>Returns the root CA certificate in DER format for download and installation.</summary>
     Task<byte[]> ExportRootCaDerAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Deletes the existing root CA and all leaf certificates, then generates a new root CA
+    /// using the current ProxySettings CA fields. Call after changing CA customization settings.
+    /// </summary>
+    Task<CertificateEntry> RegenerateRootCaAsync(CancellationToken ct = default);
 }

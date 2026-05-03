@@ -57,23 +57,19 @@ public class CertificatesController(
     [Authorize(Roles = "admin")]
     public async Task<IActionResult> RegenerateRootCa()
     {
-        var all = await certs.GetAllAsync();
-        foreach (var cert in all)
-            await certs.DeleteAsync(cert.Id);
-
-        var newCa = await ca.GetOrCreateRootCaAsync();
+        var newCa = await ca.RegenerateRootCaAsync();
 
         await auditRepo.AddAsync(new AuditEntry
         {
             Username = User.Identity?.Name ?? "system",
             Action = "RegenerateRootCA",
             EntityType = "CertificateEntry",
-            EntityId = newCa?.Id.ToString(),
+            EntityId = newCa.Id.ToString(),
             Details = "Regenerated root CA and purged all leaf certificates",
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? ""
         });
 
-        return Ok(new { message = "Root CA regenerated", commonName = newCa?.CommonName, id = newCa?.Id });
+        return Ok(new { message = "Root CA regenerated", commonName = newCa.CommonName, id = newCa.Id });
     }
 
     [HttpDelete("{id:guid}")]

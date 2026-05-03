@@ -182,8 +182,13 @@ public class CertificateAuthorityTests
         mockRepo.SaveAsync(Arg.Any<CertificateEntry>(), Arg.Any<CancellationToken>())
             .Returns(c => c.Arg<CertificateEntry>());
 
+        var mockSettingsRepo = Substitute.For<IProxySettingsRepository>();
+        mockSettingsRepo.GetAsync(Arg.Any<CancellationToken>())
+            .Returns(new ProxySettings());
+
         var serviceProvider = Substitute.For<IServiceProvider>();
         serviceProvider.GetService(typeof(ICertificateRepository)).Returns(mockRepo);
+        serviceProvider.GetService(typeof(IProxySettingsRepository)).Returns(mockSettingsRepo);
 
         var scope = Substitute.For<IServiceScope>();
         scope.ServiceProvider.Returns(serviceProvider);

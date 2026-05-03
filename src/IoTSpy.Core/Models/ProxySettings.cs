@@ -23,6 +23,12 @@ public class ProxySettings
     public string GatewayIp { get; set; } = string.Empty;
     public string NetworkInterface { get; set; } = string.Empty;
 
+    // ── CA certificate customization ────────────────────────────────────
+    public string CaCommonName { get; set; } = "IoTSpy CA";
+    public string CaOrganization { get; set; } = "IoTSpy";
+    public string CaCountry { get; set; } = "US";
+    public int CaValidityYears { get; set; } = 10;
+
     // ── SSL stripping ────────────────────────────────────────────────────
     public bool SslStrip { get; set; }
 

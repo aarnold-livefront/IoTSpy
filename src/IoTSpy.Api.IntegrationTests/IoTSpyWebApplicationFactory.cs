@@ -66,6 +66,10 @@ public class IoTSpyWebApplicationFactory : WebApplicationFactory<Program>
 
             // No-op certificate authority
             var ca = Substitute.For<ICertificateAuthority>();
+            var fakeCa = new CertificateEntry { CommonName = "IoTSpy CA Test", IsRootCa = true };
+            ca.GetOrCreateRootCaAsync(Arg.Any<CancellationToken>()).Returns(fakeCa);
+            ca.RegenerateRootCaAsync(Arg.Any<CancellationToken>()).Returns(fakeCa);
+            ca.ExportRootCaDerAsync(Arg.Any<CancellationToken>()).Returns([]);
             services.AddSingleton(ca);
         });
 

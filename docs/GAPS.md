@@ -8,7 +8,6 @@ This document tracks remaining gaps, known limitations, and technical debt. Item
 
 | Gap | Description | Severity | Status | Notes |
 |---|---|---|---|---|
-| Customization of CA Certificate | Customize CN, Organization, and validity properties on the proxy CA cert | Medium | Open | UX enhancement; currently uses hardcoded values |
 | Content replacement: binary & SSE | `ContentReplacer` doesn't correctly handle image/video replacement or SSE stream mocking with local files | High | Open | See Phase 22 in PHASES-ROADMAP.md |
 | No LDAP / SAML SSO | Enterprise single sign-on not implemented | Low | Open | Deprioritized in Phase 16.5; valid candidate for future work |
 | No distributed / multi-node mode | Single-instance proxy per deployment; horizontal scaling requires Redis backplane | Low | Open | Deprioritized in Phase 16.8; see Design Assumptions |
@@ -18,46 +17,19 @@ This document tracks remaining gaps, known limitations, and technical debt. Item
 
 ## Frontend Usability Gaps
 
-Quick wins — no schema changes required unless noted.
-
-### Missing Confirmations
-
-Delete operations outside of Admin tabs lack confirmation dialogs. The admin pattern (`UsersTab.tsx`, `DatabaseTab.tsx`) already works and should be applied consistently:
-
-- `ManipulationController` rule and breakpoint deletes (`RulesEditor.tsx`, `BreakpointsEditor.tsx`)
-- Fuzzer job cancellation/delete (`FuzzerPanel.tsx`)
-- Scanner job cancel (`ScannerPanel.tsx`)
-- Capture list clear button (`CaptureList.tsx`)
-- Session delete (`SessionsPanel.tsx`)
-
-### Export Buttons Not Wired Up
-
-The backend already implements `GET /api/captures/export?format=csv|json|har` and `GET /api/admin/export/config` but `CaptureList.tsx` exposes no export controls. Backend work: none. Frontend: add a dropdown export button to the capture list toolbar.
-
-Similarly, fuzzer results and scan findings have no export path at all (see API Completeness below).
-
 ### Pagination UI Incomplete
 
-`CapturesController` returns `pages` and `total` in every response, and `useCaptures.ts` has `loadMore`, but the UI has no "page N of M" indicator or jump-to-page control. Users with large capture histories have no way to navigate to specific time windows efficiently.
+`CapturesController` returns `pages` and `total` in every response, and `useCaptures.ts` uses infinite-scroll `loadMore`. The UI has no "page N of M" indicator or jump-to-page control. Users with large capture histories have no way to navigate to specific time windows efficiently.
 
 `/api/manipulation/rules` and `/api/manipulation/breakpoints` return flat arrays with no pagination at all — a performance problem at scale (see API Completeness below).
-
-### Empty States Need Next-Step Guidance
-
-The capture list has a helpful onboarding hint. Other panels show only "No data":
-
-- Manipulation rules and breakpoints panels — hint: "Create a rule to modify matching traffic"
-- Scanner panel with no jobs — hint: "Select a device and start a port scan"
-- Sessions panel with no sessions — hint: "Create a session to start collaborating"
-- Fuzzer panel with no jobs — hint: "Select a captured request to begin fuzzing"
-
-### Missing Keyboard Shortcuts
-
-No keyboard navigation in any data grid or list. Common expectations: `Delete` on selected row, `Escape` to close modals, `Enter` to confirm dialogs, `Ctrl+S` to save rule/breakpoint editor. A global `useKeyboardShortcuts` hook could cover all panels.
 
 ### Session Filtering Not Exposed
 
 `GET /api/sessions` returns all sessions regardless of creator. No `?createdBy=me` filter exists in the repository layer (`IInvestigationSessionRepository`) or the API. Operators with many sessions have no way to see "my sessions" without scrolling through everything.
+
+### Missing Keyboard Shortcuts
+
+No keyboard navigation in any data grid or list. Common expectations: `Delete` on selected row, `Escape` to close modals, `Enter` to confirm dialogs, `Ctrl+S` to save rule/breakpoint editor. A global `useKeyboardShortcuts` hook could cover all panels.
 
 ---
 
@@ -65,26 +37,10 @@ No keyboard navigation in any data grid or list. Common expectations: `Delete` o
 
 ### Missing Bulk Operations
 
-All list-mutating endpoints are single-item only. High-volume workflows (clearing a ruleset, cancelling all scans) require N individual HTTP calls:
-
 | Missing endpoint | Affected controller | Use case |
 |---|---|---|
 | `DELETE /api/manipulation/rules` (by id list or `?all=true`) | `ManipulationController` | Clear/reset ruleset |
-| `PATCH /api/manipulation/rules/enabled` (bulk toggle) | `ManipulationController` | Enable/disable a group of rules |
-| `POST /api/scanner/jobs/cancel-all` | `ScannerController` | Abort all running scans |
 | `DELETE /api/scanner/jobs` (bulk by status/date) | `ScannerController` | Purge old scan history |
-| `DELETE /api/captures/bulk` (by device/date/host) | `CapturesController` | Targeted data cleanup outside admin page |
-
-### Missing Export Endpoints
-
-| Data | Controller | Gap |
-|---|---|---|
-| Fuzzer results | `ManipulationController` | No export; DB only |
-| Scan findings | `ScannerController` | No export; DB only |
-| Manipulation rules + breakpoints as portable JSON | `ManipulationController` | Import/export for sharing rulesets between environments |
-| OpenRTB PII policies | `OpenRtbController` | No export; DB only |
-
-The admin config export (`GET /api/admin/export/config`) covers some config tables but is admin-role gated and not suitable for operator-level ruleset sharing.
 
 ### Missing Pagination on List Endpoints
 
@@ -99,37 +55,9 @@ The admin config export (`GET /api/admin/export/config`) covers some config tabl
 | `GET /api/manipulation/fuzzer/jobs` | None | Filter by `status`, `targetCapture` |
 | `GET /api/captures` | Good (host, protocol, status, date, device) | Full-text search in request/response headers |
 
-### No Audit Trail for Configuration Changes
-
-`AuditEntry` tracks user authentication and CRUD on users/API keys, but configuration changes are invisible:
-
-- Rule creation/update/delete
-- Breakpoint script changes (security-sensitive — scripts execute code)
-- API spec activation/deactivation
-- Content replacement rule changes
-- OpenRTB PII policy changes
-
-Before/after JSON diffs on these operations would make configuration drift auditable. Model change: add `OldValue` and `NewValue` (nullable text) to `AuditEntry`.
-
 ---
 
 ## Security Hardening
-
-### Missing HTTP Security Headers
-
-No security headers middleware in `Program.cs`. A single `app.Use(...)` call or `NWebsec` package covers all of these:
-
-| Header | Value needed | Risk without |
-|---|---|---|
-| `Content-Security-Policy` | `default-src 'self'; script-src 'self'` | XSS via injected scripts |
-| `X-Frame-Options` | `DENY` | Clickjacking |
-| `X-Content-Type-Options` | `nosniff` | MIME-type sniffing attacks |
-| `Strict-Transport-Security` | `max-age=31536000` | SSL stripping against the dashboard itself |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` | URL leakage |
-
-### Rate Limiting Disabled by Default
-
-The sliding-window rate limiter is fully configured in `Program.cs` (~line 174) but off by default. It should default-on for production, with the option to disable in development via `appsettings.Development.json`. No endpoint-specific limits exist (e.g., login attempts should be stricter than GET endpoints).
 
 ### No Input Validation Framework
 
@@ -140,10 +68,6 @@ Controllers use ad-hoc `if (string.IsNullOrWhiteSpace(...))` guards. No formal v
 - File upload MIME type only checked by extension, not magic bytes
 
 Recommendation: FluentValidation with validators per request DTO; add regex pre-compile check in `ManipulationRule` validation.
-
-### Missing Production Config Example
-
-No `appsettings.Production.json` example exists. New deployers must reverse-engineer production settings from code. Minimum needed: DB connection string, TLS cert path, CORS origin, rate limit enable, JWT secret source.
 
 ---
 
@@ -184,8 +108,7 @@ Decoders exist for all major protocols but vary in depth. These are not blockers
 1. **Rule evaluation** — 100+ rules on 10k captures → full table scan each time; regex caching or compiled-rule cache needed
 2. **JSON schema inference** — Recursive object traversal on large payloads; cache schema per `(host, path, method)` tuple
 3. **Packet capture ring buffer** — 10k packet hard limit; large capture bursts will drop packets; consider configurable or dynamic sizing
-4. **Frontend capture list** — Virtual scrolling would improve responsiveness with 100k+ rows
-5. **`ContentReplacer.ApplyAsync`** — No streaming; entire response body loaded into memory; problematic for large video/binary replacements
+4. **`ContentReplacer.ApplyAsync`** — No streaming; entire response body loaded into memory; problematic for large video/binary replacements
 
 ### Optimization Opportunities
 
@@ -216,7 +139,6 @@ These assumptions should be revisited if requirements change:
 |---|---|---|
 | Operator runbook | Basic | Need: troubleshooting guide, log interpretation, health check procedures |
 | Deployment guides | Minimal | Docker Compose (dev) + Helm chart exist; need: bare-metal, systemd, production hardening guide |
-| Production config example | Missing | `appsettings.Production.json` template with all required settings |
 | Performance tuning | None | Connection pool sizing, rate limit tuning, ring buffer sizing, cache strategies |
 | Content replacement guide | Partial | How to match and replace JSON/text covered; binary (image/video/audio) and SSE not documented |
 | Extension guides | Partial | Protocol decoders, AI providers covered; custom UI components and plugin development not covered |
@@ -226,7 +148,7 @@ These assumptions should be revisited if requirements change:
 ## Security Audit Notes
 
 - Root CA private key stored in local database (not HSM-protected); acceptable for research tool, not production
-- API endpoints require Bearer token or API key; no rate limiting on `/api/auth/setup` (mitigated by one-time-only check)
+- API endpoints require Bearer token or API key; rate limiting enabled by default; dev overrides via `appsettings.Development.json`
 - TLS MITM disabled in passthrough mode (`CaptureTls=false`); metadata extraction only
 - SSL stripping requires explicit `SslStrip=true` flag; off by default
 - Audit log immutable in design but not enforced at DB level; could add write-once table constraint
@@ -234,10 +156,40 @@ These assumptions should be revisited if requirements change:
 
 ---
 
+## Suggestions for Next Contributors
+
+1. **Binary & SSE content replacement** (Phase 22 continuation) — High-value for ad/tracking research; streaming pipeline needed in `ContentReplacer.ApplyAsync`
+2. **FluentValidation** — Add per-DTO validators; regex pre-compile check in `ManipulationRule` would prevent runtime crashes
+3. **Add missing controller tests** — `ManipulationControllerTests`, `ScannerControllerTests`, `SessionsControllerTests` would meaningfully improve coverage (currently no test file for these)
+4. **Pagination on rules/breakpoints endpoints** — `GET /api/manipulation/rules` and `/api/manipulation/breakpoints` return unbounded arrays; add `?page=&pageSize=` consistent with `CapturesController`
+5. **Session filtering** — Add `?createdBy=me` filter to `GET /api/sessions` so operators can scope to their own sessions
+6. **Avoid Phase 17.3+** (Zigbee/BLE) — Requires specialized hardware; hard to test in CI
+7. **Keep `IoTSpy.Core` dep-free** — New models/interfaces should go there; no infrastructure references
+
+See [AGENT-NOTES.md](AGENT-NOTES.md) for session setup and testing instructions.
+
+---
+
 ## Resolved Items
 
-### Phase 16 (Deployment & Operations)
-- ~~No HTTPS for the API itself~~ — `HttpsCertificateHolder` + `CertesLetsEncryptService` added in Phase 16.1; HTTPS on port 5001 with cert file or Let's Encrypt via `Certes`
+### Security Headers & Rate Limiting (2026-05-03)
+- ~~Missing HTTP security headers~~ — Middleware added in `Program.cs`: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `X-Permitted-Cross-Domain-Policies`, `Content-Security-Policy`, and `Strict-Transport-Security` (production-only)
+- ~~Rate limiting off by default~~ — `RateLimit.Enabled=true` in `appsettings.json`; `RateLimit.Enabled=false` in `appsettings.Development.json` disables it in dev
+- ~~Missing `appsettings.Production.json` example~~ — Template added at `src/IoTSpy.Api/appsettings.Production.json` with Postgres, HTTPS, rate limiting, data retention, and Serilog file sink
+
+### CA Certificate Customization (2026-05-03)
+- ~~CA certificate CN/O/C/validity hardcoded~~ — Added `CaCommonName`, `CaOrganization`, `CaCountry`, `CaValidityYears` to `ProxySettings`; `CertificateAuthority.GenerateRootCa()` reads these values; EF migration `AddCaCustomizationFields` applies defaults; `SettingsModal.tsx` exposes a new "CA Certificate" section; `PUT /api/proxy/settings` accepts the new fields; `ICertificateAuthority.RegenerateRootCaAsync()` atomically clears caches and regenerates using current settings
+
+### API & Backend Polish (prior session)
+- ~~Bulk operations missing~~ — Bulk rule enable/disable (`PATCH /api/manipulation/rules/bulk`), cancel-all scans (`POST /api/scanner/jobs/cancel-all`), bulk capture delete by filter
+- ~~Missing export endpoints~~ — Fuzzer export (`GET /api/manipulation/fuzzer/jobs/{id}/export`), scan export (`GET /api/scanner/jobs/{id}/export`), ruleset bundle export (`GET /api/manipulation/export`), ruleset import (`POST /api/manipulation/import`)
+- ~~No audit trail for config changes~~ — `AuditEntry` extended with `OldValue`/`NewValue` JSON snapshots; all rule/spec/breakpoint mutations recorded with before/after diffs
+
+### Frontend Usability (prior session)
+- ~~Missing confirmation dialogs~~ — `RulesEditor`, `BreakpointsEditor`, `FuzzerPanel`, `ScanJobList` (delete), and `SessionsPanel` all use `ConfirmDialog`
+- ~~Export buttons not wired~~ — `CaptureList` toolbar has CSV/JSON/HAR export dropdown
+- ~~Empty states need guidance~~ — All major panels have onboarding hints (manipulation rules, fuzzer, scanner, sessions)
+- ~~Frontend capture list performance~~ — `react-window` + `AutoSizer` for virtual scrolling; infinite scroll via `loadMore`
 
 ### Phase 20 (Admin UI & Body Viewer)
 - ~~Stray draft components in `src/IoTSpy.React/`~~ — `PacketAnalysisView.tsx` and `NetworkDeviceSelector.tsx` deleted; unique functionality migrated into `PacketListFilterable.tsx`
@@ -248,16 +200,5 @@ These assumptions should be revisited if requirements change:
 - ~~Dashboard not responsive~~ — Responsive CSS with mobile breakpoints (480px, 768px, 1024px)
 - ~~TLS passthrough/SSL strip untested~~ — `TlsClientHelloParserTests` (13 tests), `TlsServerHelloParserTests` (11 tests), `SslStripServiceTests` (14 tests)
 
----
-
-## Suggestions for Next Contributors
-
-1. **Start with Phase 21** (Passive Mode) — Well-scoped, clear requirements, minimal API changes
-2. **Or Phase 22** (Rich Media Content Replacement) — High-value for ad/tracking research; well-defined scope
-3. **Quick security wins** — Security headers and default rate limiting are 30-minute tasks with immediate production-readiness value
-4. **Add missing controller tests** — `ManipulationControllerTests`, `ScannerControllerTests`, `SessionsControllerTests` would meaningfully improve coverage
-5. **CA certificate customization** — Medium-severity UX improvement, fully self-contained
-6. **Avoid Phase 17.3+** (Zigbee/BLE) — Requires specialized hardware; hard to test in CI
-7. **Keep `IoTSpy.Core` dep-free** — New models/interfaces should go there; no infrastructure references
-
-See [AGENT-NOTES.md](AGENT-NOTES.md) for session setup and testing instructions.
+### Phase 16 (Deployment & Operations)
+- ~~No HTTPS for the API itself~~ — `HttpsCertificateHolder` + `CertesLetsEncryptService` added in Phase 16.1; HTTPS on port 5001 with cert file or Let's Encrypt via `Certes`

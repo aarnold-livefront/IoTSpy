@@ -34,6 +34,8 @@ public class CertificateAuthority(
         await _lock.WaitAsync(ct);
         try
         {
+            if (_cachedRootCa is not null) return _cachedRootCa;
+
             using var scope = scopeFactory.CreateScope();
             var repository = scope.ServiceProvider.GetRequiredService<ICertificateRepository>();
 
@@ -45,17 +47,44 @@ public class CertificateAuthority(
                 return existing;
             }
 
-            logger.LogInformation("Generating new IoTSpy root CA certificate...");
-            var (entry, keyPair) = GenerateRootCa();
+            logger.LogInformation("Generating new root CA certificate...");
+            var settings = await scope.ServiceProvider
+                .GetRequiredService<IProxySettingsRepository>()
+                .GetAsync(ct);
+            var (entry, keyPair) = GenerateRootCa(
+                settings.CaCommonName, settings.CaOrganization, settings.CaCountry, settings.CaValidityYears);
             _cachedRootCa = await repository.SaveAsync(entry, ct);
             _cachedRootKeyPair = keyPair;
-            logger.LogInformation("Root CA generated: Serial={Serial}", entry.SerialNumber);
+            logger.LogInformation("Root CA generated: CN={CN}, Serial={Serial}", entry.CommonName, entry.SerialNumber);
             return _cachedRootCa;
         }
         finally
         {
             _lock.Release();
         }
+    }
+
+    public async Task<CertificateEntry> RegenerateRootCaAsync(CancellationToken ct = default)
+    {
+        await _lock.WaitAsync(ct);
+        try
+        {
+            using var scope = scopeFactory.CreateScope();
+            var repository = scope.ServiceProvider.GetRequiredService<ICertificateRepository>();
+            var all = await repository.GetAllAsync(ct);
+            foreach (var cert in all)
+                await repository.DeleteAsync(cert.Id, ct);
+
+            _cachedRootCa = null;
+            _cachedRootKeyPair = null;
+            _hostCertCache.Clear();
+        }
+        finally
+        {
+            _lock.Release();
+        }
+
+        return await GetOrCreateRootCaAsync(ct);
     }
 
     // Apple requires TLS leaf certificates to have a validity period ≤ 398 days
@@ -113,15 +142,19 @@ public class CertificateAuthority(
         return cert.Export(X509ContentType.Cert);
     }
 
-    private (CertificateEntry entry, AsymmetricCipherKeyPair keyPair) GenerateRootCa()
+    private (CertificateEntry entry, AsymmetricCipherKeyPair keyPair) GenerateRootCa(
+        string commonName = "IoTSpy CA",
+        string organization = "IoTSpy",
+        string country = "US",
+        int validityYears = 10)
     {
         var keyPair = GenerateKeyPair(4096);
         var serial = BigInteger.ProbablePrime(128, SecureRandom);
         var notBefore = DateTime.UtcNow.AddDays(-1);
-        var notAfter = DateTime.UtcNow.AddYears(10);
+        var notAfter = DateTime.UtcNow.AddYears(validityYears);
 
         var gen = new X509V3CertificateGenerator();
-        var subject = new X509Name("CN=IoTSpy CA, O=IoTSpy, C=US");
+        var subject = new X509Name($"CN={commonName}, O={organization}, C={country}");
         gen.SetSerialNumber(serial);
         gen.SetIssuerDN(subject);
         gen.SetSubjectDN(subject);
@@ -150,7 +183,7 @@ public class CertificateAuthority(
 
         var entry = new CertificateEntry
         {
-            CommonName = "IoTSpy CA",
+            CommonName = commonName,
             CertificatePem = CertToPem(cert),
             PrivateKeyPem = KeyToPem(keyPair.Private),
             SerialNumber = serial.ToString(16),
