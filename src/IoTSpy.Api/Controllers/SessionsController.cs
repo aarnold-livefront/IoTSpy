@@ -32,11 +32,12 @@ public class SessionsController(
 
     // ── Session CRUD ─────────────────────────────────────────────────────────────
 
-    /// <summary>GET /api/sessions — list all active investigation sessions.</summary>
+    /// <summary>GET /api/sessions — list active investigation sessions. Use ?createdByMe=true to scope to the current user.</summary>
     [HttpGet]
-    public async Task<IActionResult> GetAll([FromQuery] bool includeInactive = false)
+    public async Task<IActionResult> GetAll([FromQuery] bool includeInactive = false, [FromQuery] bool createdByMe = false)
     {
-        var sessions = await sessionRepo.GetAllAsync(includeInactive);
+        var userId = createdByMe && CurrentUserId != Guid.Empty ? CurrentUserId : (Guid?)null;
+        var sessions = await sessionRepo.GetAllAsync(includeInactive, userId);
         return Ok(sessions.Select(SessionToDto));
     }
 

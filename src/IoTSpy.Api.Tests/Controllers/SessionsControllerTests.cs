@@ -61,7 +61,7 @@ public class SessionsControllerTests
     public async Task GetAll_ReturnsActiveSessions()
     {
         var (controller, sessionRepo, _, _, _) = CreateController();
-        sessionRepo.GetAllAsync(false, Arg.Any<CancellationToken>())
+        sessionRepo.GetAllAsync(false, Arg.Any<Guid?>(), Arg.Any<CancellationToken>())
             .Returns(new List<InvestigationSession>
             {
                 new() { Name = "Alpha", IsActive = true },

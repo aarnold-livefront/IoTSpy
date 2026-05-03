@@ -23,9 +23,9 @@ This document tracks remaining gaps, known limitations, and technical debt. Item
 
 `/api/manipulation/rules` and `/api/manipulation/breakpoints` return flat arrays with no pagination at all — a performance problem at scale (see API Completeness below).
 
-### Session Filtering Not Exposed
+~~### Session Filtering Not Exposed~~
 
-`GET /api/sessions` returns all sessions regardless of creator. No `?createdBy=me` filter exists in the repository layer (`IInvestigationSessionRepository`) or the API. Operators with many sessions have no way to see "my sessions" without scrolling through everything.
+~~`GET /api/sessions` returns all sessions regardless of creator.~~ — Resolved: `?createdByMe=true` query param added to `GET /api/sessions`. Passes `CurrentUserId` as `createdByUserId` filter through `IInvestigationSessionRepository.GetAllAsync`.
 
 ### Missing Keyboard Shortcuts
 
@@ -34,13 +34,6 @@ No keyboard navigation in any data grid or list. Common expectations: `Delete` o
 ---
 
 ## API Completeness Gaps
-
-### Missing Bulk Operations
-
-| Missing endpoint | Affected controller | Use case |
-|---|---|---|
-| `DELETE /api/manipulation/rules` (by id list or `?all=true`) | `ManipulationController` | Clear/reset ruleset |
-| `DELETE /api/scanner/jobs` (bulk by status/date) | `ScannerController` | Purge old scan history |
 
 ### Missing Pagination on List Endpoints
 
@@ -61,13 +54,12 @@ No keyboard navigation in any data grid or list. Common expectations: `Delete` o
 
 ### No Input Validation Framework
 
-Controllers use ad-hoc `if (string.IsNullOrWhiteSpace(...))` guards. No formal validation layer means:
-- Port range inputs not validated (e.g., port 99999 accepted)
-- Regex patterns in rules not validated before storage (an invalid regex will crash rule evaluation at runtime)
-- IP/hostname fields accept arbitrary strings
-- File upload MIME type only checked by extension, not magic bytes
+~~Controllers use ad-hoc guards.~~ — Partially resolved: `FluentValidation.AspNetCore` added; auto-validation registered in `Program.cs`. Validators implemented:
+- `CreateRuleDtoValidator` / `UpdateRuleDtoValidator` — `Name` required, regex patterns pre-compiled and rejected if invalid, `OverrideStatusCode` 100–599, `DelayMs` ≥ 0.
+- `CreateBreakpointDtoValidator` — `Name` + `ScriptCode` required, regex patterns validated.
+- `StartScanDtoValidator` — port range format (`1-1024`, `22,80,443`), port numbers 1–65535, `MaxConcurrency` 1–1000, `TimeoutMs` 100–60000.
 
-Recommendation: FluentValidation with validators per request DTO; add regex pre-compile check in `ManipulationRule` validation.
+Still open: IP/hostname field validation, file upload MIME type magic-byte check.
 
 ---
 
@@ -75,7 +67,7 @@ Recommendation: FluentValidation with validators per request DTO; add regex pre-
 
 | Component | Current Status | Gap | Notes |
 |---|---|---|---|
-| `ManipulationController` | No test file | Full controller test suite needed | Only `ApiSpecControllerTests` covers manipulation area |
+| `ManipulationController` | `ManipulationControllerTests.cs` added (21 tests) | Good coverage of rules CRUD, bulk delete, breakpoints, fuzzer, AI mock | Replay and export endpoints not unit-tested; covered by export-specific test files |
 | `ScannerController` | No test file | Happy path + error cases | Scanner service is async/cancellable; edge cases matter |
 | `SessionsController` | No dedicated tests | Collaboration flow, permission enforcement | Phase 15 tests were in integration suite only |
 | `PacketCaptureController` | Minimal | Progress streaming, freeze-frame, filter API | Complex controller with many endpoints |
@@ -171,6 +163,13 @@ See [AGENT-NOTES.md](AGENT-NOTES.md) for session setup and testing instructions.
 ---
 
 ## Resolved Items
+
+### Gaps Batch 2 (2026-05-02)
+- ~~`DELETE /api/manipulation/rules` (bulk)~~ — `DELETE /api/manipulation/rules/bulk` added; body `{ids:[...], all:false}`; `IManipulationRuleRepository.DeleteManyAsync` uses `ExecuteDeleteAsync`
+- ~~`DELETE /api/scanner/jobs` (bulk)~~ — `DELETE /api/scanner/jobs/bulk` added; body `{status?, completedBefore?}`; `IScanJobRepository.DeleteByFilterAsync` uses `ExecuteDeleteAsync`
+- ~~Session filtering not exposed~~ — `GET /api/sessions?createdByMe=true` filters by `CurrentUserId` via updated `IInvestigationSessionRepository.GetAllAsync(bool, Guid?, CancellationToken)`
+- ~~No input validation framework~~ — `FluentValidation.AspNetCore` 11.3.0 added; validators for `CreateRuleDto`, `UpdateRuleDto`, `CreateBreakpointDto`, `StartScanDto` with regex pre-compile check and port range validation
+- ~~`ManipulationController` no tests~~ — `ManipulationControllerTests.cs` added with 21 tests covering rules CRUD, bulk ops, breakpoints, fuzzer error paths, AI mock
 
 ### Security Headers & Rate Limiting (2026-05-03)
 - ~~Missing HTTP security headers~~ — Middleware added in `Program.cs`: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `X-Permitted-Cross-Domain-Policies`, `Content-Security-Policy`, and `Strict-Transport-Security` (production-only)

@@ -1,3 +1,4 @@
+using IoTSpy.Core.Enums;
 using IoTSpy.Core.Models;
 
 namespace IoTSpy.Core.Interfaces;
@@ -14,4 +15,5 @@ public interface IScanJobRepository
     Task AddFindingAsync(ScanFinding finding, CancellationToken ct = default);
     Task AddFindingsAsync(IEnumerable<ScanFinding> findings, CancellationToken ct = default);
     Task<List<ScanFinding>> GetFindingsAsync(Guid scanJobId, CancellationToken ct = default);
+    Task<int> DeleteByFilterAsync(ScanStatus? status, DateTimeOffset? completedBefore, CancellationToken ct = default);
 }

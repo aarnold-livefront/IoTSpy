@@ -287,7 +287,7 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 
 ### Manipulation Rule Import
 - **`POST /api/manipulation/import`** — accepts `ImportRulesetDto` bundle (`trafficRules`, `breakpoints`, `contentReplacementRules`, `apiSpecs`); all imported entities receive fresh `Guid.NewGuid()` IDs to avoid conflicts; standalone content rules have `ApiSpecDocumentId` nulled; spec-linked rules are re-linked to the newly created spec's ID; returns `{ rulesImported, breakpointsImported, contentRulesImported, apiSpecsImported }`
-- **Tests** — `BulkOperationsTests` (bulk enable/disable, cancel-all, clear with filter), `PaginationTests` (all 7 paginated list endpoints), `RulesetImportTests` (ID reset, standalone content rules, empty bundle, spec+rules linking); 644 backend tests total, all passing
+- **Tests** — `BulkOperationsTests` (bulk enable/disable, cancel-all, clear with filter), `PaginationTests` (all 7 paginated list endpoints), `RulesetImportTests` (ID reset, standalone content rules, empty bundle, spec+rules linking); 664 backend tests total, all passing
 
 
 ## Frontend Usability Enhancements

@@ -124,6 +124,26 @@ public class ManipulationController(
 
     // ── Bulk rule ops ─────────────────────────────────────────────────────────
 
+    [HttpDelete("rules/bulk")]
+    public async Task<IActionResult> BulkDeleteRules([FromBody] BulkDeleteRulesDto dto, CancellationToken ct)
+    {
+        if (dto.All)
+        {
+            var allRules = await rules.GetAllAsync(ct);
+            if (allRules.Count > 0)
+                await rules.DeleteManyAsync(allRules.Select(r => r.Id), ct);
+            return Ok(new { deleted = allRules.Count });
+        }
+
+        if (dto.Ids is { Count: > 0 })
+        {
+            await rules.DeleteManyAsync(dto.Ids, ct);
+            return Ok(new { deleted = dto.Ids.Count });
+        }
+
+        return Ok(new { deleted = 0 });
+    }
+
     [HttpPatch("rules/bulk")]
     public async Task<IActionResult> BulkUpdateRules([FromBody] BulkUpdateRulesDto dto, CancellationToken ct)
     {
@@ -565,6 +585,11 @@ public record AiMockGenerateDto(
 public record BulkUpdateRulesDto(
     List<Guid>? Ids = null,
     bool Enabled = true
+);
+
+public record BulkDeleteRulesDto(
+    List<Guid>? Ids = null,
+    bool All = false
 );
 
 public record ImportRulesetDto(

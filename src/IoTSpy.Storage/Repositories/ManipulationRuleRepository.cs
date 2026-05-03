@@ -48,4 +48,12 @@ public class ManipulationRuleRepository(IoTSpyDbContext db) : IManipulationRuleR
             await db.SaveChangesAsync(ct);
         }
     }
+
+    public async Task DeleteManyAsync(IEnumerable<Guid> ids, CancellationToken ct = default)
+    {
+        var idSet = ids.ToHashSet();
+        await db.ManipulationRules
+            .Where(r => idSet.Contains(r.Id))
+            .ExecuteDeleteAsync(ct);
+    }
 }

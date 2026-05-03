@@ -20,6 +20,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using IoTSpy.Api.Validators;
 using Prometheus;
 using Scalar.AspNetCore;
 using Serilog;
@@ -192,6 +195,8 @@ builder.Services.AddIoTSpyManipulation(aiConfig);
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
         opts.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<StartScanDtoValidator>();
 builder.Services.AddOpenApi();
 builder.Services.AddScoped<AuthService>();
 

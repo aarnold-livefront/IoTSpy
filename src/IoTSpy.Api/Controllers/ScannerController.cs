@@ -1,3 +1,4 @@
+using IoTSpy.Core.Enums;
 using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -102,6 +103,13 @@ public class ScannerController(
         return NoContent();
     }
 
+    [HttpDelete("jobs/bulk")]
+    public async Task<IActionResult> BulkDeleteJobs([FromBody] BulkDeleteJobsDto dto, CancellationToken ct)
+    {
+        var deleted = await scanJobs.DeleteByFilterAsync(dto.Status, dto.CompletedBefore, ct);
+        return Ok(new { deleted });
+    }
+
     [HttpPost("jobs/cancel-all")]
     public async Task<IActionResult> CancelAllScans(CancellationToken ct)
     {
@@ -133,4 +141,9 @@ public record StartScanDto(
     bool? EnableCredentialTest = null,
     bool? EnableCveLookup = null,
     bool? EnableConfigAudit = null
+);
+
+public record BulkDeleteJobsDto(
+    ScanStatus? Status = null,
+    DateTimeOffset? CompletedBefore = null
 );
