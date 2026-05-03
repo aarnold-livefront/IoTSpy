@@ -28,8 +28,8 @@ public class BulkOperationsTests
 
         rs.GetAllAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(new List<ReplaySession>());
         rs.CountAsync(Arg.Any<CancellationToken>()).Returns(0);
-        fj.GetAllAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(new List<FuzzerJob>());
-        fj.CountAsync(Arg.Any<CancellationToken>()).Returns(0);
+        fj.GetAllAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<FuzzerJobStatus?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(new List<FuzzerJob>());
+        fj.CountAsync(Arg.Any<FuzzerJobStatus?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(0);
 
         return new ManipulationController(
             Substitute.For<IManipulationService>(), r, bp, rs, fj,
@@ -90,8 +90,8 @@ public class BulkOperationsTests
         };
 
         var scanJobs = Substitute.For<IScanJobRepository>();
-        scanJobs.GetAllAsync(1, 1000, Arg.Any<CancellationToken>()).Returns(jobs);
-        scanJobs.CountAsync(Arg.Any<CancellationToken>()).Returns(3);
+        scanJobs.GetAllAsync(1, 1000, Arg.Any<ScanStatus?>(), Arg.Any<Guid?>(), Arg.Any<DateTimeOffset?>(), Arg.Any<CancellationToken>()).Returns(jobs);
+        scanJobs.CountAsync(Arg.Any<ScanStatus?>(), Arg.Any<Guid?>(), Arg.Any<DateTimeOffset?>(), Arg.Any<CancellationToken>()).Returns(3);
 
         var scanner = Substitute.For<IScannerService>();
         scanner.IsScanRunning(id1).Returns(true);
@@ -113,8 +113,8 @@ public class BulkOperationsTests
     public async Task CancelAllScans_WhenNoneRunning_ReturnsZero()
     {
         var scanJobs = Substitute.For<IScanJobRepository>();
-        scanJobs.GetAllAsync(1, 1000, Arg.Any<CancellationToken>()).Returns(new List<ScanJob>());
-        scanJobs.CountAsync(Arg.Any<CancellationToken>()).Returns(0);
+        scanJobs.GetAllAsync(1, 1000, Arg.Any<ScanStatus?>(), Arg.Any<Guid?>(), Arg.Any<DateTimeOffset?>(), Arg.Any<CancellationToken>()).Returns(new List<ScanJob>());
+        scanJobs.CountAsync(Arg.Any<ScanStatus?>(), Arg.Any<Guid?>(), Arg.Any<DateTimeOffset?>(), Arg.Any<CancellationToken>()).Returns(0);
 
         var scanner = Substitute.For<IScannerService>();
         var controller = new ScannerController(scanner, scanJobs, Substitute.For<IDeviceRepository>());

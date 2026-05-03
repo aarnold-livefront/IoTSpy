@@ -41,13 +41,16 @@ public class ScannerController(
 
     [HttpGet("jobs")]
     public async Task<IActionResult> ListJobs(
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] ScanStatus? status = null,
+        [FromQuery] Guid? deviceId = null,
+        [FromQuery] DateTimeOffset? createdAfter = null,
+        CancellationToken ct = default)
     {
         pageSize = Math.Clamp(pageSize, 1, 200);
-        var itemsTask = scanJobs.GetAllAsync(page, pageSize, ct);
-        var totalTask = scanJobs.CountAsync(ct);
-        var items = await itemsTask;
-        var total = await totalTask;
+        var items = await scanJobs.GetAllAsync(page, pageSize, status, deviceId, createdAfter, ct);
+        var total = await scanJobs.CountAsync(status, deviceId, createdAfter, ct);
         return Ok(new { items, total, page, pageSize, pages = (int)Math.Ceiling(total / (double)pageSize) });
     }
 
@@ -113,7 +116,7 @@ public class ScannerController(
     [HttpPost("jobs/cancel-all")]
     public async Task<IActionResult> CancelAllScans(CancellationToken ct)
     {
-        var allJobs = await scanJobs.GetAllAsync(1, 1000, ct);
+        var allJobs = await scanJobs.GetAllAsync(1, 1000, ct: ct);
         var runningIds = allJobs.Where(j => scanner.IsScanRunning(j.Id)).Select(j => j.Id).ToList();
         foreach (var id in runningIds)
             await scanner.CancelScanAsync(id);

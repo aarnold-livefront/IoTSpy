@@ -26,8 +26,8 @@ public class PaginationTests
         }
         if (fuzzer is null)
         {
-            fj.GetAllAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(new List<FuzzerJob>());
-            fj.CountAsync(Arg.Any<CancellationToken>()).Returns(0);
+            fj.GetAllAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<FuzzerJobStatus?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(new List<FuzzerJob>());
+            fj.CountAsync(Arg.Any<FuzzerJobStatus?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(0);
         }
 
         return new ManipulationController(
@@ -102,14 +102,14 @@ public class PaginationTests
     public async Task ListFuzzerJobs_ReturnsPaginatedEnvelopeWithCount()
     {
         var fuzzerJobs = Substitute.For<IFuzzerJobRepository>();
-        fuzzerJobs.GetAllAsync(1, 20, Arg.Any<CancellationToken>()).Returns(new List<FuzzerJob>
+        fuzzerJobs.GetAllAsync(1, 20, Arg.Any<FuzzerJobStatus?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(new List<FuzzerJob>
         {
             new() { Strategy = FuzzerStrategy.Random, MutationCount = 50 },
         });
-        fuzzerJobs.CountAsync(Arg.Any<CancellationToken>()).Returns(1);
+        fuzzerJobs.CountAsync(Arg.Any<FuzzerJobStatus?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(1);
 
         var controller = MakeManipController(fuzzer: fuzzerJobs);
-        var result = await controller.ListFuzzerJobs(1, 20, CancellationToken.None) as OkObjectResult;
+        var result = await controller.ListFuzzerJobs(1, 20, ct: CancellationToken.None) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -121,16 +121,16 @@ public class PaginationTests
     public async Task ListJobs_Scanner_ReturnsPaginatedEnvelope()
     {
         var scanJobs = Substitute.For<IScanJobRepository>();
-        scanJobs.GetAllAsync(1, 20, Arg.Any<CancellationToken>()).Returns(new List<ScanJob>
+        scanJobs.GetAllAsync(1, 20, Arg.Any<ScanStatus?>(), Arg.Any<Guid?>(), Arg.Any<DateTimeOffset?>(), Arg.Any<CancellationToken>()).Returns(new List<ScanJob>
         {
             new() { TargetIp = "10.0.0.1" },
             new() { TargetIp = "10.0.0.2" },
         });
-        scanJobs.CountAsync(Arg.Any<CancellationToken>()).Returns(55);
+        scanJobs.CountAsync(Arg.Any<ScanStatus?>(), Arg.Any<Guid?>(), Arg.Any<DateTimeOffset?>(), Arg.Any<CancellationToken>()).Returns(55);
 
         var controller = new ScannerController(
             Substitute.For<IScannerService>(), scanJobs, Substitute.For<IDeviceRepository>());
-        var result = await controller.ListJobs(1, 20, CancellationToken.None) as OkObjectResult;
+        var result = await controller.ListJobs(1, 20, ct: CancellationToken.None) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
