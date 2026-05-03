@@ -1,3 +1,4 @@
+using IoTSpy.Core.Enums;
 using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using Microsoft.EntityFrameworkCore;
@@ -72,4 +73,14 @@ public class ScanJobRepository(IoTSpyDbContext db) : IScanJobRepository
             .Where(f => f.ScanJobId == scanJobId)
             .OrderBy(f => f.FoundAt)
             .ToListAsync(ct);
+
+    public async Task<int> DeleteByFilterAsync(ScanStatus? status, DateTimeOffset? completedBefore, CancellationToken ct = default)
+    {
+        var query = db.ScanJobs.AsQueryable();
+        if (status.HasValue)
+            query = query.Where(j => j.Status == status.Value);
+        if (completedBefore.HasValue)
+            query = query.Where(j => j.CompletedAt.HasValue && j.CompletedAt.Value < completedBefore.Value);
+        return await query.ExecuteDeleteAsync(ct);
+    }
 }

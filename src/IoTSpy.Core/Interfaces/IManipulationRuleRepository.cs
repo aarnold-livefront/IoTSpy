@@ -10,4 +10,5 @@ public interface IManipulationRuleRepository
     Task<List<ManipulationRule>> GetEnabledAsync(CancellationToken ct = default);
     Task<ManipulationRule> UpdateAsync(ManipulationRule rule, CancellationToken ct = default);
     Task DeleteAsync(Guid id, CancellationToken ct = default);
+    Task DeleteManyAsync(IEnumerable<Guid> ids, CancellationToken ct = default);
 }

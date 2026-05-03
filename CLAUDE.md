@@ -69,7 +69,7 @@ See `.dev/claude-skills/README.md` for full details.
 
 ## Workflow rules
 
-- **Always run `dotnet test` before committing.** All 610 backend tests must stay green.
+- **Always run `dotnet test` before committing.** All 664 backend tests must stay green.
 - New backend logic needs a corresponding test. Use NSubstitute for mocks; use EF Core SQLite in-memory for repository tests.
 - New EF entities require a migration (`dotnet ef migrations add ...`).
 - Keep `IoTSpy.Core` free of infrastructure dependencies.
@@ -79,7 +79,7 @@ See `.dev/claude-skills/README.md` for full details.
 ## Current state
 
 All phases 1–16, 18–22 plus API & Backend Polish and Frontend Usability enhancements are complete:
-- 610 backend tests across 8 test projects; 13+ frontend component tests
+- 664 backend tests across 8 test projects; 13+ frontend component tests
 - 19 REST controllers, 180+ endpoints
 - 19 EF Core migrations up through `AddAuditDiffs`
 - GitHub Actions CI at `.github/workflows/ci.yml`

@@ -15,9 +15,10 @@ public class InvestigationSessionRepository(IoTSpyDbContext db) : IInvestigation
         => await db.InvestigationSessions
             .FirstOrDefaultAsync(s => s.ShareToken == token && s.IsActive, ct);
 
-    public async Task<List<InvestigationSession>> GetAllAsync(bool includeInactive = false, CancellationToken ct = default)
+    public async Task<List<InvestigationSession>> GetAllAsync(bool includeInactive = false, Guid? createdByUserId = null, CancellationToken ct = default)
         => await db.InvestigationSessions
             .Where(s => includeInactive || s.IsActive)
+            .Where(s => createdByUserId == null || s.CreatedByUserId == createdByUserId.Value)
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync(ct);
 

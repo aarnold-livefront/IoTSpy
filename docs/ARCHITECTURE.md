@@ -653,7 +653,7 @@ frontend/src/
 
 ## Test projects
 
-**517 backend tests** across 8 test projects + 11+ frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI. Test coverage includes Phase 10 decoders, Phase 11 multi-user/TLS/tests, Phase 12 API spec generation, Phase 14 API keys, Phase 15 collaboration, and Phase 20 admin/integration tests.
+**664 backend tests** across 8 test projects + 13+ frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI. Test coverage includes Phase 10 decoders, Phase 11 multi-user/TLS/tests, Phase 12 API spec generation, Phase 14 API keys, Phase 15 collaboration, and Phase 20 admin/integration tests.
 
 | Project | Test classes | Coverage |
 |---|---|---|
