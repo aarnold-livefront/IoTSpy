@@ -20,7 +20,7 @@ This document tracks remaining gaps, known limitations, and technical debt. Item
 
 | Endpoint | Available filters | Missing |
 |---|---|---|
-| `GET /api/captures` | host, protocol, status, date, device | Full-text search in request/response headers |
+| `GET /api/captures` | host, method, status, date, device, clientIp, body (`q`) | Full-text search in request/response headers |
 
 ---
 
@@ -28,10 +28,7 @@ This document tracks remaining gaps, known limitations, and technical debt. Item
 
 ### Input Validation — Remaining Items
 
-`FluentValidation.AspNetCore` is registered; validators exist for `CreateRuleDto`, `UpdateRuleDto`, `CreateBreakpointDto`, `StartScanDto`. Still open:
-
-- **IP/hostname field validation** — `StartScanDto.Target` accepts arbitrary strings; no IP/CIDR/hostname format check.
-- **File upload MIME type magic-byte check** — `POST /api/apispec/assets` accepts any file without verifying the first bytes match the declared Content-Type.
+`FluentValidation.AspNetCore` is registered; validators exist for `CreateRuleDto`, `UpdateRuleDto`, `CreateBreakpointDto`, `StartScanDto` (port range, concurrency, timeout). All previously open items resolved — see Resolved Items below.
 
 ---
 
@@ -39,7 +36,6 @@ This document tracks remaining gaps, known limitations, and technical debt. Item
 
 | Component | Current Status | Gap |
 |---|---|---|
-| `PacketCaptureController` | Minimal | Progress streaming, freeze-frame, filter API |
 | Frontend components | ~3 spec files for 54 components | Manipulation, capture, sessions panels untested |
 | End-to-end frontend | None | Cypress or Playwright suite |
 | Load testing | None | Proxy throughput/latency baseline |
@@ -114,13 +110,18 @@ These assumptions should be revisited if requirements change:
 
 ## Suggestions for Next Contributors
 
-1. **Add missing controller tests** — `PacketCaptureController` tests would meaningfully improve coverage
+1. **Add frontend component tests** — manipulation, capture, and sessions panels have no spec coverage
 
 See [AGENT-NOTES.md](AGENT-NOTES.md) for session setup and testing instructions.
 
 ---
 
 ## Resolved Items
+
+### Address Remaining Gaps (2026-05-04)
+- ~~`PacketCaptureController` no tests~~ — `PacketCaptureControllerTests.cs` added with 29 tests covering devices CRUD, start/stop capture, packet filter API, freeze-frame (POST+GET), delete, protocol distribution, communication patterns, suspicious activity, PCAP import (happy path, bad extension, failure), PCAP export (filtered/unfiltered/no-data), and analyzer freeze/unfreeze/status; total backend tests now 712
+- ~~IP/hostname field validation~~ — Gap is obsolete: `StartScanDto` was redesigned to accept `Guid DeviceId` instead of a free-text target; the controller derives the IP from the stored device record, so no raw string needs format-validating
+- ~~File upload MIME type magic-byte check~~ — Already resolved in Gaps Batch 3 (see below); stale reference removed from active Security Hardening section
 
 ### Gaps Batch 3 (2026-05-02)
 - ~~Content replacement: binary & SSE~~ — `FileStreamBodySource`, `RangeSlicedBodySource`, `SseStreamBodySource` added in Phase 22; proxy writer uses `IResponseBodySource` to bypass UTF-8 string path; HTTP range slicing for video scrubbing; 15 dedicated tests

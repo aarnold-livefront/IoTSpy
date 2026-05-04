@@ -69,7 +69,7 @@ See `.dev/claude-skills/README.md` for full details.
 
 ## Workflow rules
 
-- **Always run `dotnet test` before committing.** All 683 backend tests must stay green.
+- **Always run `dotnet test` before committing.** All 712 backend tests must stay green.
 - New backend logic needs a corresponding test. Use NSubstitute for mocks; use EF Core SQLite in-memory for repository tests.
 - New EF entities require a migration (`dotnet ef migrations add ...`).
 - Keep `IoTSpy.Core` free of infrastructure dependencies.
@@ -79,13 +79,13 @@ See `.dev/claude-skills/README.md` for full details.
 ## Current state
 
 All phases 1–16, 18–22 plus API & Backend Polish and Frontend Usability enhancements are complete:
-- 683 backend tests across 8 test projects; 13+ frontend component tests
+- 712 backend tests across 8 test projects; 13+ frontend component tests
 - 19 REST controllers, 180+ endpoints
 - 19 EF Core migrations up through `AddAuditDiffs`
 - GitHub Actions CI at `.github/workflows/ci.yml`
 - Helm chart at `deploy/helm/iotspy/`; production Docker Compose at `docker-compose.prod.yml`
 
-> Counts above last verified 2026-04-29. To re-check: `grep -rE "^\s*\[(Fact|Theory)" --include="*.cs" src/IoTSpy.*.Tests src/IoTSpy.Api.IntegrationTests | wc -l`, `ls src/IoTSpy.Api/Controllers | wc -l`, `ls src/IoTSpy.Storage/Migrations/*.cs | grep -vE "(Designer|Snapshot)" | wc -l`.
+> Counts above last verified 2026-05-04. To re-check: `grep -rE "^\s*\[(Fact|Theory)" --include="*.cs" src/IoTSpy.*.Tests src/IoTSpy.Api.IntegrationTests | wc -l`, `ls src/IoTSpy.Api/Controllers | wc -l`, `ls src/IoTSpy.Storage/Migrations/*.cs | grep -vE "(Designer|Snapshot)" | wc -l`.
 
 ### API & Backend Polish (latest)
 - All list endpoints return `{ items, total, page, pageSize, pages }` pagination envelope
