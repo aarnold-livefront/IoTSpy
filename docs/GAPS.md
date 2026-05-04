@@ -8,80 +8,44 @@ This document tracks remaining gaps, known limitations, and technical debt. Item
 
 | Gap | Description | Severity | Status | Notes |
 |---|---|---|---|---|
-| Content replacement: binary & SSE | `ContentReplacer` doesn't correctly handle image/video replacement or SSE stream mocking with local files | High | Open | See Phase 22 in PHASES-ROADMAP.md |
 | No LDAP / SAML SSO | Enterprise single sign-on not implemented | Low | Open | Deprioritized in Phase 16.5; valid candidate for future work |
 | No distributed / multi-node mode | Single-instance proxy per deployment; horizontal scaling requires Redis backplane | Low | Open | Deprioritized in Phase 16.8; see Design Assumptions |
 | No Bluetooth/Zigbee/Z-Wave | IoT protocols beyond IP-based networking are not supported | Low | Open | See Phase 17 for future work |
 
 ---
 
-## Frontend Usability Gaps
-
-### Pagination UI Incomplete
-
-`CapturesController` returns `pages` and `total` in every response, and `useCaptures.ts` uses infinite-scroll `loadMore`. The UI has no "page N of M" indicator or jump-to-page control. Users with large capture histories have no way to navigate to specific time windows efficiently.
-
-`/api/manipulation/rules` and `/api/manipulation/breakpoints` return flat arrays with no pagination at all — a performance problem at scale (see API Completeness below).
-
-~~### Session Filtering Not Exposed~~
-
-~~`GET /api/sessions` returns all sessions regardless of creator.~~ — Resolved: `?createdByMe=true` query param added to `GET /api/sessions`. Passes `CurrentUserId` as `createdByUserId` filter through `IInvestigationSessionRepository.GetAllAsync`.
-
-### Missing Keyboard Shortcuts
-
-No keyboard navigation in any data grid or list. Common expectations: `Delete` on selected row, `Escape` to close modals, `Enter` to confirm dialogs, `Ctrl+S` to save rule/breakpoint editor. A global `useKeyboardShortcuts` hook could cover all panels.
-
----
-
 ## API Completeness Gaps
-
-### Missing Pagination on List Endpoints
-
-`/api/manipulation/rules` and `/api/manipulation/breakpoints` return unbounded flat arrays. At 1000+ rules (achievable with generated rulesets), these responses become large and slow. Both need `?page=&pageSize=` params and `{ items, total, pages }` response shape, consistent with `CapturesController`.
 
 ### Incomplete Filtering on Key Endpoints
 
 | Endpoint | Available filters | Missing |
 |---|---|---|
-| `GET /api/scanner/jobs` | None found in `ScanJobRepository` | Filter by `status`, `deviceId`, `createdAfter` |
-| `GET /api/openrtb/events` | Minimal | Filter by `adomain`, `device`, `hasViolation`, date range |
-| `GET /api/manipulation/fuzzer/jobs` | None | Filter by `status`, `targetCapture` |
-| `GET /api/captures` | Good (host, protocol, status, date, device) | Full-text search in request/response headers |
+| `GET /api/captures` | host, method, status, date, device, clientIp, body (`q`) | Full-text search in request/response headers |
 
 ---
 
 ## Security Hardening
 
-### No Input Validation Framework
+### Input Validation — Remaining Items
 
-~~Controllers use ad-hoc guards.~~ — Partially resolved: `FluentValidation.AspNetCore` added; auto-validation registered in `Program.cs`. Validators implemented:
-- `CreateRuleDtoValidator` / `UpdateRuleDtoValidator` — `Name` required, regex patterns pre-compiled and rejected if invalid, `OverrideStatusCode` 100–599, `DelayMs` ≥ 0.
-- `CreateBreakpointDtoValidator` — `Name` + `ScriptCode` required, regex patterns validated.
-- `StartScanDtoValidator` — port range format (`1-1024`, `22,80,443`), port numbers 1–65535, `MaxConcurrency` 1–1000, `TimeoutMs` 100–60000.
-
-Still open: IP/hostname field validation, file upload MIME type magic-byte check.
+`FluentValidation.AspNetCore` is registered; validators exist for `CreateRuleDto`, `UpdateRuleDto`, `CreateBreakpointDto`, `StartScanDto` (port range, concurrency, timeout). All previously open items resolved — see Resolved Items below.
 
 ---
 
 ## Testing Gaps
 
-| Component | Current Status | Gap | Notes |
-|---|---|---|---|
-| `ManipulationController` | `ManipulationControllerTests.cs` added (21 tests) | Good coverage of rules CRUD, bulk delete, breakpoints, fuzzer, AI mock | Replay and export endpoints not unit-tested; covered by export-specific test files |
-| `ScannerController` | No test file | Happy path + error cases | Scanner service is async/cancellable; edge cases matter |
-| `SessionsController` | No dedicated tests | Collaboration flow, permission enforcement | Phase 15 tests were in integration suite only |
-| `PacketCaptureController` | Minimal | Progress streaming, freeze-frame, filter API | Complex controller with many endpoints |
-| Frontend components | ~3 spec files for 54 components | Manipulation, capture, sessions panels untested | Vitest + React Testing Library pattern already established |
-| End-to-end frontend | None | Cypress or Playwright suite | Would require Docker orchestration for backend |
-| Load testing | None | Proxy throughput/latency baseline | Critical for production planning |
-| Chaos engineering | None | Proxy crash, DB unavailable scenarios | Validates graceful degradation |
-| Security fuzzing | Limited | AFL/libFuzzer on MQTT, DNS, CoAP parsers | Could discover parsing edge cases |
+| Component | Current Status | Gap |
+|---|---|---|
+| Frontend components | ~3 spec files for 54 components | Manipulation, capture, sessions panels untested |
+| End-to-end frontend | None | Cypress or Playwright suite |
+| Load testing | None | Proxy throughput/latency baseline |
+| Security fuzzing | Limited | AFL/libFuzzer on MQTT, DNS, CoAP parsers |
 
 ---
 
 ## Protocol Decoder Depth
 
-Decoders exist for all major protocols but vary in depth. These are not blockers, but deeper implementations improve research value:
+Decoders exist for all major protocols but vary in depth:
 
 | Protocol | Current depth | Enhancement opportunity |
 |---|---|---|
@@ -100,14 +64,12 @@ Decoders exist for all major protocols but vary in depth. These are not blockers
 1. **Rule evaluation** — 100+ rules on 10k captures → full table scan each time; regex caching or compiled-rule cache needed
 2. **JSON schema inference** — Recursive object traversal on large payloads; cache schema per `(host, path, method)` tuple
 3. **Packet capture ring buffer** — 10k packet hard limit; large capture bursts will drop packets; consider configurable or dynamic sizing
-4. **`ContentReplacer.ApplyAsync`** — No streaming; entire response body loaded into memory; problematic for large video/binary replacements
 
 ### Optimization Opportunities
 
 - Request deduplication in proxy pipeline (same URL + headers within N ms → single capture)
 - Rule caching layer with invalidation on CRUD operations (already noted in `ApiSpecMockService`)
 - Bloom filter pre-screen before full rule evaluation
-- Frontend: React Query / SWR for automatic cache, deduplication, and background refetch (currently all hooks use manual `useState`/`useEffect` fetch cycles)
 
 ---
 
@@ -121,7 +83,6 @@ These assumptions should be revisited if requirements change:
 4. **JWT + API key auth only** — No SAML/LDAP support (Phase 16.5 deprioritized; see Active Gaps).
 5. **In-memory anomaly detector** — Resets on restart; no persistent baseline learning.
 6. **Request-scoped repositories** — Each HTTP request gets a fresh EF Core DbContext; not suitable for long-running background tasks without scope management.
-7. **Text-only content replacement** — `ContentReplacer` buffers entire response body as string; binary content types (image, video, audio) require a streaming binary pipeline (see Phase 22).
 
 ---
 
@@ -132,7 +93,6 @@ These assumptions should be revisited if requirements change:
 | Operator runbook | Basic | Need: troubleshooting guide, log interpretation, health check procedures |
 | Deployment guides | Minimal | Docker Compose (dev) + Helm chart exist; need: bare-metal, systemd, production hardening guide |
 | Performance tuning | None | Connection pool sizing, rate limit tuning, ring buffer sizing, cache strategies |
-| Content replacement guide | Partial | How to match and replace JSON/text covered; binary (image/video/audio) and SSE not documented |
 | Extension guides | Partial | Protocol decoders, AI providers covered; custom UI components and plugin development not covered |
 
 ---
@@ -150,13 +110,7 @@ These assumptions should be revisited if requirements change:
 
 ## Suggestions for Next Contributors
 
-1. **Binary & SSE content replacement** (Phase 22 continuation) — High-value for ad/tracking research; streaming pipeline needed in `ContentReplacer.ApplyAsync`
-2. **FluentValidation** — Add per-DTO validators; regex pre-compile check in `ManipulationRule` would prevent runtime crashes
-3. **Add missing controller tests** — `ManipulationControllerTests`, `ScannerControllerTests`, `SessionsControllerTests` would meaningfully improve coverage (currently no test file for these)
-4. **Pagination on rules/breakpoints endpoints** — `GET /api/manipulation/rules` and `/api/manipulation/breakpoints` return unbounded arrays; add `?page=&pageSize=` consistent with `CapturesController`
-5. **Session filtering** — Add `?createdBy=me` filter to `GET /api/sessions` so operators can scope to their own sessions
-6. **Avoid Phase 17.3+** (Zigbee/BLE) — Requires specialized hardware; hard to test in CI
-7. **Keep `IoTSpy.Core` dep-free** — New models/interfaces should go there; no infrastructure references
+1. **Add frontend component tests** — manipulation, capture, and sessions panels have no spec coverage
 
 See [AGENT-NOTES.md](AGENT-NOTES.md) for session setup and testing instructions.
 
@@ -164,25 +118,42 @@ See [AGENT-NOTES.md](AGENT-NOTES.md) for session setup and testing instructions.
 
 ## Resolved Items
 
+### Address Remaining Gaps (2026-05-04)
+- ~~`PacketCaptureController` no tests~~ — `PacketCaptureControllerTests.cs` added with 29 tests covering devices CRUD, start/stop capture, packet filter API, freeze-frame (POST+GET), delete, protocol distribution, communication patterns, suspicious activity, PCAP import (happy path, bad extension, failure), PCAP export (filtered/unfiltered/no-data), and analyzer freeze/unfreeze/status; total backend tests now 712
+- ~~IP/hostname field validation~~ — Gap is obsolete: `StartScanDto` was redesigned to accept `Guid DeviceId` instead of a free-text target; the controller derives the IP from the stored device record, so no raw string needs format-validating
+- ~~File upload MIME type magic-byte check~~ — Already resolved in Gaps Batch 3 (see below); stale reference removed from active Security Hardening section
+
+### Gaps Batch 3 (2026-05-02)
+- ~~Content replacement: binary & SSE~~ — `FileStreamBodySource`, `RangeSlicedBodySource`, `SseStreamBodySource` added in Phase 22; proxy writer uses `IResponseBodySource` to bypass UTF-8 string path; HTTP range slicing for video scrubbing; 15 dedicated tests
+- ~~Scanner job filtering not exposed~~ — `GET /api/scanner/jobs?status=&deviceId=&createdAfter=` added; `IScanJobRepository.GetAllAsync` extended with filter params
+- ~~Fuzzer job filtering not exposed~~ — `GET /api/manipulation/fuzzer/jobs?status=&captureId=` added; `IFuzzerJobRepository.GetAllAsync` extended with filter params
+- ~~File upload MIME magic-byte check~~ — `POST /api/apispec/assets` now reads first 12 bytes; rejects uploads whose magic signature doesn't match the declared/inferred MIME type; returns 415 with a descriptive error
+
 ### Gaps Batch 2 (2026-05-02)
 - ~~`DELETE /api/manipulation/rules` (bulk)~~ — `DELETE /api/manipulation/rules/bulk` added; body `{ids:[...], all:false}`; `IManipulationRuleRepository.DeleteManyAsync` uses `ExecuteDeleteAsync`
 - ~~`DELETE /api/scanner/jobs` (bulk)~~ — `DELETE /api/scanner/jobs/bulk` added; body `{status?, completedBefore?}`; `IScanJobRepository.DeleteByFilterAsync` uses `ExecuteDeleteAsync`
 - ~~Session filtering not exposed~~ — `GET /api/sessions?createdByMe=true` filters by `CurrentUserId` via updated `IInvestigationSessionRepository.GetAllAsync(bool, Guid?, CancellationToken)`
 - ~~No input validation framework~~ — `FluentValidation.AspNetCore` 11.3.0 added; validators for `CreateRuleDto`, `UpdateRuleDto`, `CreateBreakpointDto`, `StartScanDto` with regex pre-compile check and port range validation
 - ~~`ManipulationController` no tests~~ — `ManipulationControllerTests.cs` added with 21 tests covering rules CRUD, bulk ops, breakpoints, fuzzer error paths, AI mock
+- ~~Pagination on rules/breakpoints endpoints~~ — Both `GET /api/manipulation/rules` and `GET /api/manipulation/breakpoints` return `{ items, total, page, pageSize, pages }` with `?page=&pageSize=` params
+- ~~Session filtering not exposed~~ — Resolved; see above
+- ~~Missing keyboard shortcuts~~ — `useKeyboardShortcuts` hook (Escape/Delete/Ctrl+S); inline Escape + Ctrl+S in `RulesEditor` and `BreakpointsEditor`
+- ~~Frontend hooks on manual useState/useEffect~~ — React Query (`@tanstack/react-query` v5) adopted for admin UI and audit logging
 
-### Security Headers & Rate Limiting (2026-05-03)
+### Security Headers & Rate Limiting (2026-05-02)
 - ~~Missing HTTP security headers~~ — Middleware added in `Program.cs`: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `X-Permitted-Cross-Domain-Policies`, `Content-Security-Policy`, and `Strict-Transport-Security` (production-only)
 - ~~Rate limiting off by default~~ — `RateLimit.Enabled=true` in `appsettings.json`; `RateLimit.Enabled=false` in `appsettings.Development.json` disables it in dev
 - ~~Missing `appsettings.Production.json` example~~ — Template added at `src/IoTSpy.Api/appsettings.Production.json` with Postgres, HTTPS, rate limiting, data retention, and Serilog file sink
 
-### CA Certificate Customization (2026-05-03)
+### CA Certificate Customization (2026-05-02)
 - ~~CA certificate CN/O/C/validity hardcoded~~ — Added `CaCommonName`, `CaOrganization`, `CaCountry`, `CaValidityYears` to `ProxySettings`; `CertificateAuthority.GenerateRootCa()` reads these values; EF migration `AddCaCustomizationFields` applies defaults; `SettingsModal.tsx` exposes a new "CA Certificate" section; `PUT /api/proxy/settings` accepts the new fields; `ICertificateAuthority.RegenerateRootCaAsync()` atomically clears caches and regenerates using current settings
 
 ### API & Backend Polish (prior session)
 - ~~Bulk operations missing~~ — Bulk rule enable/disable (`PATCH /api/manipulation/rules/bulk`), cancel-all scans (`POST /api/scanner/jobs/cancel-all`), bulk capture delete by filter
 - ~~Missing export endpoints~~ — Fuzzer export (`GET /api/manipulation/fuzzer/jobs/{id}/export`), scan export (`GET /api/scanner/jobs/{id}/export`), ruleset bundle export (`GET /api/manipulation/export`), ruleset import (`POST /api/manipulation/import`)
 - ~~No audit trail for config changes~~ — `AuditEntry` extended with `OldValue`/`NewValue` JSON snapshots; all rule/spec/breakpoint mutations recorded with before/after diffs
+- ~~ScannerController no tests~~ — `ScannerControllerTests.cs` added with 7 tests
+- ~~SessionsController no tests~~ — `SessionsControllerTests.cs` added with 14 tests
 
 ### Frontend Usability (prior session)
 - ~~Missing confirmation dialogs~~ — `RulesEditor`, `BreakpointsEditor`, `FuzzerPanel`, `ScanJobList` (delete), and `SessionsPanel` all use `ConfirmDialog`

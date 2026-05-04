@@ -250,6 +250,16 @@ public class ApiSpecController(
         if (file is null || file.Length == 0)
             return BadRequest("No file uploaded");
 
+        var ext = Path.GetExtension(file.FileName ?? "").ToLowerInvariant();
+        var header = new byte[12];
+        var headerRead = 0;
+        using (var peek = file.OpenReadStream())
+            headerRead = await peek.ReadAsync(header, ct);
+
+        var mismatch = CheckMagicBytes(ext, header.AsSpan(0, headerRead));
+        if (mismatch is not null)
+            return StatusCode(415, mismatch);
+
         Directory.CreateDirectory(AssetsDirectory);
 
         var safeFileName = Path.GetFileName(file.FileName);
@@ -260,6 +270,39 @@ public class ApiSpecController(
         await file.CopyToAsync(stream, ct);
 
         return Ok(new AssetUploadResult(filePath, storedName, file.ContentType, file.Length));
+    }
+
+    // Returns an error message if the magic bytes don't match the declared extension, null if OK.
+    private static string? CheckMagicBytes(string ext, ReadOnlySpan<byte> header)
+    {
+        return ext switch
+        {
+            ".png" => header.Length >= 4 && header[0] == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47
+                ? null : "File header does not match PNG signature",
+            ".jpg" or ".jpeg" => header.Length >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF
+                ? null : "File header does not match JPEG signature",
+            ".gif" => header.Length >= 6 && header[0] == (byte)'G' && header[1] == (byte)'I' && header[2] == (byte)'F'
+                && header[3] == (byte)'8' && (header[4] == (byte)'7' || header[4] == (byte)'9') && header[5] == (byte)'a'
+                ? null : "File header does not match GIF signature",
+            ".webp" => header.Length >= 12 && header[0] == (byte)'R' && header[1] == (byte)'I' && header[2] == (byte)'F' && header[3] == (byte)'F'
+                && header[8] == (byte)'W' && header[9] == (byte)'E' && header[10] == (byte)'B' && header[11] == (byte)'P'
+                ? null : "File header does not match WebP signature",
+            ".mp4" => header.Length >= 8 && header[4] == (byte)'f' && header[5] == (byte)'t' && header[6] == (byte)'y' && header[7] == (byte)'p'
+                ? null : "File header does not match MP4 (ftyp) signature",
+            ".webm" or ".mkv" => header.Length >= 4 && header[0] == 0x1A && header[1] == 0x45 && header[2] == 0xDF && header[3] == 0xA3
+                ? null : "File header does not match WebM/MKV signature",
+            ".ogg" => header.Length >= 4 && header[0] == (byte)'O' && header[1] == (byte)'g' && header[2] == (byte)'g' && header[3] == (byte)'S'
+                ? null : "File header does not match OGG signature",
+            ".wav" => header.Length >= 12 && header[0] == (byte)'R' && header[1] == (byte)'I' && header[2] == (byte)'F' && header[3] == (byte)'F'
+                && header[8] == (byte)'W' && header[9] == (byte)'A' && header[10] == (byte)'V' && header[11] == (byte)'E'
+                ? null : "File header does not match WAV signature",
+            ".pdf" => header.Length >= 4 && header[0] == (byte)'%' && header[1] == (byte)'P' && header[2] == (byte)'D' && header[3] == (byte)'F'
+                ? null : "File header does not match PDF signature",
+            ".zip" => header.Length >= 4 && header[0] == (byte)'P' && header[1] == (byte)'K' && header[2] == 0x03 && header[3] == 0x04
+                ? null : "File header does not match ZIP signature",
+            // Text-based and unknown types: no magic bytes to check
+            _ => null,
+        };
     }
 
     [HttpGet("assets")]

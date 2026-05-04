@@ -27,16 +27,33 @@ public class ScanJobRepository(IoTSpyDbContext db) : IScanJobRepository
             .OrderByDescending(j => j.CreatedAt)
             .ToListAsync(ct);
 
-    public Task<List<ScanJob>> GetAllAsync(int page = 1, int pageSize = 20, CancellationToken ct = default) =>
-        db.ScanJobs
-            .AsNoTracking()
-            .OrderByDescending(j => j.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(ct);
+    public Task<List<ScanJob>> GetAllAsync(
+        int page = 1,
+        int pageSize = 20,
+        ScanStatus? status = null,
+        Guid? deviceId = null,
+        DateTimeOffset? createdAfter = null,
+        CancellationToken ct = default)
+    {
+        var q = db.ScanJobs.AsNoTracking().AsQueryable();
+        if (status.HasValue) q = q.Where(j => j.Status == status.Value);
+        if (deviceId.HasValue) q = q.Where(j => j.DeviceId == deviceId.Value);
+        if (createdAfter.HasValue) q = q.Where(j => j.CreatedAt > createdAfter.Value);
+        return q.OrderByDescending(j => j.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+    }
 
-    public Task<int> CountAsync(CancellationToken ct = default) =>
-        db.ScanJobs.CountAsync(ct);
+    public Task<int> CountAsync(
+        ScanStatus? status = null,
+        Guid? deviceId = null,
+        DateTimeOffset? createdAfter = null,
+        CancellationToken ct = default)
+    {
+        var q = db.ScanJobs.AsQueryable();
+        if (status.HasValue) q = q.Where(j => j.Status == status.Value);
+        if (deviceId.HasValue) q = q.Where(j => j.DeviceId == deviceId.Value);
+        if (createdAfter.HasValue) q = q.Where(j => j.CreatedAt > createdAfter.Value);
+        return q.CountAsync(ct);
+    }
 
     public async Task<ScanJob> UpdateAsync(ScanJob job, CancellationToken ct = default)
     {

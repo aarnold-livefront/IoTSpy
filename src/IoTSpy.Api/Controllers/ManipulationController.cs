@@ -299,13 +299,15 @@ public class ManipulationController(
 
     [HttpGet("fuzzer/jobs")]
     public async Task<IActionResult> ListFuzzerJobs(
-        [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        [FromQuery] FuzzerJobStatus? status = null,
+        [FromQuery] Guid? captureId = null,
+        CancellationToken ct = default)
     {
         pageSize = Math.Clamp(pageSize, 1, 200);
-        var itemsTask = fuzzerJobs.GetAllAsync(page, pageSize, ct);
-        var totalTask = fuzzerJobs.CountAsync(ct);
-        var items = await itemsTask;
-        var total = await totalTask;
+        var items = await fuzzerJobs.GetAllAsync(page, pageSize, status, captureId, ct);
+        var total = await fuzzerJobs.CountAsync(status, captureId, ct);
         return Ok(new { items, total, page, pageSize, pages = (int)Math.Ceiling(total / (double)pageSize) });
     }
 

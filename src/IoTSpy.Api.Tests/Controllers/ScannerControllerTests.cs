@@ -56,13 +56,13 @@ public class ScannerControllerTests
     public async Task ListJobs_ReturnsAllJobs()
     {
         var scanJobs = Substitute.For<IScanJobRepository>();
-        scanJobs.GetAllAsync(1, 20, Arg.Any<CancellationToken>()).Returns(new List<ScanJob> { MakeScanJob(), MakeScanJob() });
-        scanJobs.CountAsync(Arg.Any<CancellationToken>()).Returns(2);
+        scanJobs.GetAllAsync(1, 20, Arg.Any<ScanStatus?>(), Arg.Any<Guid?>(), Arg.Any<DateTimeOffset?>(), Arg.Any<CancellationToken>()).Returns(new List<ScanJob> { MakeScanJob(), MakeScanJob() });
+        scanJobs.CountAsync(Arg.Any<ScanStatus?>(), Arg.Any<Guid?>(), Arg.Any<DateTimeOffset?>(), Arg.Any<CancellationToken>()).Returns(2);
 
         var controller = new ScannerController(
             Substitute.For<IScannerService>(), scanJobs, Substitute.For<IDeviceRepository>());
 
-        var result = await controller.ListJobs(1, 20, CancellationToken.None) as OkObjectResult;
+        var result = await controller.ListJobs(1, 20, ct: CancellationToken.None) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = System.Text.Json.JsonSerializer.Serialize(result.Value);

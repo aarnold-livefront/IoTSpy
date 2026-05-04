@@ -1,3 +1,4 @@
+using IoTSpy.Core.Enums;
 using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using Microsoft.EntityFrameworkCore;
@@ -19,16 +20,29 @@ public class FuzzerJobRepository(IoTSpyDbContext db) : IFuzzerJobRepository
             .Include(j => j.Results)
             .FirstOrDefaultAsync(j => j.Id == id, ct);
 
-    public Task<List<FuzzerJob>> GetAllAsync(int page = 1, int pageSize = 20, CancellationToken ct = default) =>
-        db.FuzzerJobs
-            .AsNoTracking()
-            .OrderByDescending(j => j.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(ct);
+    public Task<List<FuzzerJob>> GetAllAsync(
+        int page = 1,
+        int pageSize = 20,
+        FuzzerJobStatus? status = null,
+        Guid? captureId = null,
+        CancellationToken ct = default)
+    {
+        var q = db.FuzzerJobs.AsNoTracking().AsQueryable();
+        if (status.HasValue) q = q.Where(j => j.Status == status.Value);
+        if (captureId.HasValue) q = q.Where(j => j.BaseCaptureId == captureId.Value);
+        return q.OrderByDescending(j => j.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(ct);
+    }
 
-    public Task<int> CountAsync(CancellationToken ct = default) =>
-        db.FuzzerJobs.CountAsync(ct);
+    public Task<int> CountAsync(
+        FuzzerJobStatus? status = null,
+        Guid? captureId = null,
+        CancellationToken ct = default)
+    {
+        var q = db.FuzzerJobs.AsQueryable();
+        if (status.HasValue) q = q.Where(j => j.Status == status.Value);
+        if (captureId.HasValue) q = q.Where(j => j.BaseCaptureId == captureId.Value);
+        return q.CountAsync(ct);
+    }
 
     public async Task<FuzzerJob> UpdateAsync(FuzzerJob job, CancellationToken ct = default)
     {

@@ -26,8 +26,8 @@ public class ManipulationControllerTests
         rs.GetAllAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(new List<ReplaySession>());
         rs.CountAsync(Arg.Any<CancellationToken>()).Returns(0);
         var fj = Substitute.For<IFuzzerJobRepository>();
-        fj.GetAllAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<CancellationToken>()).Returns(new List<FuzzerJob>());
-        fj.CountAsync(Arg.Any<CancellationToken>()).Returns(0);
+        fj.GetAllAsync(Arg.Any<int>(), Arg.Any<int>(), Arg.Any<FuzzerJobStatus?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(new List<FuzzerJob>());
+        fj.CountAsync(Arg.Any<FuzzerJobStatus?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(0);
 
         var controller = new ManipulationController(
             manipService ?? Substitute.For<IManipulationService>(),
