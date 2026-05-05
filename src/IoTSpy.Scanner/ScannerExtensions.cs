@@ -1,18 +1,23 @@
 using IoTSpy.Core.Interfaces;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace IoTSpy.Scanner;
 
 public static class ScannerExtensions
 {
-    public static IServiceCollection AddIoTSpyScanner(this IServiceCollection services)
+    public static IServiceCollection AddIoTSpyScanner(this IServiceCollection services, IConfiguration? configuration = null)
     {
+        var ringBufferCapacity = configuration?.GetValue<int>("PacketCapture:RingBufferCapacity") is > 0 and var v
+            ? v
+            : LockFreePacketRingBuffer.DefaultCapacity;
+
         services.AddSingleton<PortScanner>();
         services.AddSingleton<ServiceFingerprinter>();
         services.AddSingleton<CredentialTester>();
         services.AddSingleton<ConfigAuditor>();
         services.AddSingleton<IScannerService, ScannerService>();
-        services.AddSingleton<IPacketBuffer>(new LockFreePacketRingBuffer());
+        services.AddSingleton<IPacketBuffer>(new LockFreePacketRingBuffer(ringBufferCapacity));
         services.AddSingleton<IPacketCaptureService, PacketCaptureService>();
         services.AddSingleton<IReportService, ReportService>();
 

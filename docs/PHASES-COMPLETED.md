@@ -298,3 +298,27 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Security headers** — CSP, HSTS, `X-Frame-Options`, `X-Content-Type-Options` middleware registered in `Program.cs`; applies to all non-development environments
 - **Virtual scrolling** — Capture list migrated to `react-window` (`VariableSizeList`); handles 100k+ rows without DOM thrashing; row height measured dynamically to accommodate variable-length URLs and response bodies
 - **React Query migration** — All data-fetching hooks migrated from manual `useState`/`useEffect` cycles to TanStack Query (React Query v5); automatic background refetch, stale-while-revalidate caching, and request deduplication across panels; `queryClient.invalidateQueries` replaces manual state resets after mutations
+
+## Gaps Batch 4 — API completeness, ring buffer config, component tests, E2E, and frontend polish
+
+**Goal:** Close remaining open items from `GAPS.md`: header search on captures, configurable ring buffer, frontend component test coverage, and several fit-and-finish UX fixes.
+
+### API Completeness
+- **`GET /api/captures` header search** — new `?headerQ=` query param performs substring search across `RequestHeaders` and `ResponseHeaders` columns; `CaptureFilter` record extended with `HeaderSearch`; `CaptureRepository.ApplyFilter` applies the clause; 3 new repository tests (`FilterByHeaderSearch_MatchesRequestHeaders`, `_MatchesResponseHeaders`, `CountAsync_FilterByHeaderSearch`)
+
+### Performance
+- **Configurable ring buffer** — `PacketCapture:RingBufferCapacity` added to `appsettings.json` (default 10 000); `ScannerExtensions.AddIoTSpyScanner` now accepts `IConfiguration?` and forwards the value to `LockFreePacketRingBuffer`; callers that omit configuration get the compile-time default
+- **Rule regex caching** — closed as already implemented: `RulesEngine` has had `ConcurrentDictionary<(Pattern, RegexOptions), Regex>` with `RegexOptions.Compiled` since a prior batch
+
+### Testing
+- **Frontend component tests** — three new Vitest spec files:
+  - `ManipulationPanel.test.tsx` (8 tests): tab button presence, default tab, all 6 tab switches, active CSS class
+  - `PanelPacketCapture.test.tsx` (10 tests): tab presence and switching, device selector, start/stop buttons, error display
+  - `SessionsPanel.test.tsx` (5 tests): session list, `+ New` button, create form open, form submit, empty-name guard
+  - Frontend test count: 13 → 36 across 7 spec files
+- **Playwright E2E** — `manipulation.spec.ts` added (3 smoke tests: tab labels, rule list render, tab switch); existing `auth.spec.ts` (7 tests), `captures.spec.ts`, `dashboard.spec.ts` retained unchanged
+
+### Frontend polish
+- **`--color-error` CSS token** — added as alias of `--color-danger` in both dark and light themes in `variables.css`; was undefined, causing `ApiKeysTab`, `AuditLogTab`, `UsersTab`, and `DatabaseTab` error messages to render in the browser's default inherited color rather than red
+- **Export error feedback** — `CaptureList.handleExport` replaced silent `catch {}` with `setExportError`; failure surfaces as an `ErrorBanner` above the capture list, cleared on the next export attempt
+- **`ResponseTab` save retry** — error state now auto-resets to `idle` after 4 s so the Save as Asset button re-enables for retry; error logged to console; button is disabled during the error display window

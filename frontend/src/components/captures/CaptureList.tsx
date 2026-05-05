@@ -72,6 +72,7 @@ export default function CaptureList({
   const [newId, setNewId] = useState<string | null>(null)
   const [exporting, setExporting] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
   const exportRef = useRef<HTMLDivElement>(null)
 
   // Detect new prepended captures, flash them, and scroll to top
@@ -115,10 +116,11 @@ export default function CaptureList({
   const handleExport = async (format: 'csv' | 'json' | 'har') => {
     setExportOpen(false)
     setExporting(true)
+    setExportError(null)
     try {
       await exportCaptures(format, filters)
     } catch {
-      // silent — download errors are rare and recoverable by the user retrying
+      setExportError(`Export failed — please try again.`)
     } finally {
       setExporting(false)
     }
@@ -138,6 +140,7 @@ export default function CaptureList({
       <CaptureFilterBar devices={devices} filters={filters} onChange={onFiltersChange} />
 
       {error && <ErrorBanner message={error} />}
+      {exportError && <ErrorBanner message={exportError} />}
 
       <div className="capture-list__toolbar">
         <div className="capture-list__count">

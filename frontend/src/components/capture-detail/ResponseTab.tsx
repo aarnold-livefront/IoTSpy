@@ -41,8 +41,11 @@ export default function ResponseTab({ capture }: Props) {
       const result = await exportAsAsset(capture.id)
       setSavedFileName(result.fileName)
       setSaveState('saved')
-    } catch {
+    } catch (err) {
       setSaveState('error')
+      // Auto-reset so the button becomes available again after a short delay
+      setTimeout(() => setSaveState('idle'), 4000)
+      console.error('Failed to save as asset:', err)
     }
   }
 
@@ -75,7 +78,7 @@ export default function ResponseTab({ capture }: Props) {
             <button
               className="btn btn-sm btn-secondary"
               onClick={handleSaveAsAsset}
-              disabled={saveState === 'saving' || saveState === 'saved'}
+              disabled={saveState === 'saving' || saveState === 'saved' || saveState === 'error'}
             >
               {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved' : 'Save as Asset'}
             </button>

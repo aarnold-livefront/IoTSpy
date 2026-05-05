@@ -16,11 +16,7 @@ This document tracks remaining gaps, known limitations, and technical debt. Item
 
 ## API Completeness Gaps
 
-### Incomplete Filtering on Key Endpoints
-
-| Endpoint | Available filters | Missing |
-|---|---|---|
-| `GET /api/captures` | host, method, status, date, device, clientIp, body (`q`) | Full-text search in request/response headers |
+All previously open filtering gaps have been resolved — see Resolved Items below.
 
 ---
 
@@ -36,8 +32,8 @@ This document tracks remaining gaps, known limitations, and technical debt. Item
 
 | Component | Current Status | Gap |
 |---|---|---|
-| Frontend components | ~3 spec files for 54 components | Manipulation, capture, sessions panels untested |
-| End-to-end frontend | None | Cypress or Playwright suite |
+| Frontend components | 7 spec files (~36 tests) | Most panels still untested; Manipulation/PacketCapture/Sessions panels now covered |
+| End-to-end frontend | Auth + Captures + Dashboard + Manipulation specs (Playwright) | Load testing, security fuzzing |
 | Load testing | None | Proxy throughput/latency baseline |
 | Security fuzzing | Limited | AFL/libFuzzer on MQTT, DNS, CoAP parsers |
 
@@ -61,9 +57,9 @@ Decoders exist for all major protocols but vary in depth:
 
 ### Known Hotspots
 
-1. **Rule evaluation** — 100+ rules on 10k captures → full table scan each time; regex caching or compiled-rule cache needed
+1. **Rule evaluation** — Regex caching with `ConcurrentDictionary<(Pattern, RegexOptions), Regex>` and `RegexOptions.Compiled` is in place in `RulesEngine`; the remaining gap is a compiled-rule list cache per pipeline invocation to avoid re-querying the database on every request.
 2. **JSON schema inference** — Recursive object traversal on large payloads; cache schema per `(host, path, method)` tuple
-3. **Packet capture ring buffer** — 10k packet hard limit; large capture bursts will drop packets; consider configurable or dynamic sizing
+3. **Packet capture ring buffer** — Configurable via `PacketCapture:RingBufferCapacity` in `appsettings.json` (default 10 000); large capture bursts may still drop packets if capacity is not tuned.
 
 ### Optimization Opportunities
 
@@ -83,6 +79,14 @@ These assumptions should be revisited if requirements change:
 4. **JWT + API key auth only** — No SAML/LDAP support (Phase 16.5 deprioritized; see Active Gaps).
 5. **In-memory anomaly detector** — Resets on restart; no persistent baseline learning.
 6. **Request-scoped repositories** — Each HTTP request gets a fresh EF Core DbContext; not suitable for long-running background tasks without scope management.
+
+---
+
+## Frontend Polish
+
+| Component | Issue | Severity |
+|---|---|---|
+| `PanelPacketCapture.tsx` | Left panel built entirely with `style={{}}` inline objects; inconsistent with the CSS-class approach used everywhere else; hardcoded `#888` and pixel values break light-theme support | Low |
 
 ---
 
@@ -117,6 +121,13 @@ See [AGENT-NOTES.md](AGENT-NOTES.md) for session setup and testing instructions.
 ---
 
 ## Resolved Items
+
+### Gaps Batch 4 (2026-05-04)
+- ~~Full-text search in request/response headers~~ — `?headerQ=` query param added to `GET /api/captures`; `CaptureFilter.HeaderSearch` field added; `CaptureRepository.ApplyFilter` searches `RequestHeaders` and `ResponseHeaders` columns; 3 new repository tests
+- ~~Rule regex caching~~ — Already implemented: `RulesEngine` has `ConcurrentDictionary<(Pattern, RegexOptions), Regex>` with `RegexOptions.Compiled`; closed as already resolved
+- ~~Ring buffer size hardcoded~~ — `PacketCapture:RingBufferCapacity` setting added to `appsettings.json` (default 10 000); `ScannerExtensions.AddIoTSpyScanner(IConfiguration?)` reads the value and passes it to `LockFreePacketRingBuffer`
+- ~~Manipulation/Capture/Sessions panels untested~~ — `ManipulationPanel.test.tsx` (8 tests: all 7 tabs + active CSS class), `PanelPacketCapture.test.tsx` (10 tests: tabs, device selector, start/stop, error display), `SessionsPanel.test.tsx` (5 tests: list, create form, validation); frontend test count: 13 → 36
+- ~~No Playwright E2E suite~~ — Suite existed in `frontend/tests/` with auth.spec.ts (7 tests), captures.spec.ts, dashboard.spec.ts; added `manipulation.spec.ts` with 3 smoke tests covering tab visibility, rule list rendering, and tab switching
 
 ### Address Remaining Gaps (2026-05-04)
 - ~~`PacketCaptureController` no tests~~ — `PacketCaptureControllerTests.cs` added with 29 tests covering devices CRUD, start/stop capture, packet filter API, freeze-frame (POST+GET), delete, protocol distribution, communication patterns, suspicious activity, PCAP import (happy path, bad extension, failure), PCAP export (filtered/unfiltered/no-data), and analyzer freeze/unfreeze/status; total backend tests now 712
