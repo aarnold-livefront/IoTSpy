@@ -69,7 +69,7 @@ See `.dev/claude-skills/README.md` for full details.
 
 ## Workflow rules
 
-- **Always run `dotnet test` before committing.** All 712 backend tests must stay green.
+- **Always run `dotnet test` before committing.** All 715 backend tests must stay green.
 - New backend logic needs a corresponding test. Use NSubstitute for mocks; use EF Core SQLite in-memory for repository tests.
 - New EF entities require a migration (`dotnet ef migrations add ...`).
 - Keep `IoTSpy.Core` free of infrastructure dependencies.
@@ -78,8 +78,8 @@ See `.dev/claude-skills/README.md` for full details.
 
 ## Current state
 
-All phases 1–16, 18–22 plus API & Backend Polish and Frontend Usability enhancements are complete:
-- 712 backend tests across 8 test projects; 13+ frontend component tests
+All phases 1–16, 18–22 plus API & Backend Polish, Frontend Usability enhancements, and Gaps Batch 4 are complete:
+- 715 backend tests across 8 test projects; 36 frontend component tests; Playwright E2E suite (auth, captures, dashboard, manipulation)
 - 19 REST controllers, 180+ endpoints
 - 19 EF Core migrations up through `AddAuditDiffs`
 - GitHub Actions CI at `.github/workflows/ci.yml`
@@ -87,7 +87,16 @@ All phases 1–16, 18–22 plus API & Backend Polish and Frontend Usability enha
 
 > Counts above last verified 2026-05-04. To re-check: `grep -rE "^\s*\[(Fact|Theory)" --include="*.cs" src/IoTSpy.*.Tests src/IoTSpy.Api.IntegrationTests | wc -l`, `ls src/IoTSpy.Api/Controllers | wc -l`, `ls src/IoTSpy.Storage/Migrations/*.cs | grep -vE "(Designer|Snapshot)" | wc -l`.
 
-### API & Backend Polish (latest)
+### Gaps Batch 4 (latest)
+- `GET /api/captures` now accepts `?headerQ=` for full-text search across `RequestHeaders` and `ResponseHeaders`
+- Ring buffer capacity configurable via `PacketCapture:RingBufferCapacity` in `appsettings.json` (default 10 000); passed to `LockFreePacketRingBuffer` at startup
+- Frontend component tests: `ManipulationPanel` (8), `PanelPacketCapture` (10), `SessionsPanel` (5) — total 13 → 36
+- Playwright E2E: `manipulation.spec.ts` added; existing auth/captures/dashboard specs retained
+- CSS token fix: `--color-error` alias added to both themes in `variables.css` (was undefined, causing invisible error text on admin pages)
+- Export error feedback: `CaptureList` now surfaces a banner on download failure instead of silently swallowing the error
+- `ResponseTab` save-as-asset: error state auto-resets after 4 s so the button re-enables for retry
+
+### API & Backend Polish
 - All list endpoints return `{ items, total, page, pageSize, pages }` pagination envelope
 - Bulk rule enable/disable (`PATCH /api/manipulation/rules/bulk`), cancel-all scans (`POST /api/scanner/jobs/cancel-all`), bulk capture delete by filter
 - Fuzzer export (`GET /api/manipulation/fuzzer/jobs/{id}/export`), scan export (`GET /api/scanner/jobs/{id}/export`), ruleset bundle export (`GET /api/manipulation/export`)
