@@ -148,4 +148,53 @@ public class CaptureRepositoryTests : IDisposable
 
         Assert.Equal(1, await repo.CountAsync(new CaptureFilter(), TestContext.Current.CancellationToken));
     }
+
+    [Fact]
+    public async Task GetPagedAsync_FilterByHeaderSearch_MatchesRequestHeaders()
+    {
+        var repo = new CaptureRepository(_db);
+        var c1 = MakeCapture();
+        c1.RequestHeaders = "{\"Authorization\":\"Bearer token123\"}";
+        var c2 = MakeCapture();
+        c2.RequestHeaders = "{\"Content-Type\":\"application/json\"}";
+        await repo.AddAsync(c1, TestContext.Current.CancellationToken);
+        await repo.AddAsync(c2, TestContext.Current.CancellationToken);
+
+        var results = await repo.GetPagedAsync(new CaptureFilter(HeaderSearch: "Bearer"), 1, 50, TestContext.Current.CancellationToken);
+
+        Assert.Single(results);
+        Assert.Contains("Bearer", results[0].RequestHeaders);
+    }
+
+    [Fact]
+    public async Task GetPagedAsync_FilterByHeaderSearch_MatchesResponseHeaders()
+    {
+        var repo = new CaptureRepository(_db);
+        var c1 = MakeCapture();
+        c1.ResponseHeaders = "{\"X-Custom-Header\":\"secret-value\"}";
+        var c2 = MakeCapture();
+        c2.ResponseHeaders = "{\"Content-Type\":\"text/html\"}";
+        await repo.AddAsync(c1, TestContext.Current.CancellationToken);
+        await repo.AddAsync(c2, TestContext.Current.CancellationToken);
+
+        var results = await repo.GetPagedAsync(new CaptureFilter(HeaderSearch: "secret-value"), 1, 50, TestContext.Current.CancellationToken);
+
+        Assert.Single(results);
+        Assert.Contains("secret-value", results[0].ResponseHeaders);
+    }
+
+    [Fact]
+    public async Task CountAsync_FilterByHeaderSearch_CountsCorrectly()
+    {
+        var repo = new CaptureRepository(_db);
+        for (var i = 0; i < 3; i++)
+        {
+            var c = MakeCapture();
+            c.RequestHeaders = "{\"Authorization\":\"Bearer abc\"}";
+            await repo.AddAsync(c, TestContext.Current.CancellationToken);
+        }
+        await repo.AddAsync(MakeCapture(), TestContext.Current.CancellationToken);
+
+        Assert.Equal(3, await repo.CountAsync(new CaptureFilter(HeaderSearch: "Bearer"), TestContext.Current.CancellationToken));
+    }
 }

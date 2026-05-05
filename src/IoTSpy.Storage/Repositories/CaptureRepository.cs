@@ -98,6 +98,8 @@ public class CaptureRepository(IoTSpyDbContext db) : ICaptureRepository
             q = q.Where(c => c.RequestBody.Contains(filter.BodySearch) || c.ResponseBody.Contains(filter.BodySearch));
         if (!string.IsNullOrEmpty(filter.ClientIp))
             q = q.Where(c => c.ClientIp.Contains(filter.ClientIp));
+        if (!string.IsNullOrEmpty(filter.HeaderSearch))
+            q = q.Where(c => c.RequestHeaders.Contains(filter.HeaderSearch) || c.ResponseHeaders.Contains(filter.HeaderSearch));
         return q;
     }
 }

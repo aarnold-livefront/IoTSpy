@@ -183,7 +183,7 @@ builder.Services.AddSingleton<ICoapProxy, CoapProxy>();
 builder.Services.AddSingleton<IAnomalyDetector, AnomalyDetector>();
 
 // ── Scanner ─────────────────────────────────────────────────────────────────
-builder.Services.AddIoTSpyScanner();
+builder.Services.AddIoTSpyScanner(builder.Configuration);
 
 // ── Manipulation ────────────────────────────────────────────────────────────
 var aiConfig = builder.Configuration
