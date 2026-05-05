@@ -82,6 +82,14 @@ These assumptions should be revisited if requirements change:
 
 ---
 
+## Frontend Polish
+
+| Component | Issue | Severity |
+|---|---|---|
+| `PanelPacketCapture.tsx` | Left panel built entirely with `style={{}}` inline objects; inconsistent with the CSS-class approach used everywhere else; hardcoded `#888` and pixel values break light-theme support | Low |
+
+---
+
 ## Documentation Gaps
 
 | Area | Status | Notes |

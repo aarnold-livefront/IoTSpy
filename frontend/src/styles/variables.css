@@ -21,6 +21,7 @@
   --color-warning: #f39c12;
   --color-danger: #e74c3c;
   --color-danger-hover: #c0392b;
+  --color-error: #e74c3c;
   --color-info: #3498db;
 
   /* Status badges */
@@ -92,6 +93,7 @@
   --color-warning: #e67e22;
   --color-danger: #c0392b;
   --color-danger-hover: #a93226;
+  --color-error: #c0392b;
   --color-info: #2980b9;
 
   --color-method-get: #27ae60;
