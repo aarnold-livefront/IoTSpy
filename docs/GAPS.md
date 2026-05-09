@@ -11,6 +11,9 @@ This document tracks remaining gaps, known limitations, and technical debt. Item
 | No LDAP / SAML SSO | Enterprise single sign-on not implemented | Low | Open | Deprioritized in Phase 16.5; valid candidate for future work |
 | No distributed / multi-node mode | Single-instance proxy per deployment; horizontal scaling requires Redis backplane | Low | Open | Deprioritized in Phase 16.8; see Design Assumptions |
 | No Bluetooth/Zigbee/Z-Wave | IoT protocols beyond IP-based networking are not supported | Low | Open | See Phase 17 for future work |
+| Plugin system UI | `PluginsController` + `PluginLoaderService` fully implemented (assembly loading from `plugins/` dir, list/reload/decode); zero frontend exposure | Medium | Open | Backend: `GET/POST /api/plugins`, `POST /api/plugins/reload`, `POST /api/plugins/decode/{protocol}` |
+| Protocol Proxy UI | Standalone MQTT broker proxy and CoAP proxy with start/stop/status endpoints; zero frontend exposure | Medium | Open | Backend: `POST/GET /api/protocol-proxy/mqtt/*` and `/api/protocol-proxy/coap/*` |
+| Dashboard layout persistence | Per-user saved layout/filter presets with full CRUD; DB model, repo, and API all implemented; zero frontend exposure | Low | Open | Backend: `GET/POST/PUT/DELETE /api/dashboard/layouts` |
 
 ---
 

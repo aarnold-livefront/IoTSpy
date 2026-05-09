@@ -635,7 +635,6 @@ export interface ApiSpecDocument {
   useLlmAnalysis: boolean
   createdAt: string
   updatedAt: string
-  replacementRules: ContentReplacementRule[]
 }
 
 export interface ContentReplacementRule {
@@ -719,38 +718,6 @@ export interface UpdateSpecRequest {
   mockEnabled?: boolean
   passthroughFirst?: boolean
   status?: ApiSpecStatus
-}
-
-export interface CreateReplacementRuleRequest {
-  name: string
-  matchType: ContentMatchType
-  matchPattern: string
-  action: ContentReplacementAction
-  enabled?: boolean
-  replacementValue?: string
-  replacementFilePath?: string
-  replacementContentType?: string
-  hostPattern?: string
-  pathPattern?: string
-  priority?: number
-  sseInterEventDelayMs?: number
-  sseLoop?: boolean
-}
-
-export interface UpdateReplacementRuleRequest {
-  name?: string
-  enabled?: boolean
-  matchType?: ContentMatchType
-  matchPattern?: string
-  action?: ContentReplacementAction
-  replacementValue?: string
-  replacementFilePath?: string
-  replacementContentType?: string
-  hostPattern?: string
-  pathPattern?: string
-  priority?: number
-  sseInterEventDelayMs?: number
-  sseLoop?: boolean
 }
 
 // ── SignalR DTOs ──────────────────────────────────────────────────────────────
