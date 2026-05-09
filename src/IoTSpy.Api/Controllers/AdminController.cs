@@ -67,20 +67,21 @@ public class AdminController(
                 query = query.Where(c => c.Host == host);
         }
 
-        var toDelete = await query.ToListAsync(ct);
-        db.Captures.RemoveRange(toDelete);
-        await db.SaveChangesAsync(ct);
+        // ExecuteDeleteAsync issues a single SQL DELETE without hydrating rows
+        // into the change tracker — safe for tables with hundreds of thousands
+        // of rows that the previous ToListAsync()+RemoveRange() pattern OOMed on.
+        var deleted = await query.ExecuteDeleteAsync(ct);
 
         await auditRepo.AddAsync(new AuditEntry
         {
             Username = User.Identity?.Name ?? "system",
             Action = "PurgeCaptures",
             EntityType = "CapturedRequest",
-            Details = $"Purged {toDelete.Count} captures",
+            Details = $"Purged {deleted} captures",
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? ""
         }, ct);
 
-        return Ok(new { deleted = toDelete.Count });
+        return Ok(new { deleted });
     }
 
     [HttpDelete("packets")]
@@ -96,20 +97,18 @@ public class AdminController(
         if (!purgeAll && olderThanDays.HasValue)
             query = query.Where(p => p.Timestamp < DateTimeOffset.UtcNow.AddDays(-olderThanDays.Value));
 
-        var toDelete = await query.ToListAsync(ct);
-        db.Packets.RemoveRange(toDelete);
-        await db.SaveChangesAsync(ct);
+        var deleted = await query.ExecuteDeleteAsync(ct);
 
         await auditRepo.AddAsync(new AuditEntry
         {
             Username = User.Identity?.Name ?? "system",
             Action = "PurgePackets",
             EntityType = "CapturedPacket",
-            Details = $"Purged {toDelete.Count} packets",
+            Details = $"Purged {deleted} packets",
             IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? ""
         }, ct);
 
-        return Ok(new { deleted = toDelete.Count });
+        return Ok(new { deleted });
     }
 
     [HttpGet("export/logs")]

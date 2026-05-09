@@ -16,18 +16,34 @@ public class ScannerController(
     IScanJobRepository scanJobs,
     IDeviceRepository devices) : ControllerBase
 {
+    // Bounds for the dual-use scanner. Aggressive defaults are unfriendly on
+    // shared networks; the previous MaxConcurrency=100 default could SYN-flood
+    // a small subnet. PortRange string length is bounded to prevent quadratic
+    // parser work on pathological inputs (the parser itself also caps the
+    // resolved port count).
+    private const int MaxPortRangeStringLength = 256;
+    private const int DefaultMaxConcurrency = 25;
+    private const int MaxAllowedConcurrency = 100;
+
     [HttpPost("scan")]
     public async Task<IActionResult> StartScan([FromBody] StartScanDto dto)
     {
         var device = await devices.GetByIdAsync(dto.DeviceId);
         if (device is null) return NotFound("Device not found");
 
+        var portRange = dto.PortRange ?? "1-1024";
+        if (portRange.Length > MaxPortRangeStringLength)
+            return BadRequest($"PortRange exceeds {MaxPortRangeStringLength} characters.");
+
+        var requestedConcurrency = dto.MaxConcurrency ?? DefaultMaxConcurrency;
+        var clampedConcurrency = Math.Clamp(requestedConcurrency, 1, MaxAllowedConcurrency);
+
         var job = new ScanJob
         {
             DeviceId = dto.DeviceId,
             TargetIp = device.IpAddress,
-            PortRange = dto.PortRange ?? "1-1024",
-            MaxConcurrency = dto.MaxConcurrency ?? 100,
+            PortRange = portRange,
+            MaxConcurrency = clampedConcurrency,
             TimeoutMs = dto.TimeoutMs ?? 3000,
             EnableFingerprinting = dto.EnableFingerprinting ?? true,
             EnableCredentialTest = dto.EnableCredentialTest ?? true,

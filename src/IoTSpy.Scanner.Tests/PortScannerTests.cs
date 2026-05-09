@@ -35,6 +35,17 @@ public class PortScannerTests
     }
 
     [Fact]
+    public void ParsePortRange_PathologicalInput_CapsAtMaxResolvedPorts()
+    {
+        // Regression guard: previously a string like "1-65535,1-65535,..." would
+        // expand to ~65 535 ports, then × MaxConcurrency = millions of concurrent
+        // TCP connects per scan job.
+        var ports = PortScanner.ParsePortRange(string.Join(",", Enumerable.Repeat("1-65535", 5)));
+
+        Assert.Equal(PortScanner.MaxResolvedPorts, ports.Count);
+    }
+
+    [Fact]
     public void ParsePortRange_MixedRangeAndSingle_ReturnsAllSorted()
     {
         var ports = PortScanner.ParsePortRange("80,443,8080-8082");

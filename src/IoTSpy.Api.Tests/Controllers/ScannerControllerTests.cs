@@ -39,6 +39,67 @@ public class ScannerControllerTests
     }
 
     [Fact]
+    public async Task StartScan_RejectsOverlongPortRangeString()
+    {
+        var device = new Device { Id = Guid.NewGuid(), IpAddress = "192.168.1.100" };
+        var scanner = Substitute.For<IScannerService>();
+        var scanJobs = Substitute.For<IScanJobRepository>();
+        var devices = Substitute.For<IDeviceRepository>();
+        devices.GetByIdAsync(device.Id, Arg.Any<CancellationToken>()).Returns(device);
+
+        var controller = new ScannerController(scanner, scanJobs, devices);
+        // 257 chars: "1-65535," repeated 32 times + "1" = "1-65535,1-65535,...,1" → 257
+        var hugeRange = string.Join(",", Enumerable.Repeat("1-65535", 50));
+        var dto = new StartScanDto(device.Id, hugeRange, null, null, null, null, null, null);
+
+        var result = await controller.StartScan(dto);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        await scanner.DidNotReceive().StartScanAsync(Arg.Any<ScanJob>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StartScan_ClampsExcessiveMaxConcurrency()
+    {
+        var device = new Device { Id = Guid.NewGuid(), IpAddress = "192.168.1.100" };
+        var scanner = Substitute.For<IScannerService>();
+        scanner.StartScanAsync(Arg.Any<ScanJob>(), Arg.Any<CancellationToken>()).Returns(MakeScanJob());
+        var scanJobs = Substitute.For<IScanJobRepository>();
+        var devices = Substitute.For<IDeviceRepository>();
+        devices.GetByIdAsync(device.Id, Arg.Any<CancellationToken>()).Returns(device);
+
+        var controller = new ScannerController(scanner, scanJobs, devices);
+        var dto = new StartScanDto(device.Id, "1-100", 10_000, null, null, null, null, null);
+
+        await controller.StartScan(dto);
+
+        await scanner.Received(1).StartScanAsync(
+            Arg.Is<ScanJob>(j => j.MaxConcurrency == 100),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StartScan_DefaultMaxConcurrencyIs25NotAggressive100()
+    {
+        // Regression guard: previous default was 100, which SYN-floods small subnets.
+        var device = new Device { Id = Guid.NewGuid(), IpAddress = "192.168.1.100" };
+        var scanner = Substitute.For<IScannerService>();
+        scanner.StartScanAsync(Arg.Any<ScanJob>(), Arg.Any<CancellationToken>()).Returns(MakeScanJob());
+        var scanJobs = Substitute.For<IScanJobRepository>();
+        var devices = Substitute.For<IDeviceRepository>();
+        devices.GetByIdAsync(device.Id, Arg.Any<CancellationToken>()).Returns(device);
+
+        var controller = new ScannerController(scanner, scanJobs, devices);
+        var dto = new StartScanDto(device.Id, null, null, null, null, null, null, null);
+
+        await controller.StartScan(dto);
+
+        await scanner.Received(1).StartScanAsync(
+            Arg.Is<ScanJob>(j => j.MaxConcurrency == 25),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task StartScan_WhenDeviceNotFound_ReturnsNotFound()
     {
         var scanner = Substitute.For<IScannerService>();

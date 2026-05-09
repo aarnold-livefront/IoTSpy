@@ -18,19 +18,20 @@ public sealed class ManipulationRuleCache(
 
     public async Task<IReadOnlyList<ManipulationRule>> GetEnabledAsync(CancellationToken ct = default)
     {
-        if (memoryCache.TryGetValue(CacheKey, out IReadOnlyList<ManipulationRule>? cached) && cached is not null)
-            return cached;
-
-        using var scope = scopeFactory.CreateScope();
-        var repo = scope.ServiceProvider.GetRequiredService<IManipulationRuleRepository>();
-        var rules = await repo.GetEnabledAsync(ct);
-
-        memoryCache.Set(CacheKey, (IReadOnlyList<ManipulationRule>)rules, new MemoryCacheEntryOptions
+        // GetOrCreateAsync handles the race the previous TryGetValue+Set pattern
+        // had: under concurrent traffic two requests could both miss, both query
+        // the DB, and a parallel Invalidate() between TryGetValue and Set could
+        // be silently overwritten — leaving stale rules cached for up to 30 s.
+        var cached = await memoryCache.GetOrCreateAsync(CacheKey, async entry =>
         {
-            SlidingExpiration = SlidingExpiry
+            entry.SlidingExpiration = SlidingExpiry;
+            using var scope = scopeFactory.CreateScope();
+            var repo = scope.ServiceProvider.GetRequiredService<IManipulationRuleRepository>();
+            var rules = await repo.GetEnabledAsync(ct);
+            return (IReadOnlyList<ManipulationRule>)rules;
         });
 
-        return rules;
+        return cached ?? [];
     }
 
     public void Invalidate() => memoryCache.Remove(CacheKey);

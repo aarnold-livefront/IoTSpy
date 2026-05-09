@@ -78,19 +78,31 @@ public class PortScanner(ILogger<PortScanner> logger)
         }
     }
 
+    /// <summary>
+    /// Hard cap on resolved port count. Prevents pathological inputs like
+    /// `"1-65535,1-65535,..."` from expanding the HashSet to millions of
+    /// concurrent TCP connect attempts when multiplied by MaxConcurrency.
+    /// </summary>
+    public const int MaxResolvedPorts = 10_000;
+
     internal static List<int> ParsePortRange(string portRange)
     {
         var ports = new HashSet<int>();
 
         foreach (var segment in portRange.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
+            if (ports.Count >= MaxResolvedPorts) break;
+
             if (segment.Contains('-'))
             {
                 var parts = segment.Split('-', 2);
                 if (int.TryParse(parts[0], out var start) && int.TryParse(parts[1], out var end))
                 {
                     for (var p = Math.Max(1, start); p <= Math.Min(65535, end); p++)
+                    {
+                        if (ports.Count >= MaxResolvedPorts) break;
                         ports.Add(p);
+                    }
                 }
             }
             else if (int.TryParse(segment, out var single) && single is >= 1 and <= 65535)

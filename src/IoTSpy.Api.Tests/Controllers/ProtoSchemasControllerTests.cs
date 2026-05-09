@@ -173,6 +173,36 @@ public class ProtoSchemasControllerTests
     }
 
     [Fact]
+    public void Delete_RequiresAdminRole_LowercaseToMatchAuthServiceClaim()
+    {
+        // Regression guard: AuthService emits ClaimTypes.Role lowercase ("admin").
+        // The Delete endpoint is destructive (removes the field-name mapping used
+        // by live gRPC decoding), so it must be admin-only.
+        var method = typeof(ProtoSchemasController).GetMethod(nameof(ProtoSchemasController.Delete))!;
+        var attrs = method.GetCustomAttributes(typeof(Microsoft.AspNetCore.Authorization.AuthorizeAttribute), inherit: false)
+            .Cast<Microsoft.AspNetCore.Authorization.AuthorizeAttribute>()
+            .ToList();
+
+        Assert.Single(attrs);
+        Assert.Equal("admin", attrs[0].Roles);
+    }
+
+    [Fact]
+    public async Task UploadJson_RejectsContentExceedingSizeLimit()
+    {
+        var repo = Substitute.For<IProtoSchemaRepository>();
+        var controller = MakeController(repo);
+        // 1 MB + 1 byte
+        var oversized = new string('x', 1 * 1024 * 1024 + 1);
+        var dto = new UploadProtoDto("X", oversized);
+
+        var result = await controller.UploadJson(dto, TestContext.Current.CancellationToken);
+
+        Assert.IsType<BadRequestObjectResult>(result);
+        await repo.DidNotReceive().AddAsync(Arg.Any<ProtoSchema>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Delete_WhenFound_ReturnsNoContent()
     {
         var schema = MakeSchema();
