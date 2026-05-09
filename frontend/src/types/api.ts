@@ -720,6 +720,48 @@ export interface UpdateSpecRequest {
   status?: ApiSpecStatus
 }
 
+// ── Plugin models ────────────────────────────────────────────────────────────
+
+export interface PluginInfo {
+  protocol: string
+  name: string
+  version: string
+  assemblyPath: string
+  isLoaded: boolean
+  loadError?: string
+}
+
+// ── Protocol Proxy models ─────────────────────────────────────────────────────
+
+export interface MqttBrokerSettings {
+  enabled: boolean
+  listenPort: number
+  listenAddress: string
+  upstreamHost?: string
+  upstreamPort: number
+  logPayloads: boolean
+  topicFilters: string[]
+}
+
+export interface CoapProxySettings {
+  enabled: boolean
+  listenPort: number
+  listenAddress: string
+  upstreamHost?: string
+  upstreamPort: number
+  logPayloads: boolean
+}
+
+export interface MqttProxyStatus {
+  isRunning: boolean
+  activeConnections: number
+}
+
+export interface CoapProxyStatus {
+  isRunning: boolean
+  messagesProxied: number
+}
+
 // ── SignalR DTOs ──────────────────────────────────────────────────────────────
 
 /** Trimmed capture event pushed via SignalR — no body content */

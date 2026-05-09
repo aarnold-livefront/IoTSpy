@@ -11,8 +11,6 @@ This document tracks remaining gaps, known limitations, and technical debt. Item
 | No LDAP / SAML SSO | Enterprise single sign-on not implemented | Low | Open | Deprioritized in Phase 16.5; valid candidate for future work |
 | No distributed / multi-node mode | Single-instance proxy per deployment; horizontal scaling requires Redis backplane | Low | Open | Deprioritized in Phase 16.8; see Design Assumptions |
 | No Bluetooth/Zigbee/Z-Wave | IoT protocols beyond IP-based networking are not supported | Low | Open | See Phase 17 for future work |
-| Plugin system UI | `PluginsController` + `PluginLoaderService` fully implemented (assembly loading from `plugins/` dir, list/reload/decode); zero frontend exposure | Medium | Open | Backend: `GET/POST /api/plugins`, `POST /api/plugins/reload`, `POST /api/plugins/decode/{protocol}` |
-| Protocol Proxy UI | Standalone MQTT broker proxy and CoAP proxy with start/stop/status endpoints; zero frontend exposure | Medium | Open | Backend: `POST/GET /api/protocol-proxy/mqtt/*` and `/api/protocol-proxy/coap/*` |
 | Dashboard layout persistence | Per-user saved layout/filter presets with full CRUD; DB model, repo, and API all implemented; zero frontend exposure | Low | Open | Backend: `GET/POST/PUT/DELETE /api/dashboard/layouts` |
 
 ---
@@ -130,6 +128,8 @@ See [AGENT-NOTES.md](AGENT-NOTES.md) for session setup and testing instructions.
 - ~~Frontend component tests insufficient~~ — 4 new spec files: `ScannerPanel.test.tsx` (9 tests), `OpenRtbPanel.test.tsx` (5 tests), `ContentRulesPanel.test.tsx` (6 tests), `CaptureList.test.tsx` (4 tests); total frontend tests: 36 → 61 across 11 spec files; also created missing `scanner.css`
 - ~~gRPC proto schema UI not wired~~ — `GrpcSchemasPanel` component created with upload form + schema list (expand/collapse, delete); wired as 8th tab in `ManipulationPanel`; `useGrpcSchemas` hook + `api/grpcSchemas.ts` client; `ManipulationPanel.test.tsx` updated
 - ~~ScannerPanel / OpenRtbPanel orphaned~~ — Both panels were fully built but never mounted; wired into `DashboardPage` as 'scanner' and 'openrtb' view modes in the view-mode toggle bar; `ScheduledScansPanel` wired as 'Scheduled Scans' tab within `ScannerPanel`
+- ~~Plugin system UI~~ — `PluginsTab` added as 6th tab in Admin page; reads `GET /api/plugins`, shows protocol/name/version/load-status/assembly-path table; Admin-only Reload button hits `POST /api/plugins/reload`; `api/plugins.ts` + `usePlugins` hook
+- ~~Protocol Proxy UI~~ — `ProtocolProxyPanel` added as 'Protocol Proxies' view mode in dashboard; MQTT card (listenPort/address, upstreamHost/port, logPayloads, topic filters) and CoAP card (same minus topic filters) each with start/stop toggle and live connection/message counters; `api/protocolProxy.ts` + `useProtocolProxy` hook (5-second status polling)
 
 ### Gaps Batch 5 (2026-05-08)
 - ~~CoAP Block-wise transfer~~ — `CoapMessage` now exposes `Block1`, `Block2` (`CoapBlockOption` with `Num`, `More`, `Szx`, `BlockSize`), `Size1`, `Size2`, `ObserveValue`, and `IsWellKnownCore` as computed properties derived from the already-decoded options list; 7 new tests

@@ -91,6 +91,9 @@ All phases 1–16, 18–22 plus API & Backend Polish, Frontend Usability enhance
 - gRPC `.proto` upload: `ProtoParser` (regex-based field extraction), `ProtoSchema` model/repo, `ProtoSchemasController` at `/api/grpc/schemas`; `GrpcDecoder` accepts optional field map, populates `ProtobufField.FieldName`; `GrpcFrameType` enum + trailer frame detection (flag 0x80); 2 new EF migrations; 15 new backend tests; audit write-once trigger (`BEFORE UPDATE ON AuditEntries`); missing `scanner.css` created
 - gRPC schema UI: `GrpcSchemasPanel` (upload form + schema list) wired as 8th tab in `ManipulationPanel`; `useGrpcSchemas` hook + `api/grpcSchemas.ts` client
 - Orphaned panels wired: `ScannerPanel` and `OpenRtbPanel` added as 'scanner'/'openrtb' view modes in `DashboardPage`; `ScheduledScansPanel` added as tab within `ScannerPanel`
+- Plugin UI: `PluginsTab` in Admin page (list + Admin-only reload); `api/plugins.ts` + `usePlugins` hook
+- Protocol Proxy UI: `ProtocolProxyPanel` as 'Protocol Proxies' dashboard tab; MQTT + CoAP start/stop with config forms and live status; `api/protocolProxy.ts` + `useProtocolProxy` hook
+- Dead code removed: `ReplacementRulesEditor.tsx` (superseded by `ContentRulesPanel`); spec-scoped rule CRUD removed from `useApiSpec`, `apispec.ts`, and `types/api.ts`
 - 25 new frontend tests (4 new spec files + tab tests); total: 36 → 61 across 11 spec files
 
 ### Gaps Batch 5 (previous)
