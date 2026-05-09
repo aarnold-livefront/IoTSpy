@@ -145,4 +145,91 @@ public class GrpcDecoderTests
         Assert.Equal(0, messages[0].MessageLength);
         Assert.Empty(messages[0].Payload);
     }
+
+    // ── gRPC-Web trailer frames ──────────────────────────────────────────────
+
+    [Fact]
+    public void CanDecode_GrpcWebTrailerFlag_ReturnsTrue()
+    {
+        // flag=0x80 (gRPC-Web trailer), length=20
+        Assert.True(_decoder.CanDecode([0x80, 0x00, 0x00, 0x00, 0x14]));
+    }
+
+    [Fact]
+    public async Task DecodeAsync_GrpcWebTrailerFrame_SetsFrameType()
+    {
+        // trailer frame: flag=0x80, length=4, payload = "test"
+        byte[] data = [0x80, 0x00, 0x00, 0x00, 0x04, (byte)'t', (byte)'e', (byte)'s', (byte)'t'];
+
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
+
+        Assert.Single(messages);
+        Assert.Equal(GrpcFrameType.Trailer, messages[0].FrameType);
+        Assert.True(messages[0].IsTrailerFrame);
+        Assert.Empty(messages[0].Fields); // trailers don't parse as protobuf
+    }
+
+    [Fact]
+    public async Task DecodeAsync_DataFrame_HasDataFrameType()
+    {
+        byte[] data = [0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00];
+
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
+
+        Assert.Single(messages);
+        Assert.Equal(GrpcFrameType.Data, messages[0].FrameType);
+        Assert.False(messages[0].IsTrailerFrame);
+    }
+
+    [Fact]
+    public async Task DecodeAsync_MixedDataAndTrailer_DecodesAll()
+    {
+        // data frame (flag=0x00, len=2) followed by trailer (flag=0x80, len=3)
+        byte[] data =
+        [
+            0x00, 0x00, 0x00, 0x00, 0x02, 0xAA, 0xBB,
+            0x80, 0x00, 0x00, 0x00, 0x03, (byte)'a', (byte)'b', (byte)'c'
+        ];
+
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
+
+        Assert.Equal(2, messages.Count);
+        Assert.Equal(GrpcFrameType.Data, messages[0].FrameType);
+        Assert.Equal(GrpcFrameType.Trailer, messages[1].FrameType);
+    }
+
+    // ── Proto schema field name resolution ───────────────────────────────────
+
+    [Fact]
+    public async Task DecodeAsync_WithFieldMap_ResolvesFieldNames()
+    {
+        // Protobuf: field 1 varint=42, field 2 string="hello"
+        byte[] protobuf =
+        [
+            0x08, 0x2A,                                            // field 1 = 42
+            0x12, 0x05, (byte)'h', (byte)'e', (byte)'l', (byte)'l', (byte)'o' // field 2 = "hello"
+        ];
+        byte[] data = [0x00, 0x00, 0x00, 0x00, (byte)protobuf.Length, .. protobuf];
+
+        var fieldMap = new Dictionary<int, string> { [1] = "device_id", [2] = "name" };
+        var messages = await _decoder.DecodeAsync(data, fieldMap, TestContext.Current.CancellationToken);
+
+        Assert.Single(messages);
+        var f1 = messages[0].Fields.First(f => f.FieldNumber == 1);
+        var f2 = messages[0].Fields.First(f => f.FieldNumber == 2);
+        Assert.Equal("device_id", f1.FieldName);
+        Assert.Equal("name", f2.FieldName);
+    }
+
+    [Fact]
+    public async Task DecodeAsync_WithoutFieldMap_FieldNameIsNull()
+    {
+        byte[] protobuf = [0x08, 0x2A]; // field 1 = 42
+        byte[] data = [0x00, 0x00, 0x00, 0x00, 0x02, .. protobuf];
+
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
+
+        Assert.Single(messages);
+        Assert.Null(messages[0].Fields[0].FieldName);
+    }
 }

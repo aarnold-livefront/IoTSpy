@@ -78,16 +78,19 @@ See `.dev/claude-skills/README.md` for full details.
 
 ## Current state
 
-All phases 1–16, 18–22 plus API & Backend Polish, Frontend Usability enhancements, Gaps Batch 4, and Gaps Batch 5 are complete:
-- 745 backend tests across 8 test projects; 36 frontend component tests; Playwright E2E suite (auth, captures, dashboard, manipulation)
-- 19 REST controllers, 180+ endpoints
-- 19 EF Core migrations up through `AddAuditDiffs`
+All phases 1–16, 18–22 plus API & Backend Polish, Frontend Usability enhancements, Gaps Batches 4, 5, and 6 are complete:
+- 760 backend tests across 8 test projects; 58 frontend component tests; Playwright E2E suite (auth, captures, dashboard, manipulation)
+- 20 REST controllers, 180+ endpoints (added `ProtoSchemasController`)
+- 21 EF Core migrations up through `AuditWriteOnceTrigger`
 - GitHub Actions CI at `.github/workflows/ci.yml`
 - Helm chart at `deploy/helm/iotspy/`; production Docker Compose at `docker-compose.prod.yml`
 
-> Counts above last verified 2026-05-08. To re-check: `grep -rE "^\s*\[(Fact|Theory)" --include="*.cs" src/IoTSpy.*.Tests src/IoTSpy.Api.IntegrationTests | wc -l`, `ls src/IoTSpy.Api/Controllers | wc -l`, `ls src/IoTSpy.Storage/Migrations/*.cs | grep -vE "(Designer|Snapshot)" | wc -l`.
+> Counts above last verified 2026-05-09. To re-check: `grep -rE "^\s*\[(Fact|Theory)" --include="*.cs" src/IoTSpy.*.Tests src/IoTSpy.Api.IntegrationTests | wc -l`, `ls src/IoTSpy.Api/Controllers | wc -l`, `ls src/IoTSpy.Storage/Migrations/*.cs | grep -vE "(Designer|Snapshot)" | wc -l`.
 
-### Gaps Batch 5 (latest)
+### Gaps Batch 6 (latest)
+- gRPC `.proto` upload: `ProtoParser` (regex-based field extraction), `ProtoSchema` model/repo, `ProtoSchemasController` at `/api/grpc/schemas`; `GrpcDecoder` accepts optional field map, populates `ProtobufField.FieldName`; `GrpcFrameType` enum + trailer frame detection (flag 0x80); 2 new EF migrations; 15 new backend tests; 22 new frontend tests (4 new spec files covering ScannerPanel, OpenRtbPanel, ContentRulesPanel, CaptureList); audit write-once trigger (`BEFORE UPDATE ON AuditEntries`); missing `scanner.css` created
+
+### Gaps Batch 5 (previous)
 - CoAP: `CoapMessage` exposes `Block1/Block2` (`CoapBlockOption`), `ObserveValue`, `Size1/2`, `IsWellKnownCore` computed from already-decoded options
 - DNS: EDNS0 OPT record (type 41) parsed from Additional section → `DnsMessage.EdnsRecord` with `UdpPayloadSize`, `DoBit`, option list
 - WebSocket: `WebSocketDecodedFrame.DetectedSubProtocol` set to `Stomp`, `Wamp`, or `MqttOverWs` via payload heuristics

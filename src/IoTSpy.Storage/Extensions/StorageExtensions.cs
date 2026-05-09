@@ -69,6 +69,9 @@ services.AddScoped<IOpenRtbEventRepository, OpenRtbEventRepository>();
         // Phase 21 — Passive proxy sessions
         services.AddScoped<IPassiveCaptureSessionRepository, PassiveCaptureSessionRepository>();
 
+        // Gaps Batch 6 — gRPC proto schemas
+        services.AddScoped<IProtoSchemaRepository, ProtoSchemaRepository>();
+
         return services;
     }
 
