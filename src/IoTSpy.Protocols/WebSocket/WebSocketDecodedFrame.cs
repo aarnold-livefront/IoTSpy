@@ -1,3 +1,4 @@
+using System.Text;
 using IoTSpy.Core.Enums;
 
 namespace IoTSpy.Protocols.WebSocket;
@@ -24,6 +25,11 @@ public sealed class WebSocketDecodedFrame
     public bool IsControl => Opcode is WebSocketOpcode.Close or WebSocketOpcode.Ping or WebSocketOpcode.Pong;
     public bool IsData => Opcode is WebSocketOpcode.Text or WebSocketOpcode.Binary or WebSocketOpcode.Continuation;
 
+    /// <summary>
+    /// Sub-protocol detected from payload content (heuristic). Null when unknown or a control frame.
+    /// </summary>
+    public WsSubProtocol? DetectedSubProtocol { get; init; }
+
     public string OpcodeString => Opcode switch
     {
         WebSocketOpcode.Continuation => "Continuation",
@@ -36,5 +42,19 @@ public sealed class WebSocketDecodedFrame
     };
 
     public override string ToString() =>
-        $"WS {OpcodeString} fin={Fin} len={PayloadLength}{(Masked ? " masked" : "")}";
+        $"WS {OpcodeString} fin={Fin} len={PayloadLength}{(Masked ? " masked" : "")}" +
+        (DetectedSubProtocol.HasValue ? $" sub={DetectedSubProtocol}" : "");
+}
+
+/// <summary>
+/// Application sub-protocol detected from WebSocket frame payload content.
+/// </summary>
+public enum WsSubProtocol
+{
+    /// <summary>STOMP messaging protocol (text frames starting with a STOMP command).</summary>
+    Stomp,
+    /// <summary>WAMP (Web Application Messaging Protocol) — JSON array with integer type code.</summary>
+    Wamp,
+    /// <summary>MQTT-over-WebSocket — binary frame whose first byte is a valid MQTT fixed header.</summary>
+    MqttOverWs,
 }

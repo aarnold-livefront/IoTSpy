@@ -88,12 +88,70 @@ public sealed class CoapMessage
     public uint? ContentFormat =>
         Options.FirstOrDefault(o => o.Number == CoapOptionNumber.ContentFormat)?.UIntValue;
 
+    /// <summary>
+    /// Observe option sequence number (RFC 7641). Present on requests (value=0 to register,
+    /// value=1 to deregister) and notifications (server sequence number 0-16777215).
+    /// </summary>
+    public uint? ObserveValue =>
+        Options.FirstOrDefault(o => o.Number == CoapOptionNumber.Observe) is { } opt
+            ? opt.UIntValue
+            : null;
+
+    /// <summary>Block2 option decoded (RFC 7959) — controls server-to-client block transfer.</summary>
+    public CoapBlockOption? Block2 =>
+        Options.FirstOrDefault(o => o.Number == CoapOptionNumber.Block2) is { } opt
+            ? CoapBlockOption.Decode(opt.Value)
+            : null;
+
+    /// <summary>Block1 option decoded (RFC 7959) — controls client-to-server block transfer.</summary>
+    public CoapBlockOption? Block1 =>
+        Options.FirstOrDefault(o => o.Number == CoapOptionNumber.Block1) is { } opt
+            ? CoapBlockOption.Decode(opt.Value)
+            : null;
+
+    /// <summary>Size2 hint (RFC 7959) — total response body size in bytes.</summary>
+    public uint? Size2 =>
+        Options.FirstOrDefault(o => o.Number == CoapOptionNumber.Size2)?.UIntValue;
+
+    /// <summary>Size1 hint (RFC 7959) — total request body size in bytes.</summary>
+    public uint? Size1 =>
+        Options.FirstOrDefault(o => o.Number == CoapOptionNumber.Size1)?.UIntValue;
+
+    /// <summary>True when the Uri-Path is ".well-known/core" (CoAP resource discovery, RFC 6690).</summary>
+    public bool IsWellKnownCore =>
+        string.Equals(UriPath, ".well-known/core", StringComparison.OrdinalIgnoreCase);
+
     public override string ToString()
     {
         var path = UriPath;
         return IsRequest
             ? $"CoAP {CodeName} /{path} type={Type} mid={MessageId}"
             : $"CoAP {CodeString} ({CodeName}) type={Type} mid={MessageId}";
+    }
+}
+
+/// <summary>
+/// Decoded CoAP Block1/Block2 option per RFC 7959.
+/// The option value encodes: [NUM | M | SZX] where:
+///   NUM = block number (bits above bit 3)
+///   M   = "more blocks" flag (bit 3)
+///   SZX = block size exponent (bits 2-0); actual size = 16 &lt;&lt; SZX (max SZX=6 → 1024 B)
+/// </summary>
+public sealed record CoapBlockOption(uint Num, bool More, byte Szx)
+{
+    /// <summary>Actual block size in bytes (16 &lt;&lt; Szx, capped at SZX=6).</summary>
+    public int BlockSize => 16 << Math.Min((int)Szx, 6);
+
+    internal static CoapBlockOption? Decode(byte[] value)
+    {
+        if (value.Length == 0) return null;
+        uint raw = 0;
+        foreach (var b in value)
+            raw = (raw << 8) | b;
+        var szx = (byte)(raw & 0x07);
+        var more = (raw & 0x08) != 0;
+        var num = raw >> 4;
+        return new CoapBlockOption(num, more, szx);
     }
 }
 

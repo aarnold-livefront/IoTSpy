@@ -78,16 +78,25 @@ See `.dev/claude-skills/README.md` for full details.
 
 ## Current state
 
-All phases 1–16, 18–22 plus API & Backend Polish, Frontend Usability enhancements, and Gaps Batch 4 are complete:
-- 715 backend tests across 8 test projects; 36 frontend component tests; Playwright E2E suite (auth, captures, dashboard, manipulation)
+All phases 1–16, 18–22 plus API & Backend Polish, Frontend Usability enhancements, Gaps Batch 4, and Gaps Batch 5 are complete:
+- 745 backend tests across 8 test projects; 36 frontend component tests; Playwright E2E suite (auth, captures, dashboard, manipulation)
 - 19 REST controllers, 180+ endpoints
 - 19 EF Core migrations up through `AddAuditDiffs`
 - GitHub Actions CI at `.github/workflows/ci.yml`
 - Helm chart at `deploy/helm/iotspy/`; production Docker Compose at `docker-compose.prod.yml`
 
-> Counts above last verified 2026-05-04. To re-check: `grep -rE "^\s*\[(Fact|Theory)" --include="*.cs" src/IoTSpy.*.Tests src/IoTSpy.Api.IntegrationTests | wc -l`, `ls src/IoTSpy.Api/Controllers | wc -l`, `ls src/IoTSpy.Storage/Migrations/*.cs | grep -vE "(Designer|Snapshot)" | wc -l`.
+> Counts above last verified 2026-05-08. To re-check: `grep -rE "^\s*\[(Fact|Theory)" --include="*.cs" src/IoTSpy.*.Tests src/IoTSpy.Api.IntegrationTests | wc -l`, `ls src/IoTSpy.Api/Controllers | wc -l`, `ls src/IoTSpy.Storage/Migrations/*.cs | grep -vE "(Designer|Snapshot)" | wc -l`.
 
-### Gaps Batch 4 (latest)
+### Gaps Batch 5 (latest)
+- CoAP: `CoapMessage` exposes `Block1/Block2` (`CoapBlockOption`), `ObserveValue`, `Size1/2`, `IsWellKnownCore` computed from already-decoded options
+- DNS: EDNS0 OPT record (type 41) parsed from Additional section → `DnsMessage.EdnsRecord` with `UdpPayloadSize`, `DoBit`, option list
+- WebSocket: `WebSocketDecodedFrame.DetectedSubProtocol` set to `Stomp`, `Wamp`, or `MqttOverWs` via payload heuristics
+- MQTT: `MqttSessionAnalyzer` singleton accumulates per-topic stats + QoS-2 flow tracking across decoded packets
+- Performance: `IManipulationRuleCache` / `ManipulationRuleCache` (30-s IMemoryCache, invalidated on all rule CRUD ops) cuts DB round-trips in the proxy hot path
+- Frontend: `PanelPacketCapture.tsx` fully migrated from inline `style={{}}` to `panel-packet-capture.css` classes; hardcoded hex colors replaced with CSS variables
+- 30 new backend tests (total: 745)
+
+### Gaps Batch 4 (latest — now superseded by Batch 5)
 - `GET /api/captures` now accepts `?headerQ=` for full-text search across `RequestHeaders` and `ResponseHeaders`
 - Ring buffer capacity configurable via `PacketCapture:RingBufferCapacity` in `appsettings.json` (default 10 000); passed to `LockFreePacketRingBuffer` at startup
 - Frontend component tests: `ManipulationPanel` (8), `PanelPacketCapture` (10), `SessionsPanel` (5) — total 13 → 36

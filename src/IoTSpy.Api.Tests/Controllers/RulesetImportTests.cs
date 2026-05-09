@@ -26,6 +26,7 @@ public class RulesetImportTests
         return new ManipulationController(
             Substitute.For<IManipulationService>(),
             rules ?? Substitute.For<IManipulationRuleRepository>(),
+            Substitute.For<IManipulationRuleCache>(),
             breakpoints ?? Substitute.For<IBreakpointRepository>(),
             rs, fj,
             Substitute.For<ICaptureRepository>(),

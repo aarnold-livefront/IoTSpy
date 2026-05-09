@@ -194,6 +194,73 @@ public class WebSocketDecoderTests
         Assert.Empty(frames);
     }
 
+    // ── Sub-protocol detection ───────────────────────────────────────────────
+
+    private static byte[] BuildTextFrame(string text)
+    {
+        var payload = System.Text.Encoding.UTF8.GetBytes(text);
+        var frame = new List<byte> { 0x81, (byte)payload.Length };
+        frame.AddRange(payload);
+        return frame.ToArray();
+    }
+
+    private static byte[] BuildBinaryFrame(byte[] payload)
+    {
+        var frame = new List<byte> { 0x82, (byte)payload.Length };
+        frame.AddRange(payload);
+        return frame.ToArray();
+    }
+
+    [Theory]
+    [InlineData("CONNECT\n")]
+    [InlineData("SEND\n")]
+    [InlineData("SUBSCRIBE\nack:client-individual\n\n")]
+    [InlineData("MESSAGE\n")]
+    [InlineData("DISCONNECT\n")]
+    public async Task DecodeAsync_StompFrame_DetectsStompSubProtocol(string stompText)
+    {
+        var data = BuildTextFrame(stompText);
+
+        var frames = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
+
+        Assert.Single(frames);
+        Assert.Equal(WsSubProtocol.Stomp, frames[0].DetectedSubProtocol);
+    }
+
+    [Fact]
+    public async Task DecodeAsync_WampHelloFrame_DetectsWampSubProtocol()
+    {
+        var data = BuildTextFrame("[1, \"realm\", {}]");
+
+        var frames = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
+
+        Assert.Single(frames);
+        Assert.Equal(WsSubProtocol.Wamp, frames[0].DetectedSubProtocol);
+    }
+
+    [Fact]
+    public async Task DecodeAsync_MqttOverWsBinaryFrame_DetectsMqttSubProtocol()
+    {
+        // MQTT PINGREQ (0xC0 0x00) in a binary WebSocket frame
+        var data = BuildBinaryFrame([0xC0, 0x00]);
+
+        var frames = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
+
+        Assert.Single(frames);
+        Assert.Equal(WsSubProtocol.MqttOverWs, frames[0].DetectedSubProtocol);
+    }
+
+    [Fact]
+    public async Task DecodeAsync_PlainTextFrame_NoSubProtocol()
+    {
+        var data = BuildTextFrame("hello world");
+
+        var frames = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
+
+        Assert.Single(frames);
+        Assert.Null(frames[0].DetectedSubProtocol);
+    }
+
     // ── Model properties ────────────────────────────────────────────────────
 
     [Fact]

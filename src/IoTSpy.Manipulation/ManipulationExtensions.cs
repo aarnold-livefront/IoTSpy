@@ -3,6 +3,7 @@ using IoTSpy.Core.Models;
 using IoTSpy.Manipulation.AiMock;
 using IoTSpy.Manipulation.Analysis;
 using IoTSpy.Protocols.OpenRtb;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -13,6 +14,8 @@ public static class ManipulationExtensions
     public static IServiceCollection AddIoTSpyManipulation(this IServiceCollection services,
         AiProviderConfig? aiConfig = null)
     {
+        services.AddMemoryCache();
+        services.AddSingleton<IManipulationRuleCache, ManipulationRuleCache>();
         services.AddSingleton<RulesEngine>();
         services.AddSingleton<CSharpScriptEngine>();
         services.AddSingleton<JavaScriptEngine>();

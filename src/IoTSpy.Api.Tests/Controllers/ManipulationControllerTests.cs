@@ -31,7 +31,7 @@ public class ManipulationControllerTests
 
         var controller = new ManipulationController(
             manipService ?? Substitute.For<IManipulationService>(),
-            r, bp, rs, fj,
+            r, Substitute.For<IManipulationRuleCache>(), bp, rs, fj,
             captures ?? Substitute.For<ICaptureRepository>(),
             Substitute.For<IApiSpecRepository>(),
             audit ?? Substitute.For<IAuditRepository>());

@@ -322,3 +322,34 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **`--color-error` CSS token** — added as alias of `--color-danger` in both dark and light themes in `variables.css`; was undefined, causing `ApiKeysTab`, `AuditLogTab`, `UsersTab`, and `DatabaseTab` error messages to render in the browser's default inherited color rather than red
 - **Export error feedback** — `CaptureList.handleExport` replaced silent `catch {}` with `setExportError`; failure surfaces as an `ErrorBanner` above the capture list, cleared on the next export attempt
 - **`ResponseTab` save retry** — error state now auto-resets to `idle` after 4 s so the Save as Asset button re-enables for retry; error logged to console; button is disabled during the error display window
+
+## Gaps Batch 5 — Protocol decoder depth, rule cache, and frontend CSS polish
+
+**Goal:** Close remaining open items from `GAPS.md`: CoAP Block-wise transfer and Observe option, DNS EDNS0 OPT record, WebSocket sub-protocol detection, MQTT topic statistics and QoS-2 flow tracking, manipulation rule cache, and CSS token cleanup in `PanelPacketCapture`.
+
+### Protocol Decoder Depth
+
+- **CoAP Block-wise transfer (RFC 7959)** — `CoapMessage` exposes `Block1`, `Block2` (`CoapBlockOption` record: `Num`, `More`, `Szx`, `BlockSize` = `16 << Szx`), `Size1`, `Size2` as computed properties derived from the already-decoded options list; zero-cost decoder depth increase; 5 new tests
+- **CoAP Observe option (RFC 7641)** — `CoapMessage.ObserveValue: uint?` populated from option 6 (0 = register, >0 = sequence number); 2 new tests
+- **CoAP `.well-known/core`** — `CoapMessage.IsWellKnownCore: bool` computed from `UriPath`; 1 new test
+- **DNS EDNS0 OPT record (RFC 6891)** — `DnsDecoder` now parses the OPT pseudo-RR (type 41) from the Additional section; `DnsMessage.EdnsRecord: DnsEdnsRecord?` carries `UdpPayloadSize`, `ExtendedRcode`, `Version`, `DoBit`, and `Options` list; `DnsRecordType.OPT = 41` added to enum; `DnsEdnsOption` record (Code + Data); 3 new tests
+- **WebSocket sub-protocol detection** — `WebSocketDecoder` inspects unmasked payload after decode; `WebSocketDecodedFrame.DetectedSubProtocol: WsSubProtocol?` set for STOMP (first-line command match), WAMP (JSON array type-code), and MQTT-over-WS (MQTT fixed-header sniff on binary frames); `WsSubProtocol` enum added; 9 new tests
+
+### MQTT Topic Statistics and QoS-2 Flow Tracking
+
+- **`MqttSessionAnalyzer`** — new singleton service (`IoTSpy.Protocols`); thread-safe `ConcurrentDictionary`-backed accumulation; `Record(MqttMessage)` updates per-topic stats and QoS-2 handshake phases; `GetTopicStatistics()` returns `IReadOnlyList<MqttTopicStatistics>` sorted by descending message count; `GetQosFlows()` returns all active QoS-2 flows; `Reset()` clears all state
+- **`MqttTopicStatistics`** — `Topic`, `MessageCount`, `TotalBytes`, `RetainedCount`, `LastSeen`, `QosDistribution` (dict keyed by QoS byte); `MqttQosFlowPhase` enum (Published/Received/Released/Completed); `MqttQosFlowEntry` record
+- Registered in DI via `builder.Services.AddSingleton<MqttSessionAnalyzer>()` in `Program.cs`; 11 new tests
+
+### Manipulation Rule Cache
+
+- **`IManipulationRuleCache`** — `GetEnabledAsync(ct)` + `Invalidate()` interface in `IoTSpy.Core`
+- **`ManipulationRuleCache`** — `IMemoryCache`-backed implementation with 30-second sliding expiry; on cache miss creates a DI scope to resolve `IManipulationRuleRepository`; `Invalidate()` removes the cache entry immediately
+- **`ManipulationService`** — now uses `IManipulationRuleCache` instead of calling the repository directly on every request
+- **`ManipulationController`** — calls `ruleCache.Invalidate()` after every rule-mutation path: Create, Update, Delete, BulkDelete (both `all` and `ids` branches), BulkUpdate (when `updated > 0`), Import (when `rulesImported > 0`)
+- `Microsoft.Extensions.Caching.Memory` v10.0.3 added to `IoTSpy.Manipulation` and `IoTSpy.Manipulation.Tests`; 4 new tests
+
+### Frontend CSS Polish
+
+- **`PanelPacketCapture.tsx` inline styles removed** — all `style={{}}` inline objects replaced with semantic CSS classes in `panel-packet-capture.css`; hardcoded hex colors (`#fee`, `#c00`, `#d32f2f`, `#ccc`) replaced with `var(--color-error)`, `var(--color-danger)`, `var(--color-border)`; error background tint uses `color-mix(in srgb, var(--color-error) 10%, transparent)`
+- **Total test count: 683 → 745** backend tests; 13 → 36 frontend component tests

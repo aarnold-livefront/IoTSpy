@@ -36,10 +36,10 @@ IoT network security platform: transparent MITM proxy, protocol analyzer, pen-te
 - **Real-time dashboard** — SignalR streaming of all captured HTTP/HTTPS traffic
 
 ### Protocol analysis
-- **MQTT 3.1.1 / 5.0** — full packet decoding (CONNECT, PUBLISH, SUBSCRIBE, etc.)
-- **DNS / mDNS** — query/response decoding with label decompression
-- **CoAP** — RFC 7252 Constrained Application Protocol message decoding
-- **WebSocket** — RFC 6455 frame decoding (FIN, opcode, masking, close codes)
+- **MQTT 3.1.1 / 5.0** — full packet decoding (CONNECT, PUBLISH, SUBSCRIBE, ACK flows); `MqttSessionAnalyzer` accumulates per-topic message/byte counts, retained message tracking, and QoS-2 handshake phase tracking (Published → Received → Released → Completed)
+- **DNS / mDNS** — query/response decoding with label decompression; EDNS0 OPT record parsed (UDP payload size, DNSSEC OK bit, extended RCODE, version, EDNS option list)
+- **CoAP** — RFC 7252 message decoding + RFC 7959 Block-wise transfer (Block1/Block2 with decoded Num/More/Szx/BlockSize), RFC 7641 Observe option (sequence number), and `.well-known/core` resource discovery detection
+- **WebSocket** — RFC 6455 frame decoding (FIN, opcode, masking, close codes); sub-protocol heuristic detection: STOMP (command-line pattern), WAMP (JSON array type-code 1–8), MQTT-over-WS (binary frame MQTT header sniff)
 - **gRPC / Protobuf** — Length-Prefixed Message framing + schema-less protobuf field extraction
 - **Modbus TCP** — MBAP header parsing, function codes 1-16, exception responses
 - **OpenRTB 2.5** — bid request/response parsing with PII detection and policy-based redaction
@@ -315,7 +315,7 @@ All endpoints (except `/api/auth/*`, `/api/certificates/root-ca/download`, `/hea
 
 **Query parameters for GET `/api/captures`:**
 
-`deviceId`, `host`, `method`, `statusCode`, `from`, `to`, `q` (full-text), `page`, `pageSize` (max 200)
+`deviceId`, `host`, `method`, `statusCode`, `from`, `to`, `q` (full-text), `headerQ` (header full-text search), `page`, `pageSize` (max 200)
 
 ### Devices
 
@@ -554,6 +554,8 @@ cd frontend && npm run dev
 ## Development status
 
 See [`docs/PLAN.md`](docs/PLAN.md) for the full implementation plan, identified gaps, and forward-looking roadmap.
+
+> **745 backend tests** across 8 test projects; 36 frontend component tests; Playwright E2E suite. All passing.
 
 | Phase | Scope | Status |
 |---|---|---|

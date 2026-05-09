@@ -45,11 +45,11 @@ Decoders exist for all major protocols but vary in depth:
 
 | Protocol | Current depth | Enhancement opportunity |
 |---|---|---|
-| DNS | Basic query/response, label decompression | DNSSEC validation chain, EDNS0 options, DoH/DoT detection |
-| CoAP | RFC 7252 message decode | Resource discovery (`.well-known/core`), Block-wise transfer, Observe option |
+| DNS | Basic query/response, label decompression, **EDNS0 OPT record parsed** | DNSSEC validation chain, DoH/DoT detection |
+| CoAP | RFC 7252 decode, **Block-wise transfer (Block1/Block2), Observe option, .well-known/core** | — |
 | gRPC | Schema-less LPM field extraction | `.proto` file upload for field name resolution; gRPC-Web detection |
-| MQTT | Full 3.1.1/5.0 decode | Topic statistics, retained message tracking, QoS flow analysis |
-| WebSocket | Frame decode | Message sequence reconstruction, sub-protocol detection (STOMP, WAMP) |
+| MQTT | Full 3.1.1/5.0 decode, **topic statistics + QoS-2 flow tracking via MqttSessionAnalyzer** | — |
+| WebSocket | Frame decode, **STOMP/WAMP/MQTT-over-WS sub-protocol detection** | Message sequence reconstruction across fragmented frames |
 
 ---
 
@@ -57,15 +57,15 @@ Decoders exist for all major protocols but vary in depth:
 
 ### Known Hotspots
 
-1. **Rule evaluation** — Regex caching with `ConcurrentDictionary<(Pattern, RegexOptions), Regex>` and `RegexOptions.Compiled` is in place in `RulesEngine`; the remaining gap is a compiled-rule list cache per pipeline invocation to avoid re-querying the database on every request.
+1. **Rule evaluation** — Regex caching with `ConcurrentDictionary<(Pattern, RegexOptions), Regex>` and `RegexOptions.Compiled` is in place in `RulesEngine`; **rule list now cached in `ManipulationRuleCache` (30-second sliding TTL, invalidated on all rule CRUD ops)**.
 2. **JSON schema inference** — Recursive object traversal on large payloads; cache schema per `(host, path, method)` tuple
 3. **Packet capture ring buffer** — Configurable via `PacketCapture:RingBufferCapacity` in `appsettings.json` (default 10 000); large capture bursts may still drop packets if capacity is not tuned.
 
 ### Optimization Opportunities
 
 - Request deduplication in proxy pipeline (same URL + headers within N ms → single capture)
-- Rule caching layer with invalidation on CRUD operations (already noted in `ApiSpecMockService`)
 - Bloom filter pre-screen before full rule evaluation
+- JSON schema inference caching per `(host, path, method)` tuple
 
 ---
 
@@ -84,9 +84,7 @@ These assumptions should be revisited if requirements change:
 
 ## Frontend Polish
 
-| Component | Issue | Severity |
-|---|---|---|
-| `PanelPacketCapture.tsx` | Left panel built entirely with `style={{}}` inline objects; inconsistent with the CSS-class approach used everywhere else; hardcoded `#888` and pixel values break light-theme support | Low |
+All previously open items resolved — see Resolved Items below.
 
 ---
 
@@ -121,6 +119,15 @@ See [AGENT-NOTES.md](AGENT-NOTES.md) for session setup and testing instructions.
 ---
 
 ## Resolved Items
+
+### Gaps Batch 5 (2026-05-08)
+- ~~CoAP Block-wise transfer~~ — `CoapMessage` now exposes `Block1`, `Block2` (`CoapBlockOption` with `Num`, `More`, `Szx`, `BlockSize`), `Size1`, `Size2`, `ObserveValue`, and `IsWellKnownCore` as computed properties derived from the already-decoded options list; 7 new tests
+- ~~CoAP Observe option~~ — `ObserveValue: uint?` populated from option 6; register (0) and sequence-number notifications handled
+- ~~DNS EDNS0 OPT record~~ — `DnsDecoder` now parses OPT pseudo-RR (type 41) from the Additional section; `DnsMessage.EdnsRecord` carries `UdpPayloadSize`, `ExtendedRcode`, `Version`, `DoBit`, and `Options` list; `DnsRecordType.OPT = 41` added to enum; 3 new tests
+- ~~WebSocket sub-protocol detection~~ — `WebSocketDecoder` inspects payload after unmasking; `WebSocketDecodedFrame.DetectedSubProtocol: WsSubProtocol?` is set for STOMP (command-line heuristic), WAMP (JSON array type-code), and MQTT-over-WS (MQTT fixed-header sniff); 9 new tests
+- ~~MQTT topic statistics + QoS flow tracking~~ — `MqttSessionAnalyzer` singleton service accumulates per-topic stats (`MessageCount`, `TotalBytes`, `RetainedCount`, `LastSeen`, `QosDistribution`) and tracks QoS-2 handshake phases (Published → Received → Released → Completed) via `GetTopicStatistics()` / `GetQosFlows()`; registered in DI; 11 new tests
+- ~~Rule evaluation re-queries DB on every request~~ — `IManipulationRuleCache` + `ManipulationRuleCache` (30-second sliding-expiry `IMemoryCache`) inserted between `ManipulationService` and the repository; all 6 rule-mutation paths in `ManipulationController` (Create, Update, Delete, BulkDelete, BulkUpdate, Import) call `ruleCache.Invalidate()`; 4 new tests
+- ~~`PanelPacketCapture.tsx` inline styles~~ — All `style={{}}` inline objects replaced with semantic CSS classes in `panel-packet-capture.css`; hardcoded hex colors (`#fee`, `#c00`, `#d32f2f`, `#ccc`) replaced with `var(--color-error)`, `var(--color-danger)`, `var(--color-border)`; `color-mix()` used for error background tint
 
 ### Gaps Batch 4 (2026-05-04)
 - ~~Full-text search in request/response headers~~ — `?headerQ=` query param added to `GET /api/captures`; `CaptureFilter.HeaderSearch` field added; `CaptureRepository.ApplyFilter` searches `RequestHeaders` and `ResponseHeaders` columns; 3 new repository tests

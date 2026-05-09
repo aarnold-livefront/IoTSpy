@@ -172,6 +172,82 @@ public class DnsDecoderTests
         Assert.Equal("sub.example.co.uk", msg.Questions[0].Name);
     }
 
+    // ── EDNS0 OPT record (RFC 6891) ──────────────────────────────────────────
+
+    private static byte[] BuildDnsQueryWithEdns(string name, ushort udpPayloadSize = 4096, bool doBit = false, ushort id = 0x1234)
+    {
+        var parts = name.Split('.');
+        var nameBytes = new List<byte>();
+        foreach (var part in parts)
+        {
+            nameBytes.Add((byte)part.Length);
+            nameBytes.AddRange(System.Text.Encoding.ASCII.GetBytes(part));
+        }
+        nameBytes.Add(0x00);
+
+        var payload = new List<byte>
+        {
+            (byte)(id >> 8), (byte)(id & 0xFF),  // Transaction ID
+            0x01, 0x00,                            // Flags: query, RD=1
+            0x00, 0x01,                            // QDCOUNT=1
+            0x00, 0x00,                            // ANCOUNT=0
+            0x00, 0x00,                            // NSCOUNT=0
+            0x00, 0x01                             // ARCOUNT=1 (OPT record)
+        };
+
+        payload.AddRange(nameBytes);
+        payload.AddRange([(byte)0x00, 0x01]); // Type A
+        payload.AddRange([(byte)0x00, 0x01]); // Class IN
+
+        // OPT pseudo-RR
+        payload.Add(0x00); // Name = root
+        payload.AddRange([(byte)0x00, 0x29]); // Type = OPT (41)
+        payload.Add((byte)(udpPayloadSize >> 8));
+        payload.Add((byte)(udpPayloadSize & 0xFF)); // Class = UDP payload size
+        // TTL: [extRcode=0][version=0][flags] where flags bit 15 = DO
+        var flags = (ushort)(doBit ? 0x8000 : 0x0000);
+        payload.AddRange([(byte)0x00, (byte)0x00, (byte)(flags >> 8), (byte)(flags & 0xFF)]);
+        payload.AddRange([(byte)0x00, 0x00]); // RDLENGTH = 0
+
+        return payload.ToArray();
+    }
+
+    [Fact]
+    public void TryDecode_WithEdnsOptRecord_PopulatesEdnsRecord()
+    {
+        var data = BuildDnsQueryWithEdns("example.com", udpPayloadSize: 4096);
+
+        var result = _decoder.TryDecode(data, out var msg);
+
+        Assert.True(result);
+        Assert.NotNull(msg.EdnsRecord);
+        Assert.Equal(4096, msg.EdnsRecord.UdpPayloadSize);
+        Assert.Equal(0, msg.EdnsRecord.Version);
+        Assert.Equal(0, msg.EdnsRecord.ExtendedRcode);
+        Assert.False(msg.EdnsRecord.DoBit);
+    }
+
+    [Fact]
+    public void TryDecode_WithEdnsAndDoBit_DoBitIsTrue()
+    {
+        var data = BuildDnsQueryWithEdns("example.com", doBit: true);
+
+        _decoder.TryDecode(data, out var msg);
+
+        Assert.NotNull(msg.EdnsRecord);
+        Assert.True(msg.EdnsRecord.DoBit);
+    }
+
+    [Fact]
+    public void TryDecode_WithoutEdns_EdnsRecordIsNull()
+    {
+        var data = BuildDnsQuery("example.com");
+
+        _decoder.TryDecode(data, out var msg);
+
+        Assert.Null(msg.EdnsRecord);
+    }
+
     // ── DecodeAsync wraps TryDecode ──────────────────────────────────────────
 
     [Fact]

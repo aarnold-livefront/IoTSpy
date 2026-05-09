@@ -119,10 +119,54 @@ public sealed class WebSocketDecoder : IProtocolDecoder<WebSocketDecodedFrame>
             CloseCode = closeCode,
             CloseReason = closeReason,
             TotalLength = (int)totalLength,
-            RawBytes = span[..(int)totalLength].ToArray()
+            RawBytes = span[..(int)totalLength].ToArray(),
+            DetectedSubProtocol = DetectSubProtocol(opcode, payloadBytes, payloadText)
         };
 
         consumed = (int)totalLength;
         return true;
+    }
+
+    private static readonly string[] StompCommands =
+    [
+        "CONNECT", "CONNECTED", "SEND", "SUBSCRIBE", "UNSUBSCRIBE",
+        "ACK", "NACK", "BEGIN", "COMMIT", "ABORT", "DISCONNECT",
+        "MESSAGE", "RECEIPT", "ERROR"
+    ];
+
+    private static WsSubProtocol? DetectSubProtocol(WebSocketOpcode opcode, byte[] payload, string? payloadText)
+    {
+        if (payload.Length == 0) return null;
+
+        if (opcode == WebSocketOpcode.Text && payloadText is not null)
+        {
+            // STOMP: text frame starts with a STOMP command followed by newline
+            var newlineIdx = payloadText.IndexOfAny(['\n', '\r']);
+            var firstLine = newlineIdx >= 0 ? payloadText[..newlineIdx].Trim() : payloadText.Trim();
+            if (Array.Exists(StompCommands, c => string.Equals(c, firstLine, StringComparison.Ordinal)))
+                return WsSubProtocol.Stomp;
+
+            // WAMP: JSON array whose first element is an integer 1-8
+            var trimmed = payloadText.TrimStart();
+            if (trimmed.StartsWith('['))
+            {
+                var closeBracket = trimmed.IndexOf(',');
+                if (closeBracket > 1)
+                {
+                    var firstElement = trimmed[1..closeBracket].Trim();
+                    if (int.TryParse(firstElement, out var code) && code >= 1 && code <= 8)
+                        return WsSubProtocol.Wamp;
+                }
+            }
+        }
+        else if (opcode == WebSocketOpcode.Binary)
+        {
+            // MQTT-over-WS: binary frame with valid MQTT fixed header byte
+            var packetType = (byte)(payload[0] >> 4);
+            if (packetType >= 1 && packetType <= 15)
+                return WsSubProtocol.MqttOverWs;
+        }
+
+        return null;
     }
 }

@@ -15,6 +15,7 @@ public class ManipulationService(
     ReplayService replayService,
     FuzzerService fuzzerService,
     IApiSpecService apiSpecService,
+    IManipulationRuleCache ruleCache,
     IServiceScopeFactory scopeFactory,
     ILogger<ManipulationService> logger) : IManipulationService
 {
@@ -26,9 +27,8 @@ public class ManipulationService(
 
         using var scope = scopeFactory.CreateScope();
 
-        // 1. Apply declarative rules
-        var ruleRepo = scope.ServiceProvider.GetRequiredService<IManipulationRuleRepository>();
-        var rules = await ruleRepo.GetEnabledAsync(ct);
+        // 1. Apply declarative rules (served from cache; invalidated on rule mutations)
+        var rules = await ruleCache.GetEnabledAsync(ct);
         if (rules.Count > 0)
         {
             var rulesModified = await rulesEngine.ApplyRulesAsync(message, phase, rules, ct);
