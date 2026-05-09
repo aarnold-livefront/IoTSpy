@@ -1,44 +1,33 @@
-# Code Review Findings — 2026-05-09
+# Code Review Findings — Status & Remaining Work
 
-Multi-angle review (backend correctness/security, frontend code & responsive UX, documentation accuracy, feature/use-case gaps). Items marked **[FIXED]** were addressed in the day-0 hotfix PR; everything else is queued for future agents/PRs.
+Original review: 2026-05-09. This file is the **live status board** for the multi-angle review (backend correctness/security, frontend code & responsive UX, documentation accuracy, feature/use-case gaps). Items move from "Remaining" to "Completed" as PRs merge.
 
-Severity legend: **Critical** = ship blocker, **High** = next-sprint, **Medium** = should-have, **Low** = nice-to-have.
+When picking up new work, consult the **Recommended next PRs** section at the bottom.
+
+Severity legend: **Critical** = ship blocker · **High** = next-sprint · **Medium** = should-have · **Low** = nice-to-have.
 
 ---
 
-## CRITICAL
+## Status snapshot (2026-05-09 → present)
 
-### [FIXED] 1. `GET /api/packet-capture/status` was a hardcoded stub
-`src/IoTSpy.Api/Controllers/PacketCaptureController.cs:74` returned `{ isCapturing = false }` unconditionally. Now reads `_captureService.IsCaptureActive`. Existing test was asserting only the field name — extended to assert true/false in both states.
+| State | Count | Items |
+|---|---|---|
+| ✅ Completed | 24 | #1, #2, #3, #5, #6, #7, #9, #10, #11, #12, #14, #15, #17, #18, #19, #22, #23, #24, #25, #26, #27, #28, #47 + #20 partial |
+| ⏳ In-flight (open PR) | 0 | — |
+| 🟥 Critical remaining | 2 | #4, #8 |
+| 🟧 High remaining | 4 | #13, #16, #20 (modal remainder), #21 |
+| 🟨 Medium remaining | 22 | #29–#46, #48–#50 |
+| 🟩 Low remaining | 9 | #51–#59 |
 
-### [FIXED] 2. Admin role-case mismatch silently bypassed authz
-`AuthService` and `ApiKeyAuthenticationHandler` emit role claim as lowercase `"admin"`, but `PluginsController.Reload` and `SessionsController.Delete` used `[Authorize(Roles = "Admin")]`. Role match is case-sensitive — both endpoints 403'd for everyone, including real admins. Fixed to lowercase.
+PR history that closed items: **#59** (day-0 hotfixes), **#60** (doc accuracy), **#61** (test backfill), **#62** (responsive pass), **#63** (security hardening).
 
-### [FIXED] 3. Path traversal via `ReplacementFilePath`
-`ContentRulesController.Create/Update` and `ApiSpecController.CreateRule/UpdateRule` accepted arbitrary file paths from authenticated users; `ContentReplacer` then opened them directly. Any authenticated user could exfiltrate `/etc/passwd`, the SQLite DB, or app secrets. Fixed by `AssetsPaths.ResolveReplacementFilePath` which rejects path separators / `..` and pins the resolved path inside `AssetsDirectory`.
+---
 
-### [FIXED] 5. CSS variables `--color-text-secondary`, `--color-error-bg`, `--color-bg-alt`, `--color-accent`, `--color-input-bg` were undefined globally
-Referenced across `ProtocolProxyPanel`, `PluginsTab`, `GrpcSchemasPanel`, `scanner.css`, `passive.css`, `header.css`. Result: invisible text, transparent error banners, "Start Scan" button text floating on a transparent background. Added aliases to both theme blocks in `frontend/src/styles/variables.css`.
+## 🟥 Critical — remaining
 
 ### 4. No scan scope enforcement
-`ScannerController` accepts any `DeviceId`; `ScannerService` scans whatever IP is on the device record. No CIDR allowlist, no local-subnet check, no authorization gate. A misconfigured rule could scan arbitrary internet hosts.
-**Slot:** new `ScanScope` model + enforcement in `ExplicitProxyServer` and `ScannerService`. Add CIDR allowlist + acknowledgment of authorization on first scan-start of an engagement. Audit-log the scope decision on each scan job.
-
-### 6. `PanelPacketCapture` stale-closure infinite-render risk
-`frontend/src/components/panels/PanelPacketCapture.tsx:28-33` includes the unstable `analysis` object literal in `useEffect` deps. React 19 strict mode will spiral.
-**Fix:** depend only on the destructured `useCallback` refs:
-```tsx
-const { loadProtocols, loadPatterns, loadSuspicious } = analysis
-useEffect(() => {
-  if (activeTab === 'protocols') loadProtocols()
-  else if (activeTab === 'patterns') loadPatterns()
-  else if (activeTab === 'suspicious') loadSuspicious()
-}, [activeTab, loadProtocols, loadPatterns, loadSuspicious])
-```
-
-### 7. `PanelPacketCapture` 3-column layout has no mobile breakpoint
-Fixed 280px sidebar + 400px inspector forces ~800px min-width. Broken below 768px.
-**Slot:** `frontend/src/styles/responsive.css` — add `@media (max-width: 768px) { .ppc-root { flex-direction: column } .ppc-sidebar, .ppc-inspector { width: 100% } }`.
+`ScannerController.StartScan` accepts any `DeviceId`; `ScannerService` scans whatever IP is on the device record. No CIDR allowlist, no local-subnet check, no authorization gate. A misconfigured rule could scan arbitrary internet hosts.
+**Slot:** new `ScanScope` model + enforcement in `ExplicitProxyServer` and `ScannerService`. Add CIDR allowlist + acknowledgment of authorization on first scan-start of an engagement. Audit-log the scope decision on each scan job. Pairs naturally with #45 (consent gate) — they share the same UX onboarding step.
 
 ### 8. No crash resilience for live captures
 `LockFreePacketRingBuffer` is in-memory only; API restart loses every queued packet. No WAL checkpoint, no DB flush.
@@ -46,69 +35,35 @@ Fixed 280px sidebar + 400px inspector forces ~800px min-width. Broken below 768p
 
 ---
 
-## HIGH
+## 🟧 High — remaining
 
 ### Security & correctness
 
-**9. `ProtoSchemasController.Upload` has no size limit** — `ProtoSchemasController.cs:32-53` buffers entire body in memory, stores in DB. Add `[RequestSizeLimit(1 * 1024 * 1024)]` and a length guard before invoking `ProtoParser`. Compare to `ApiSpecController.UploadAsset` which correctly uses `[RequestSizeLimit(50 * 1024 * 1024)]`.
+**13. Replay/Fuzzer silently bypass TLS validation** — `ManipulationExtensions.cs:41-44, :51-53` set `ServerCertificateCustomValidationCallback => true` per named-client (always-on), not per-request. Make it an opt-in `BypassTlsValidation` flag on `StartReplayDto` / `StartFuzzerDto` with audit-log warning. Surface the toggle in the Replay/Fuzzer UI.
 
-**10. `ProtoSchemasController.Delete` is not Admin-restricted** — analogous destructive ops (breakpoint delete, CA regen) are admin-only. Add `[Authorize(Roles = "admin")]`.
+**16. No code signing on plugin loader** — `PluginLoaderService` loads arbitrary `.dll`s with no hash/signature check. At minimum, document the trust boundary in the admin UI; better, require a manifest with SHA-256 and check against an allowlist. Decision needed on key-mgmt approach before implementation.
 
-**11. Admin purge endpoints OOM-risky** — `AdminController.cs:70-71`, `:99-100` use `ToListAsync()` + `RemoveRange`. Replace with `query.ExecuteDeleteAsync(ct)` (single SQL DELETE, no change-tracker hydration).
+### Frontend modal system (the "modal system PR" deferred from #62)
 
-**12. `ManipulationRuleCache` TOCTOU race** — `ManipulationRuleCache.cs:19-33` does `TryGetValue` + `Set` without sync; `Invalidate` between them gets overwritten. Use `IMemoryCache.GetOrCreateAsync` with a factory so atomicity is internal.
+**20 (remainder). Inline-styled modals — RulePreviewModal, ContentRulesPanel modal, AssetLibrary, PacketInspector body** — three of the seven Batch-6 components were migrated in PR #62 (`PluginsTab`, `ProtocolProxyPanel`, `GrpcSchemasPanel`); these four remain. Each is a 200–300 line component restyle: extract every `style={{}}` to a component-scoped CSS module, replace hardcoded hex literals with `var(--color-*)`, and add CSS classes the responsive media queries can reach.
 
-**13. Replay/Fuzzer silently bypass TLS validation** — `ManipulationExtensions.cs:41-44, :51-53` set `ServerCertificateCustomValidationCallback => true` per named-client (always-on), not per-request. Make it an opt-in `BypassTlsValidation` flag on `StartReplayDto`/`StartFuzzerDto` with audit log warning.
+**21. No focus trap in any modal** — `RulePreviewModal`, inline `ContentRulesPanel` modal, `AssetLibrary` picker. Tab leaks focus to background. Use native `<dialog>` element or set `inert` on `.app-main` when a modal is open. Best done together with #20 remainder since the same files are touched.
 
-**14. Audit write-once trigger is SQLite-only** — `AuditWriteOnceTrigger` migration uses `RAISE(ABORT, ...)` and `CREATE TRIGGER IF NOT EXISTS`; will fail on Postgres. The audit-immutability claim silently does not hold in prod Postgres deployments. Gate on `migrationBuilder.IsNpgsql()/IsSqlite()` and emit provider-appropriate trigger DDL.
+**49. Tab-button groups lack ARIA tab semantics** — `PacketInspector`, `ManipulationPanel`, `PanelPacketCapture` use plain `<button>` without `role="tab"` / `aria-selected` / `role="tablist"`. Add roles. Bundle with #21 if the modal-system PR also touches these tab groups.
 
-**15. `ScannerController.StartScan` accepts unbounded `PortRange`** — `ParsePortRange` silently truncates garbage; pathological strings can resolve to 65535 ports × `MaxConcurrency=100` = 6.5M concurrent TCP connects per scan job. Cap port count and string length in the controller; cap `MaxConcurrency` server-side.
-
-**16. No code signing on plugin loader** — `PluginLoaderService` loads arbitrary `.dll`s with no hash/signature check. At minimum, document the trust boundary in the admin UI; better, require a manifest with SHA-256 and check against an allowlist.
-
-### Backend missing tests
-
-**17. Four shipped controllers have zero tests** — `ContentRulesController`, `ProtoSchemasController`, `PluginsController`, `ProtocolProxyController`. Issues #2, #3, #9, #10 would all have been caught by basic happy-path tests. **Slot:** new files under `src/IoTSpy.Api.Tests/Controllers/`.
-
-### Frontend correctness
-
-**18. `PanelPacketCapture` swallows export failures silently** — `PanelPacketCapture.tsx:57-74` `catch {}` no user feedback. Set `error` state with `'Export failed — check server logs.'`.
-
-**19. `PacketInspector` close button is `<button>x</button>`** — no accessible name. Add `aria-label="Close inspector"` (`PacketInspector.tsx:37`).
-
-**20. `RulePreviewModal`, `ContentRulesPanel`, `AssetLibrary`, `PacketInspector`, `GrpcSchemasPanel`, `ProtocolProxyPanel`, `PluginsTab` are 100% inline-styled with hardcoded hex colors** — Batch 5 migrated `PanelPacketCapture` to a CSS module; Batch 6 work didn't follow the pattern. Light theme broken in all of them. Inline styles are also unreachable from `responsive.css` media queries. **Slot:** create one CSS module per component, replace inline styles with classes, replace hex literals with `var(--color-*)`.
-
-**21. No focus trap in any modal** — `RulePreviewModal`, inline `ContentRulesPanel` modal, `AssetLibrary` picker. Tab leaks focus to background. Use native `<dialog>` element or set `inert` on `.app-main` when a modal is open.
-
-### Responsive (small-screen) issues
-
-**22. `ProtocolProxyPanel` two-column grid is inline-styled** — `ProtocolProxyPanel.tsx:72` `gridTemplateColumns: '1fr 1fr'` cannot be overridden by media query. At 375px each panel is ~177px, unusable. Extract to a CSS class with mobile breakpoint to `1fr`.
-
-**23. `ScannerPanel` body lacks base flex declarations** — `responsive.css` has the `flex-direction: column` override but `scanner.css` never declares the base `display: flex` — override collapses to nothing. Add base rules for `.scanner-panel__body`, `.scanner-panel__left`, `.scanner-panel__right`.
-
-**24. Admin tabs (6) have no overflow/wrap** — `admin.css` lines 22-27. On 375px viewports, tabs clip or force horizontal page scroll. Add `overflow-x: auto; -webkit-overflow-scrolling: touch` and `white-space: nowrap` on `.admin-tab` in the `≤768px` block.
-
-**25. `PluginsTab` table missing `admin-table-wrap`** — `PluginsTab.tsx:38`. Assembly-path `<code>` cells force overflow on narrow viewports. Wrap the table in a div with `admin-table-wrap` class (already defined with `overflow-x: auto`).
-
-### Documentation drift
-
-**26. CLAUDE.md test count contradictions** — line 72 says "715", line 82 says "760", AGENT.md says "683", actual is **722** ([Fact]/[Theory] count via grep). Lock the count in both files and re-run the verification command at the bottom of CLAUDE.md.
-
-**27. CLAUDE.md line 44 lists 19 controllers, line 83 claims 20** — missing `ProtoSchemas` from the enumeration. Add it.
-
-**28. CLAUDE.md line 125 says Manipulation panel has "7 tabs"** — actually 8 (gRPC Schemas added in Batch 6, documented on line 92 of the same file). Update line 125.
+**50. Clickable `<div>` rows in `RulePreviewModal` capture list** — no keyboard access. Add `tabIndex={0}`, `role="option"`, `onKeyDown` (Enter/Space), wrap list in `role="listbox"`. Also belongs in the modal-system PR.
 
 ---
 
-## MEDIUM
+## 🟨 Medium — remaining
 
 ### Incomplete shipped features
 
-**29. HAR export emits empty `headers: []`** — `CapturesController.cs:166-184`. Columns `RequestHeaders`/`ResponseHeaders` exist; deserialize them into the HAR output. Without this, the HAR is technically valid but useless to Chrome DevTools/mitmproxy.
+**29. HAR export emits empty `headers: []`** — `CapturesController.cs:166-184`. Columns `RequestHeaders` / `ResponseHeaders` exist; deserialize them into the HAR output. Without this, the HAR is technically valid but useless to Chrome DevTools / mitmproxy.
 
 **30. `ExportConfig` omits `ContentReplacementRule` and `ProtoSchema`** — `AdminController.cs:159`. Backup/restore silently loses standalone content rules (post-Phase 22) and gRPC proto schemas (Batch 6). Extend the export.
 
-**31. No `ImportConfig` endpoint exists** — `/api/manipulation/import` only restores rulesets. Full config round-trip impossible. Add `POST /api/admin/import/config`.
+**31. No `ImportConfig` endpoint exists** — `/api/manipulation/import` only restores rulesets. Full config round-trip impossible. Add `POST /api/admin/import/config`. Pairs with #30.
 
 **32. `ScheduledScan` has no FK to last-run scan job, no failure flag** — admins can't tell whether the 2 AM scan succeeded. Add `LastRunScanJobId`, `LastRunStatus`, `LastRunError` columns + migration.
 
@@ -120,45 +75,37 @@ Fixed 280px sidebar + 400px inspector forces ~800px min-width. Broken below 768p
 
 ### Missing user stories (high-value)
 
-**36. Capture-to-curl** — table-stakes in Proxyman/mitmproxy; not present. Add `GET /api/captures/{id}/curl` + UI button on `RequestTab`/`ResponseTab`.
+**36. Capture-to-curl** — table-stakes in Proxyman / mitmproxy; not present. Add `GET /api/captures/{id}/curl` + UI button on `RequestTab` / `ResponseTab`.
 
 **37. HAR import** — export exists but no `POST /api/captures/import/har`. Developers can't seed IoTSpy from a browser-captured HAR.
 
 **38. Replay against override base URL** — `StartReplayDto.Host` exists but UX/coverage unclear. Verify end-to-end and surface in the UI.
 
-**39. Body full-text search on captures** — `?q=` searches URL/method/host, `?headerQ=` searches headers, no body content search. Wire SQLite FTS5 (already available) on `RequestBody`/`ResponseBody` columns.
+**39. Body full-text search on captures** — `?q=` searches URL/method/host, `?headerQ=` searches headers, no body content search. Wire SQLite FTS5 (already available) on `RequestBody` / `ResponseBody` columns.
 
 **40. In-app SignalR notification when a rule/breakpoint fires** — `AlertingService` does external webhooks/email/Slack only. Add an in-app channel via the existing collaboration hub.
 
-**41. User mgmt UI may be incomplete** — `UsersTab.tsx` exists but create/edit wiring to `POST /api/auth/users` not verified. Audit the file.
+**41. User mgmt UI may be incomplete** — `UsersTab.tsx` exists but create/edit wiring to `POST /api/auth/users` not verified. Audit the file before assuming work is needed.
 
 **42. DB backup/restore endpoints absent** — admin UI has purge only. Add `GET /api/admin/backup` (SQLite `.backup` / `pg_dump` invocation) + `POST /api/admin/restore`.
 
-**43. `DataRetentionService` thresholds are config-file-only** — no runtime API. Add `GET/PUT /api/admin/retention` + UI in DatabaseTab.
+**43. `DataRetentionService` thresholds are config-file-only** — no runtime API. Add `GET / PUT /api/admin/retention` + UI in DatabaseTab.
 
 ### Protocol coverage gaps
 
-**44. AMQP 1.0** (Azure IoT Hub, ActiveMQ — high IoT relevance), **RTSP/RTP** (IP cameras — frequent IoT finding), **MQTT-SN** (constrained-device UDP variant), **DoH/DoT detection** (devices increasingly evade DNS inspection). All on roadmap, none shipped. Slot: `IoTSpy.Protocols`.
+**44. AMQP 1.0** (Azure IoT Hub, ActiveMQ — high IoT relevance), **RTSP/RTP** (IP cameras — frequent IoT finding), **MQTT-SN** (constrained-device UDP variant), **DoH/DoT detection** (devices increasingly evade DNS inspection). All on roadmap, none shipped. Slot: `IoTSpy.Protocols`. One PR per protocol.
 
 ### Trust & safety
 
-**45. No "I am authorized" consent gate** in onboarding — `OnboardingWizard.tsx`. Add an acknowledgment step + audit-log on first run.
+**45. No "I am authorized" consent gate** in onboarding — `OnboardingWizard.tsx`. Add an acknowledgment step + audit-log on first run. Pairs with #4.
 
-**46. Audit log DELETE not blocked** — `AuditWriteOnceTrigger` covers UPDATE only. Add a `BEFORE DELETE` trigger that aborts unless the caller is a designated archive role.
+**46. Audit log DELETE not blocked** — `AuditWriteOnceTrigger` covers UPDATE only. Adding `BEFORE DELETE` would conflict with `DataRetentionService.DeleteOlderThanAsync`. Decision needed: either retention writes to an immutable archive sink before deleting, or DELETE-protect entirely and stop pruning audit. Not a one-line fix.
 
-**47. Scanner `MaxConcurrency` defaults to 100** with no global cap — aggressive on shared networks. Lower default to 25; add server-side global cap (`Scanner:MaxGlobalConcurrency`).
-
-**48. No per-user data isolation** — Viewer-role users see all captures/scans across the instance. For shared-instance deployments this leaks data. Add row-level ownership filter on capture/scan/device queries.
-
-### Accessibility
-
-**49. Tab-button groups lack ARIA tab semantics** — `PacketInspector`, `ManipulationPanel`, `PanelPacketCapture` use plain `<button>` without `role="tab"`/`aria-selected`/`role="tablist"`. Add roles.
-
-**50. Clickable `<div>` rows in `RulePreviewModal` capture list** — no keyboard access. Add `tabIndex={0}`, `role="option"`, `onKeyDown` (Enter/Space), wrap list in `role="listbox"`.
+**48. No per-user data isolation** — Viewer-role users see all captures/scans across the instance. For shared-instance deployments this leaks data. Add row-level ownership filter on capture/scan/device queries. Touches many controllers; bundle as a single multi-controller PR.
 
 ---
 
-## LOW
+## 🟩 Low — remaining
 
 **51. OpenTelemetry tracing absent** — Serilog only. For multi-container deployments, cross-service trace correlation is missing.
 
@@ -180,15 +127,92 @@ Fixed 280px sidebar + 400px inspector forces ~800px min-width. Broken below 768p
 
 ---
 
-## Recommended PR sequencing for future agents
+## ✅ Completed
 
-1. **Test backfill PR** (#17): write tests for the four untested controllers. Surfaces #2, #3, #9, #10 inherently and locks the day-0 fixes.
-2. **Security hardening PR** (#9-#16, #45-#47): scope enforcement is the biggest dual-use gap; rest is hardening of existing surface.
-3. **Responsive pass PR** (#6, #18-#25): once the missing CSS variables are added (done), the rest is media-query work plus extracting inline styles from Batch-6 components into CSS modules.
-4. **Documentation accuracy PR** (#26-#28): re-derive counts via the verification command in CLAUDE.md and lock them.
-5. **Incomplete-feature PR** (#29-#35): HAR headers, config import/export completeness, scheduled-scan history, parser hardening.
-6. **Feature/UX PRs** (#36-#43, #49-#50): per persona, scoped individually.
-7. **Protocol coverage** (#44): one PR per protocol; AMQP and RTSP first.
-8. **Operational** (#51-#54): dashboards + runbook + OTEL.
+Each entry includes the closing PR. Use `gh pr view <num>` for the full diff and test plan.
 
-Each item above is sized to fit a single focused PR; do not bundle across categories.
+### Critical (4 of 6)
+
+- **#1 — `GET /api/packet-capture/status` was a hardcoded stub** [PR #59] — now reads `IPacketCaptureService.IsCaptureActive`. Test split into `_ReflectsServiceIsCaptureActive` + `_ReturnsFalseWhenCaptureInactive`.
+- **#2 — Admin role-case mismatch silently 403'd everyone** [PR #59] — `[Authorize(Roles = "Admin")]` → `"admin"` on `PluginsController.Reload` and `SessionsController.Delete`. Regression test in `PluginsControllerTests.Reload_RequiresAdminRole_LowercaseToMatchAuthServiceClaim`.
+- **#3 — Path traversal via `ReplacementFilePath`** [PR #59] — new `AssetsPaths.ResolveReplacementFilePath` rejects path separators / `..` and pins resolved paths inside `AssetsDirectory`. Five-payload `[Theory]` regression guard in `ContentRulesControllerTests.Create_RejectsReplacementFilePathOutsideAssetsDirectory`.
+- **#5 — Five CSS variables undefined globally** [PR #59] — `--color-text-secondary`, `--color-error-bg`, `--color-bg-alt`, `--color-accent`, `--color-input-bg` aliased in both theme blocks of `variables.css`.
+- **#6 — `PanelPacketCapture` infinite-render risk** [PR #62] — destructured stable `useCallback` refs; `useEffect` no longer depends on the unstable `analysis` object literal.
+- **#7 — `PanelPacketCapture` 3-column layout broken <768px** [PR #62] — `responsive.css` stacks `.ppc-root` vertically; inspector capped at 50 vh.
+
+### High security & correctness (6 of 8)
+
+- **#9 — `ProtoSchemasController.Upload` had no size limit** [PR #63] — `[RequestSizeLimit(1 MB)]` + length guard on both upload paths.
+- **#10 — `ProtoSchemasController.Delete` was not Admin-restricted** [PR #63] — `[Authorize(Roles = "admin")]` added; regression test asserts the attribute via reflection.
+- **#11 — Admin purge endpoints OOM-risky** [PR #63] — `ToListAsync()` + `RemoveRange()` + `SaveChangesAsync()` replaced with `ExecuteDeleteAsync(ct)`.
+- **#12 — `ManipulationRuleCache` TOCTOU race** [PR #63] — switched to `IMemoryCache.GetOrCreateAsync`.
+- **#14 — Audit write-once trigger SQLite-only** [PR #63] — migration now branches on `migrationBuilder.ActiveProvider`; emits plpgsql trigger function for Npgsql, preserves existing SQLite trigger.
+- **#15 — `ScannerController` accepted unbounded `PortRange`** [PR #63] — `PortScanner.MaxResolvedPorts = 10_000` cap; controller rejects port-range strings >256 chars.
+
+### High frontend / UX (5 of 9)
+
+- **#17 — Four shipped controllers had zero tests** [PR #61] — 49 new tests across `ContentRulesController`, `ProtoSchemasController`, `PluginsController`, `ProtocolProxyController`. Includes day-0 regression guards.
+- **#18 — `PanelPacketCapture` swallowed export failures silently** [PR #62] — `setExportError` + `role="alert"` banner.
+- **#19 — `PacketInspector` close button was `<button>x</button>`** [PR #62] — `aria-label="Close packet inspector"` and renders `×`.
+- **#20 (partial) — Inline-styled Batch-6 components** [PR #62] — `PluginsTab` migrated to `admin.css` conventions + `plugins-tab.css`; `ProtocolProxyPanel` fully migrated to new `protocol-proxy.css`. Remainder (RulePreviewModal, ContentRulesPanel modal, AssetLibrary, PacketInspector body) is the modal-system PR (#20 remainder, above).
+- **#22 — `ProtocolProxyPanel` un-overridable inline grid** [PR #62] — extracted to `.protocol-proxy-grid` / `.protocol-proxy-form-grid`; mobile breakpoint collapses to single column.
+- **#23 — `ScannerPanel` body lacked base flex declarations** [PR #62] — base rules added to `scanner.css`; responsive override now has something to override.
+- **#24 — Admin tabs (6) clipped on mobile** [PR #62] — `overflow-x: auto` + `flex-shrink: 0` in mobile breakpoint.
+- **#25 — `PluginsTab` table missing `admin-table-wrap`** [PR #62] — table wrapped; assembly-path `<code>` no longer overflows page.
+
+### High doc accuracy (3 of 3)
+
+- **#26 — Test count contradictions across CLAUDE.md / AGENT.md / README.md / ARCHITECTURE.md** [PR #60, bumped in follow-up to PR #61] — locked at 765 (grep `[Fact]/[Theory]` count). Re-bump after each test-adding PR.
+- **#27 — Controller list said 19, claimed 20** [PR #60] — added `ProtoSchemas` to enumeration; locked at 20.
+- **#28 — Manipulation panel "7 tabs" claim** [PR #60] — corrected to 8 (gRPC Schemas added in Batch 6).
+
+### Trust & safety (1 of 4)
+
+- **#47 — Scanner `MaxConcurrency` defaulted to 100** [PR #63] — default lowered to 25; user values clamped to ≤100.
+
+---
+
+## Recommended next PRs
+
+The original sequencing has been followed; remaining PRs in priority order:
+
+1. **Modal system PR** — bundle #20 (remainder), #21, #49, #50. The four big modals all need ARIA roles, focus trap, and inline-style → CSS-module migration done together since they touch the same files. Estimated 600–900 lines of churn across four components + new `modal.css` infrastructure.
+
+2. **Crash resilience PR** — #8 alone. New `PacketCaptureCheckpointService` (or fold into existing `PacketCaptureService`) that batch-flushes the ring buffer to the `Packets` table on a 1-second cadence. Decide upfront: synchronous write-then-broadcast, or async durable buffer. Affects `PacketCaptureService`, possibly `Packets` table indices, and the integration test suite.
+
+3. **Scope-enforcement + consent gate PR** — bundle #4 + #45. They share the onboarding-wizard UX and the audit-log surface. New `ScanScope` model + repo, CIDR allowlist enforcement at `ScannerService.StartScanAsync` boundary, and an "I am authorized to test this network" acknowledgment step. Largest design surface of all remaining items — consider a design doc first.
+
+4. **Replay/Fuzzer TLS opt-in PR** — #13. DTO field, controller parse, audit-log emit, UI checkbox. Smaller than it looks.
+
+5. **Incomplete-feature bundle (medium)** — #29 (HAR headers), #30 + #31 (config round-trip), #32 (scheduled-scan history), #34 (ProtoParser System.Text.Json), #35 (storage estimates). All small, all safe; consider a single "polish" PR or split per concern.
+
+6. **User-story PRs (medium, high-value)** — pick one per persona-PR:
+   - Researcher: #36 (capture-to-curl), #39 (body search), #55 (capture diff)
+   - Pen-tester: #38 (replay base URL), #57 (CVSS override), #56 (project concept)
+   - Developer: #37 (HAR import)
+   - Admin: #41 (UsersTab audit), #42 (backup/restore), #43 (retention runtime API), #40 (in-app alerts)
+
+7. **Per-user data isolation PR** — #48. Touches many controllers; bundle as a single multi-controller PR with a row-level ownership filter helper in `IoTSpy.Storage`.
+
+8. **Plugin signing PR** — #16. Needs a key-mgmt design decision before code; write a short ADR first.
+
+9. **Audit DELETE protection PR** — #46. Needs a retention-vs-immutability decision (immutable archive sink vs. drop pruning); ADR before code.
+
+10. **Protocol coverage** — #44. One PR per protocol; AMQP and RTSP first (highest IoT relevance).
+
+11. **Operational observability** — #51 (OTEL), #52 (more metrics), #53 (Grafana dashboards), #54 (runbook). Each independent; can be picked up in any order.
+
+12. **SSO/OIDC** — #59. Largest single feature in the Low tier; only do this if a customer is asking.
+
+Each item above is sized to fit a focused PR. Avoid bundling across categories — the cleaner the diff, the easier the review.
+
+## Verification commands
+
+After any test-adding PR, re-bump the `[Fact]/[Theory]` grep count in CLAUDE.md, AGENT.md, README.md, ARCHITECTURE.md:
+
+```bash
+grep -rE "^\s*\[(Fact|Theory)" --include="*.cs" src/IoTSpy.*.Tests src/IoTSpy.Api.IntegrationTests | wc -l
+ls src/IoTSpy.Api/Controllers | wc -l
+ls src/IoTSpy.Storage/Migrations/*.cs | grep -vE "(Designer|Snapshot)" | wc -l
+grep -rE "\[Http" --include="*.cs" src/IoTSpy.Api/Controllers | wc -l
+```
