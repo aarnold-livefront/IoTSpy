@@ -25,10 +25,15 @@ public class ProtoSchemasController(IProtoSchemaRepository repo) : ControllerBas
         return schema is null ? NotFound() : Ok(schema);
     }
 
+    // 1 MB is far larger than any real .proto file; bigger uploads are almost
+    // certainly attacker-supplied or malformed.
+    private const int MaxProtoBytes = 1 * 1024 * 1024;
+
     /// <summary>
     /// Upload a .proto file as plain text. The server parses field mappings and stores them.
     /// </summary>
     [HttpPost]
+    [RequestSizeLimit(MaxProtoBytes)]
     [Consumes("application/x-protobuf-schema", "text/plain", "application/octet-stream")]
     public async Task<IActionResult> Upload(
         [FromQuery] string? name,
@@ -39,6 +44,8 @@ public class ProtoSchemasController(IProtoSchemaRepository repo) : ControllerBas
 
         if (string.IsNullOrWhiteSpace(protoText))
             return BadRequest("Request body must contain .proto file content.");
+        if (protoText.Length > MaxProtoBytes)
+            return BadRequest($"Proto content exceeds {MaxProtoBytes} byte limit.");
 
         var flatMap = ProtoParser.ParseFlatMap(protoText);
         var schema = new ProtoSchema
@@ -56,10 +63,13 @@ public class ProtoSchemasController(IProtoSchemaRepository repo) : ControllerBas
     /// Upload a .proto file as JSON body for clients that prefer JSON.
     /// </summary>
     [HttpPost("json")]
+    [RequestSizeLimit(MaxProtoBytes)]
     public async Task<IActionResult> UploadJson([FromBody] UploadProtoDto dto, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(dto.ProtoText))
             return BadRequest("ProtoText is required.");
+        if (dto.ProtoText.Length > MaxProtoBytes)
+            return BadRequest($"Proto content exceeds {MaxProtoBytes} byte limit.");
 
         var flatMap = ProtoParser.ParseFlatMap(dto.ProtoText);
         var schema = new ProtoSchema
@@ -74,6 +84,7 @@ public class ProtoSchemasController(IProtoSchemaRepository repo) : ControllerBas
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)
     {
         var existing = await repo.GetByIdAsync(id, ct);
