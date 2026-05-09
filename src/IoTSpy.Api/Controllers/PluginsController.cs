@@ -22,7 +22,7 @@ public class PluginsController(IPluginRegistry registry) : ControllerBase
     }
 
     [HttpPost("reload")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "admin")]
     public IActionResult Reload()
     {
         registry.Reload();

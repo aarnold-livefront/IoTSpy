@@ -105,7 +105,7 @@ public class SessionsController(
 
     /// <summary>DELETE /api/sessions/{id} — close/deactivate a session (Admin only).</summary>
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "admin")]
     public async Task<IActionResult> Delete(Guid id)
     {
         var session = await sessionRepo.GetByIdAsync(id);

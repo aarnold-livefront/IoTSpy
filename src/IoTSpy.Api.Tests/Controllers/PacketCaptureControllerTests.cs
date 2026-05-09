@@ -131,14 +131,31 @@ public class PacketCaptureControllerTests
     }
 
     [Fact]
-    public void GetStatus_ReturnsIsCapturingFalse()
+    public void GetStatus_ReflectsServiceIsCaptureActive()
     {
-        var controller = MakeController();
+        var captureService = Substitute.For<IPacketCaptureService>();
+        captureService.IsCaptureActive.Returns(true);
+
+        var controller = MakeController(captureService);
         var result = controller.GetStatus() as OkObjectResult;
 
         Assert.NotNull(result);
         var json = System.Text.Json.JsonSerializer.Serialize(result.Value);
-        Assert.Contains("isCapturing", json);
+        Assert.Contains("\"isCapturing\":true", json);
+    }
+
+    [Fact]
+    public void GetStatus_ReturnsFalseWhenCaptureInactive()
+    {
+        var captureService = Substitute.For<IPacketCaptureService>();
+        captureService.IsCaptureActive.Returns(false);
+
+        var controller = MakeController(captureService);
+        var result = controller.GetStatus() as OkObjectResult;
+
+        Assert.NotNull(result);
+        var json = System.Text.Json.JsonSerializer.Serialize(result.Value);
+        Assert.Contains("\"isCapturing\":false", json);
     }
 
     [Fact]

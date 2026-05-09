@@ -71,7 +71,7 @@ public class PacketCaptureController : ControllerBase
     }
 
     [HttpGet("status")]
-    public IActionResult GetStatus() => Ok(new { isCapturing = false });
+    public IActionResult GetStatus() => Ok(new { isCapturing = _captureService.IsCaptureActive });
 
     [HttpGet("packets")]
     public async Task<IActionResult> GetPackets([FromQuery] PacketFilterDto filter, CancellationToken ct = default)
