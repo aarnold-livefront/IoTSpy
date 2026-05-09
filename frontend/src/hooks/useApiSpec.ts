@@ -11,17 +11,12 @@ import {
   refineSpec,
   activateSpec,
   deactivateSpec,
-  createRule,
-  updateRule,
-  deleteRule,
 } from '../api/apispec'
 import type {
   ApiSpecDocument,
   GenerateSpecRequest,
   ImportSpecRequest,
   UpdateSpecRequest,
-  CreateReplacementRuleRequest,
-  UpdateReplacementRuleRequest,
 } from '../types/api'
 
 const SPECS_KEY = ['api-specs']
@@ -215,92 +210,6 @@ export function useApiSpec() {
     [deactivateMutation],
   )
 
-  // ── Replacement rules ───────────────────────────────────────────────────────
-
-  const addRuleMutation = useMutation({
-    mutationFn: ({ specId, req }: { specId: string; req: CreateReplacementRuleRequest }) =>
-      createRule(specId, req),
-    onSuccess: (rule) => {
-      setSelectedSpec((prev) =>
-        prev ? { ...prev, replacementRules: [...prev.replacementRules, rule] } : prev,
-      )
-    },
-    onError: (err) => setError(err instanceof Error ? err.message : 'Failed to add rule'),
-  })
-
-  const editRuleMutation = useMutation({
-    mutationFn: ({
-      specId,
-      ruleId,
-      req,
-    }: {
-      specId: string
-      ruleId: string
-      req: UpdateReplacementRuleRequest
-    }) => updateRule(specId, ruleId, req),
-    onSuccess: (rule) => {
-      setSelectedSpec((prev) =>
-        prev
-          ? {
-              ...prev,
-              replacementRules: prev.replacementRules.map((r) => (r.id === rule.id ? rule : r)),
-            }
-          : prev,
-      )
-    },
-    onError: (err) => setError(err instanceof Error ? err.message : 'Failed to update rule'),
-  })
-
-  const removeRuleMutation = useMutation({
-    mutationFn: ({ specId, ruleId }: { specId: string; ruleId: string }) =>
-      deleteRule(specId, ruleId),
-    onSuccess: (_data, { ruleId }) => {
-      setSelectedSpec((prev) =>
-        prev
-          ? {
-              ...prev,
-              replacementRules: prev.replacementRules.filter((r) => r.id !== ruleId),
-            }
-          : prev,
-      )
-    },
-    onError: (err) => setError(err instanceof Error ? err.message : 'Failed to delete rule'),
-  })
-
-  const addRule = useCallback(
-    async (specId: string, req: CreateReplacementRuleRequest) => {
-      setError(null)
-      try {
-        return await addRuleMutation.mutateAsync({ specId, req })
-      } catch {
-        return null
-      }
-    },
-    [addRuleMutation],
-  )
-
-  const editRule = useCallback(
-    async (specId: string, ruleId: string, req: UpdateReplacementRuleRequest) => {
-      setError(null)
-      try {
-        return await editRuleMutation.mutateAsync({ specId, ruleId, req })
-      } catch {
-        return null
-      }
-    },
-    [editRuleMutation],
-  )
-
-  const removeRule = useCallback(
-    async (specId: string, ruleId: string) => {
-      setError(null)
-      try {
-        await removeRuleMutation.mutateAsync({ specId, ruleId })
-      } catch { /* swallow */ }
-    },
-    [removeRuleMutation],
-  )
-
   return {
     specs,
     selectedSpec,
@@ -316,8 +225,5 @@ export function useApiSpec() {
     refine,
     activate,
     deactivate,
-    addRule,
-    editRule,
-    removeRule,
   }
 }

@@ -11,6 +11,7 @@ This document tracks remaining gaps, known limitations, and technical debt. Item
 | No LDAP / SAML SSO | Enterprise single sign-on not implemented | Low | Open | Deprioritized in Phase 16.5; valid candidate for future work |
 | No distributed / multi-node mode | Single-instance proxy per deployment; horizontal scaling requires Redis backplane | Low | Open | Deprioritized in Phase 16.8; see Design Assumptions |
 | No Bluetooth/Zigbee/Z-Wave | IoT protocols beyond IP-based networking are not supported | Low | Open | See Phase 17 for future work |
+| Dashboard layout persistence | Per-user saved layout/filter presets with full CRUD; DB model, repo, and API all implemented; zero frontend exposure | Low | Open | Backend: `GET/POST/PUT/DELETE /api/dashboard/layouts` |
 
 ---
 
@@ -32,7 +33,7 @@ All previously open filtering gaps have been resolved — see Resolved Items bel
 
 | Component | Current Status | Gap |
 |---|---|---|
-| Frontend components | 7 spec files (~36 tests) | Most panels still untested; Manipulation/PacketCapture/Sessions panels now covered |
+| Frontend components | 11 spec files (~61 tests) | All major panels covered: Manipulation (8 tabs incl. gRPC Schemas), PacketCapture, Sessions, Scanner, OpenRtb, ContentRules, CaptureList |
 | End-to-end frontend | Auth + Captures + Dashboard + Manipulation specs (Playwright) | Load testing, security fuzzing |
 | Load testing | None | Proxy throughput/latency baseline |
 | Security fuzzing | Limited | AFL/libFuzzer on MQTT, DNS, CoAP parsers |
@@ -47,7 +48,7 @@ Decoders exist for all major protocols but vary in depth:
 |---|---|---|
 | DNS | Basic query/response, label decompression, **EDNS0 OPT record parsed** | DNSSEC validation chain, DoH/DoT detection |
 | CoAP | RFC 7252 decode, **Block-wise transfer (Block1/Block2), Observe option, .well-known/core** | — |
-| gRPC | Schema-less LPM field extraction | `.proto` file upload for field name resolution; gRPC-Web detection |
+| gRPC | **Schema-less LPM + gRPC-Web trailer detection; `.proto` upload resolves field names** (`ProtoParser`, `ProtoSchemasController`) | — |
 | MQTT | Full 3.1.1/5.0 decode, **topic statistics + QoS-2 flow tracking via MqttSessionAnalyzer** | — |
 | WebSocket | Frame decode, **STOMP/WAMP/MQTT-over-WS sub-protocol detection** | Message sequence reconstruction across fragmented frames |
 
@@ -105,7 +106,7 @@ All previously open items resolved — see Resolved Items below.
 - API endpoints require Bearer token or API key; rate limiting enabled by default; dev overrides via `appsettings.Development.json`
 - TLS MITM disabled in passthrough mode (`CaptureTls=false`); metadata extraction only
 - SSL stripping requires explicit `SslStrip=true` flag; off by default
-- Audit log immutable in design but not enforced at DB level; could add write-once table constraint
+- **Audit log write-once enforced at DB level** — SQLite `BEFORE UPDATE` trigger on `AuditEntries` (`AuditWriteOnceTrigger` migration); deletions still permitted for data retention
 - Breakpoint scripts execute arbitrary C# (Roslyn) and JavaScript (Jint) — no sandbox restrictions; operator-role required but worth documenting explicitly
 
 ---
@@ -119,6 +120,16 @@ See [AGENT-NOTES.md](AGENT-NOTES.md) for session setup and testing instructions.
 ---
 
 ## Resolved Items
+
+### Gaps Batch 6 (2026-05-09)
+- ~~gRPC `.proto` file upload / field name resolution~~ — `ProtoParser` (regex-based, no external dep) extracts per-message and flat field maps; `ProtoSchema` model + `IProtoSchemaRepository`; `ProtoSchemasController` at `GET/POST/DELETE /api/grpc/schemas`; `GrpcDecoder.DecodeAsync` overload accepts `IReadOnlyDictionary<int, string>` and populates `ProtobufField.FieldName`; EF migration `AddProtoSchemas`; 14 new tests (7 `GrpcDecoderTests` + 7 `ProtoParserTests`)
+- ~~gRPC-Web trailer frame detection~~ — `GrpcDecoder.CanDecode` now accepts flag bytes `0x00`, `0x01`, and `0x80`; `GrpcFrameType` enum added (`Data`, `Trailer`); `GrpcMessage.FrameType` and `IsTrailerFrame` computed property set accordingly; trailer frames bypass protobuf field parsing; 4 new tests
+- ~~Audit log not write-once at DB level~~ — SQLite `BEFORE UPDATE` trigger `prevent_audit_update` added via `AuditWriteOnceTrigger` EF migration; `RAISE(ABORT, ...)` blocks any row modification; deletions remain permitted for data retention
+- ~~Frontend component tests insufficient~~ — 4 new spec files: `ScannerPanel.test.tsx` (9 tests), `OpenRtbPanel.test.tsx` (5 tests), `ContentRulesPanel.test.tsx` (6 tests), `CaptureList.test.tsx` (4 tests); total frontend tests: 36 → 61 across 11 spec files; also created missing `scanner.css`
+- ~~gRPC proto schema UI not wired~~ — `GrpcSchemasPanel` component created with upload form + schema list (expand/collapse, delete); wired as 8th tab in `ManipulationPanel`; `useGrpcSchemas` hook + `api/grpcSchemas.ts` client; `ManipulationPanel.test.tsx` updated
+- ~~ScannerPanel / OpenRtbPanel orphaned~~ — Both panels were fully built but never mounted; wired into `DashboardPage` as 'scanner' and 'openrtb' view modes in the view-mode toggle bar; `ScheduledScansPanel` wired as 'Scheduled Scans' tab within `ScannerPanel`
+- ~~Plugin system UI~~ — `PluginsTab` added as 6th tab in Admin page; reads `GET /api/plugins`, shows protocol/name/version/load-status/assembly-path table; Admin-only Reload button hits `POST /api/plugins/reload`; `api/plugins.ts` + `usePlugins` hook
+- ~~Protocol Proxy UI~~ — `ProtocolProxyPanel` added as 'Protocol Proxies' view mode in dashboard; MQTT card (listenPort/address, upstreamHost/port, logPayloads, topic filters) and CoAP card (same minus topic filters) each with start/stop toggle and live connection/message counters; `api/protocolProxy.ts` + `useProtocolProxy` hook (5-second status polling)
 
 ### Gaps Batch 5 (2026-05-08)
 - ~~CoAP Block-wise transfer~~ — `CoapMessage` now exposes `Block1`, `Block2` (`CoapBlockOption` with `Num`, `More`, `Szx`, `BlockSize`), `Size1`, `Size2`, `ObserveValue`, and `IsWellKnownCore` as computed properties derived from the already-decoded options list; 7 new tests

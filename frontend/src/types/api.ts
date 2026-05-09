@@ -635,7 +635,6 @@ export interface ApiSpecDocument {
   useLlmAnalysis: boolean
   createdAt: string
   updatedAt: string
-  replacementRules: ContentReplacementRule[]
 }
 
 export interface ContentReplacementRule {
@@ -721,36 +720,46 @@ export interface UpdateSpecRequest {
   status?: ApiSpecStatus
 }
 
-export interface CreateReplacementRuleRequest {
+// ── Plugin models ────────────────────────────────────────────────────────────
+
+export interface PluginInfo {
+  protocol: string
   name: string
-  matchType: ContentMatchType
-  matchPattern: string
-  action: ContentReplacementAction
-  enabled?: boolean
-  replacementValue?: string
-  replacementFilePath?: string
-  replacementContentType?: string
-  hostPattern?: string
-  pathPattern?: string
-  priority?: number
-  sseInterEventDelayMs?: number
-  sseLoop?: boolean
+  version: string
+  assemblyPath: string
+  isLoaded: boolean
+  loadError?: string
 }
 
-export interface UpdateReplacementRuleRequest {
-  name?: string
-  enabled?: boolean
-  matchType?: ContentMatchType
-  matchPattern?: string
-  action?: ContentReplacementAction
-  replacementValue?: string
-  replacementFilePath?: string
-  replacementContentType?: string
-  hostPattern?: string
-  pathPattern?: string
-  priority?: number
-  sseInterEventDelayMs?: number
-  sseLoop?: boolean
+// ── Protocol Proxy models ─────────────────────────────────────────────────────
+
+export interface MqttBrokerSettings {
+  enabled: boolean
+  listenPort: number
+  listenAddress: string
+  upstreamHost?: string
+  upstreamPort: number
+  logPayloads: boolean
+  topicFilters: string[]
+}
+
+export interface CoapProxySettings {
+  enabled: boolean
+  listenPort: number
+  listenAddress: string
+  upstreamHost?: string
+  upstreamPort: number
+  logPayloads: boolean
+}
+
+export interface MqttProxyStatus {
+  isRunning: boolean
+  activeConnections: number
+}
+
+export interface CoapProxyStatus {
+  isRunning: boolean
+  messagesProxied: number
 }
 
 // ── SignalR DTOs ──────────────────────────────────────────────────────────────

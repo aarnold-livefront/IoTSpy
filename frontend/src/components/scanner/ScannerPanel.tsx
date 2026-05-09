@@ -3,12 +3,17 @@ import { useScanner } from '../../hooks/useScanner'
 import { useDevices } from '../../hooks/useDevices'
 import ScanJobList from './ScanJobList'
 import ScanFindingsView from './ScanFindingsView'
+import { ScheduledScansPanel } from './ScheduledScansPanel'
 import type { StartScanRequest } from '../../types/api'
 import '../../styles/scanner.css'
+
+type ScannerTab = 'scan' | 'scheduled'
 
 export default function ScannerPanel() {
   const { jobs, selectedJob, loading, error, scan, selectJob, cancel, remove } = useScanner()
   const { devices } = useDevices()
+
+  const [activeTab, setActiveTab] = useState<ScannerTab>('scan')
 
   // Scan form state
   const [formDeviceId, setFormDeviceId] = useState('')
@@ -40,6 +45,25 @@ export default function ScannerPanel() {
 
   return (
     <div className="scanner-panel">
+      {/* Tab bar */}
+      <div className="manip-tabs" style={{ borderBottom: '1px solid var(--color-border)', marginBottom: 0 }}>
+        <button
+          className={`manip-tab${activeTab === 'scan' ? ' manip-tab--active' : ''}`}
+          onClick={() => setActiveTab('scan')}
+        >
+          Active Scans
+        </button>
+        <button
+          className={`manip-tab${activeTab === 'scheduled' ? ' manip-tab--active' : ''}`}
+          onClick={() => setActiveTab('scheduled')}
+        >
+          Scheduled Scans
+        </button>
+      </div>
+
+      {activeTab === 'scheduled' && <ScheduledScansPanel />}
+
+      {activeTab === 'scan' && (<>
       {/* Scan trigger form */}
       <div className="scan-form">
         <div className="scan-form__title">Security Scanner</div>
@@ -187,6 +211,7 @@ export default function ScannerPanel() {
           )}
         </div>
       </div>
+      </>)}
     </div>
   )
 }

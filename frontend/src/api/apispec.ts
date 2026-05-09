@@ -2,13 +2,10 @@ import { apiFetch, getToken } from './client'
 import type {
   ApiSpecDocument,
   AssetInfo,
-  ContentReplacementRule,
-  CreateReplacementRuleRequest,
   GenerateSpecRequest,
   ImportSpecRequest,
   PreviewRuleRequest,
   PreviewRuleResult,
-  UpdateReplacementRuleRequest,
   UpdateSpecRequest,
 } from '../types/api'
 
@@ -76,36 +73,7 @@ export function deactivateSpec(id: string): Promise<ApiSpecDocument> {
   return apiFetch<ApiSpecDocument>(`/api/apispec/${id}/deactivate`, { method: 'POST' })
 }
 
-// ── Replacement Rules ───────────────────────────────────────────────────────
-
-export function listRules(specId: string): Promise<ContentReplacementRule[]> {
-  return apiFetch<ContentReplacementRule[]>(`/api/apispec/${specId}/rules`)
-}
-
-export function createRule(
-  specId: string,
-  req: CreateReplacementRuleRequest,
-): Promise<ContentReplacementRule> {
-  return apiFetch<ContentReplacementRule>(`/api/apispec/${specId}/rules`, {
-    method: 'POST',
-    body: JSON.stringify(req),
-  })
-}
-
-export function updateRule(
-  specId: string,
-  ruleId: string,
-  req: UpdateReplacementRuleRequest,
-): Promise<ContentReplacementRule> {
-  return apiFetch<ContentReplacementRule>(`/api/apispec/${specId}/rules/${ruleId}`, {
-    method: 'PUT',
-    body: JSON.stringify(req),
-  })
-}
-
-export function deleteRule(specId: string, ruleId: string): Promise<void> {
-  return apiFetch<void>(`/api/apispec/${specId}/rules/${ruleId}`, { method: 'DELETE' })
-}
+// ── Replacement Rule Preview ─────────────────────────────────────────────────
 
 export function previewRule(
   specId: string,

@@ -8,9 +8,10 @@ import FuzzerPanel from './FuzzerPanel'
 import ApiSpecPanel from '../apispec/ApiSpecPanel'
 import ContentRulesPanel from '../contentrules/ContentRulesPanel'
 import AssetLibrary from '../apispec/AssetLibrary'
+import GrpcSchemasPanel from '../grpc/GrpcSchemasPanel'
 import '../../styles/manipulation.css'
 
-type ManipTab = 'trafficrules' | 'breakpoints' | 'replay' | 'fuzzer' | 'contentrules' | 'assets' | 'apispec'
+type ManipTab = 'trafficrules' | 'breakpoints' | 'replay' | 'fuzzer' | 'contentrules' | 'assets' | 'apispec' | 'grpcschemas'
 
 export default function ManipulationPanel() {
   const [activeTab, setActiveTab] = useState<ManipTab>('trafficrules')
@@ -26,6 +27,7 @@ export default function ManipulationPanel() {
     { key: 'contentrules', label: 'Content Rules' },
     { key: 'assets', label: 'Assets' },
     { key: 'apispec', label: 'API Spec' },
+    { key: 'grpcschemas', label: 'gRPC Schemas' },
   ]
 
   return (
@@ -89,6 +91,7 @@ export default function ManipulationPanel() {
         {activeTab === 'contentrules' && <ContentRulesPanel />}
         {activeTab === 'assets' && <AssetLibrary />}
         {activeTab === 'apispec' && <ApiSpecPanel />}
+        {activeTab === 'grpcschemas' && <GrpcSchemasPanel />}
       </div>
     </div>
   )
