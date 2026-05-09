@@ -18,18 +18,23 @@ export default function PanelPacketCapture() {
     startCapture, stopCapture, clearPackets, importPcapFile, error
   } = usePacketCapture()
   const analysis = usePacketAnalysis()
+  // Destructure stable useCallback references so the effect below doesn't re-run
+  // every render (the `analysis` object literal is unstable; in React 19 strict
+  // mode that produces an infinite render loop).
+  const { loadProtocols, loadPatterns, loadSuspicious } = analysis
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null)
   const [selectedPacket, setSelectedPacket] = useState<CapturedPacket | null>(null)
   const [activeTab, setActiveTab] = useState<AnalysisTab>('packets')
   const [isDragOver, setIsDragOver] = useState(false)
   const [importResult, setImportResult] = useState<PcapImportResult | null>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (activeTab === 'protocols') analysis.loadProtocols()
-    else if (activeTab === 'patterns') analysis.loadPatterns()
-    else if (activeTab === 'suspicious') analysis.loadSuspicious()
-  }, [activeTab, analysis])
+    if (activeTab === 'protocols') loadProtocols()
+    else if (activeTab === 'patterns') loadPatterns()
+    else if (activeTab === 'suspicious') loadSuspicious()
+  }, [activeTab, loadProtocols, loadPatterns, loadSuspicious])
 
   const handleFileDrop = async (file: File) => {
     setImportResult(null)
@@ -55,12 +60,16 @@ export default function PanelPacketCapture() {
   }
 
   const handleExport = async () => {
+    setExportError(null)
     try {
       const token = getToken()
       const res = await fetch('/api/packet-capture/export/pcap', {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
-      if (!res.ok) return
+      if (!res.ok) {
+        setExportError(`Export failed (HTTP ${res.status}). Check server logs.`)
+        return
+      }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -68,8 +77,8 @@ export default function PanelPacketCapture() {
       a.download = 'capture.pcap'
       a.click()
       URL.revokeObjectURL(url)
-    } catch {
-      // best-effort
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : 'Export failed.')
     }
   }
 
@@ -93,6 +102,7 @@ export default function PanelPacketCapture() {
 
         {error && <div className="ppc-error">{error}</div>}
         {analysis.error && <div className="ppc-error">{analysis.error}</div>}
+        {exportError && <div className="ppc-error" role="alert">{exportError}</div>}
 
         <div>
           <label className="ppc-label">Network Interface:</label>

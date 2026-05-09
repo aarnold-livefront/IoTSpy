@@ -374,6 +374,56 @@
     width: 95vw;
     max-height: 90vh;
   }
+
+  /* ── Packet Capture panel: stack 3-column layout ────────────────────────── */
+
+  .ppc-root {
+    flex-direction: column;
+  }
+
+  .ppc-sidebar,
+  .ppc-inspector {
+    width: 100%;
+  }
+
+  .ppc-inspector {
+    max-height: 50vh;
+  }
+
+  .ppc-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .ppc-tabs::-webkit-scrollbar { display: none; }
+
+  .ppc-tab {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── Admin tabs: scrollable on mobile ───────────────────────────────────── */
+
+  .admin-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .admin-tabs::-webkit-scrollbar { display: none; }
+
+  .admin-tab {
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── Protocol Proxy panel: stack two-column grid ────────────────────────── */
+
+  .protocol-proxy-grid,
+  .protocol-proxy-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ── iPhone / small mobile: ≤390px ─────────────────────────────────────── */

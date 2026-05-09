@@ -1,0 +1,76 @@
+/* PluginsTab styles — uses admin.css table/button conventions for the heavy lifting */
+
+.plugins-tab__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-4);
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.plugins-tab__title {
+  margin-bottom: var(--space-1);
+}
+
+.plugins-tab__subtitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.plugins-tab__reload-btn {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.plugins-tab__error {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.plugins-tab__empty {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.plugins-tab__empty--centered {
+  padding: var(--space-6) 0;
+  text-align: center;
+}
+
+.plugins-tab__protocol-cell {
+  font-weight: 600;
+}
+
+.plugins-tab__muted-cell {
+  color: var(--color-text-muted);
+}
+
+.plugins-tab__assembly-cell {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plugins-tab__assembly-cell code {
+  word-break: break-all;
+}
+
+.plugins-tab__status {
+  font-size: var(--font-size-xs);
+}
+
+.plugins-tab__status--loaded {
+  color: var(--color-success);
+}
+
+.plugins-tab__status--failed {
+  color: var(--color-error);
+}

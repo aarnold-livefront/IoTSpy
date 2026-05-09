@@ -34,7 +34,11 @@ export default function PacketInspector({ packet, onClose }: Props) {
       <div style={{ padding: '12px', background: 'var(--color-surface)', borderBottom: '1px solid var(--color-border)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 style={{ margin: 0, fontSize: 'var(--font-size-md)' }}>Packet Inspector</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px' }}>x</button>
+          <button
+            onClick={onClose}
+            aria-label="Close packet inspector"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: 'var(--color-text)', lineHeight: 1 }}
+          >×</button>
         </div>
 
         {/* View tabs */}
