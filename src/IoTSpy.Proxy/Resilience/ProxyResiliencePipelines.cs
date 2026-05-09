@@ -76,6 +76,8 @@ public static class ProxyResiliencePipelines
             });
         });
 
+        services.AddSingleton<IPerHostConnectPipelineCache>(new PerHostConnectPipelineCache(opts));
+
         return services;
     }
 }

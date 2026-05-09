@@ -12,8 +12,8 @@ dotnet build
 dotnet test
 dotnet test src/IoTSpy.SomeTests/IoTSpy.SomeTests.csproj
 
-# Run the API (Auth__JwtSecret required, ≥ 32 chars)
-Auth__JwtSecret="replace-with-32-char-minimum-secret" dotnet run --project src/IoTSpy.Api
+# Run the API — set the JWT secret via user-secrets first (one-time, see Dev secrets below)
+dotnet run --project src/IoTSpy.Api
 
 # Add / apply EF Core migration (run from repo root)
 dotnet ef migrations add <MigrationName> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api
@@ -25,6 +25,16 @@ cd frontend && npm test && npm run build
 ```
 
 Scalar API docs: `http://localhost:5000/scalar` (Development only).
+
+## Dev secrets (one-time setup)
+
+`Auth:JwtSecret` is required at startup (≥ 32 chars). Store it in the .NET user-secrets store — never in source:
+
+```bash
+dotnet user-secrets set "Auth:JwtSecret" "your-32-char-minimum-dev-secret-here" --project src/IoTSpy.Api
+```
+
+User secrets are loaded automatically when `ASPNETCORE_ENVIRONMENT=Development` (the VS Code launch config sets this). The VS Code launch config (`launch.json`) pins `ASPNETCORE_URLS=http://localhost:5000` so the Vite proxy target always matches.
 
 ## Project structure at a glance
 

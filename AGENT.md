@@ -21,8 +21,8 @@ dotnet test src/IoTSpy.SomeTests/IoTSpy.SomeTests.csproj
 # Restore dependencies
 dotnet restore
 
-# Run the API (Auth__JwtSecret must be ≥ 32 chars)
-Auth__JwtSecret="replace-with-32-char-minimum-secret" dotnet run --project src/IoTSpy.Api
+# Run the API — requires Auth:JwtSecret in user-secrets (see Dev secrets section)
+dotnet run --project src/IoTSpy.Api
 
 # Add EF Core migration (run from repo root)
 dotnet ef migrations add <MigrationName> --project src/IoTSpy.Storage --startup-project src/IoTSpy.Api
@@ -100,6 +100,16 @@ Switch between SQLite and Postgres via `appsettings.json`:
 
 `MigrateAsync()` runs at startup automatically. Use `DesignTimeDbContextFactory` when running `dotnet ef` CLI commands.
 
+### Dev secrets (one-time setup)
+
+`Auth:JwtSecret` is required at startup (≥ 32 chars) and must never be stored in source. Use the .NET user-secrets store:
+
+```bash
+dotnet user-secrets set "Auth:JwtSecret" "your-32-char-minimum-dev-secret-here" --project src/IoTSpy.Api
+```
+
+User secrets are loaded automatically when `ASPNETCORE_ENVIRONMENT=Development`. The VS Code launch config (`launch.json`) sets this env var and also pins `ASPNETCORE_URLS=http://localhost:5000` so the Vite dev proxy always reaches the correct port. Do not add `Auth:JwtSecret` to `launch.json` or `appsettings.json`.
+
 ### Authentication
 
 JWT bearer auth. `Auth:JwtSecret` must be ≥ 32 characters (throws on startup if absent). Multi-user RBAC: `UserRole` enum (Admin / Operator / Viewer). SignalR accepts the token via `?access_token=` query param.
@@ -158,6 +168,14 @@ claude plugin install iotspy-context@iotspy-skills --scope project
 | `/iotspy-context` | IoTSpy-specific architecture, conventions, and security caveats — pair with any of the above when working in this repo |
 
 See `.dev/claude-skills/README.md` for full details.
+
+### Vite dev proxy
+
+`frontend/vite.config.ts` proxies `/api` and `/hubs` to `http://localhost:5000`. Both routes have custom error handlers that suppress `ECONNRESET` (expected on backend restart — SignalR reconnects automatically) and log all other errors. If you see `ECONNREFUSED` in the Vite console, the backend is not running or not bound to port 5000.
+
+### Proxy resilience pipeline
+
+`IoTSpy.Proxy` uses Polly v8 for outbound connection resilience (timeout → retry → circuit breaker). The circuit breaker is **per upstream hostname** via `PerHostConnectPipelineCache` (`src/IoTSpy.Proxy/Resilience/PerHostConnectPipelineCache.cs`) — a singleton that lazily creates and caches one `ResiliencePipeline` per host. This ensures a dead or unresolvable IoT endpoint only opens its own circuit and never blocks traffic to other hosts. The TLS handshake pipeline (`iotspy-tls`) is a single shared timeout-only pipeline registered via `AddResiliencePipeline` and retrieved by its fixed key.
 
 ## Known operational requirements
 
