@@ -25,11 +25,12 @@ vi.mock('../components/manipulation/FuzzerPanel', () => ({ default: () => <div>F
 vi.mock('../components/contentrules/ContentRulesPanel', () => ({ default: () => <div>ContentRulesPanel</div> }))
 vi.mock('../components/apispec/AssetLibrary', () => ({ default: () => <div>AssetLibrary</div> }))
 vi.mock('../components/apispec/ApiSpecPanel', () => ({ default: () => <div>ApiSpecPanel</div> }))
+vi.mock('../components/grpc/GrpcSchemasPanel', () => ({ default: () => <div>GrpcSchemasPanel</div> }))
 
 describe('ManipulationPanel', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('renders all seven tab buttons', () => {
+  it('renders all eight tab buttons', () => {
     render(<ManipulationPanel />)
     expect(screen.getByRole('button', { name: 'Traffic Rules' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Breakpoints' })).toBeInTheDocument()
@@ -38,6 +39,7 @@ describe('ManipulationPanel', () => {
     expect(screen.getByRole('button', { name: 'Content Rules' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Assets' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'API Spec' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'gRPC Schemas' })).toBeInTheDocument()
   })
 
   it('shows Traffic Rules tab content by default', () => {
@@ -73,6 +75,12 @@ describe('ManipulationPanel', () => {
     render(<ManipulationPanel />)
     await userEvent.click(screen.getByRole('button', { name: 'API Spec' }))
     expect(screen.getByText('ApiSpecPanel')).toBeInTheDocument()
+  })
+
+  it('switches to gRPC Schemas tab on click', async () => {
+    render(<ManipulationPanel />)
+    await userEvent.click(screen.getByRole('button', { name: 'gRPC Schemas' }))
+    expect(screen.getByText('GrpcSchemasPanel')).toBeInTheDocument()
   })
 
   it('marks the active tab with the active CSS class', async () => {

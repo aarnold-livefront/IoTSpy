@@ -8,6 +8,8 @@ import TimelineSwimlaneView from '../components/timeline/TimelineSwimlaneView'
 import PanelPacketCapture from '../components/panels/PanelPacketCapture'
 import ManipulationPanel from '../components/manipulation/ManipulationPanel'
 import SessionsPanel from '../components/sessions/SessionsPanel'
+import ScannerPanel from '../components/scanner/ScannerPanel'
+import OpenRtbPanel from '../components/openrtb/OpenRtbPanel'
 import PassiveCaptureSummary from '../components/passive/PassiveCaptureSummary'
 import ErrorBoundary from '../components/common/ErrorBoundary'
 import DisconnectBanner from '../components/common/DisconnectBanner'
@@ -20,7 +22,7 @@ import { useBackendHealth } from '../hooks/useBackendHealth'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import type { CaptureFilters } from '../types/api'
 
-type ViewMode = 'list' | 'timeline' | 'packet-capture' | 'manipulation' | 'sessions'
+type ViewMode = 'list' | 'timeline' | 'packet-capture' | 'manipulation' | 'sessions' | 'scanner' | 'openrtb'
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches)
@@ -85,7 +87,7 @@ export default function DashboardPage() {
 
       {/* View mode toggle */}
       <div className="view-toggle">
-        {(['list', 'timeline', 'packet-capture', 'manipulation', 'sessions'] as const).map(mode => (
+        {(['list', 'timeline', 'packet-capture', 'manipulation', 'sessions', 'scanner', 'openrtb'] as const).map(mode => (
           <button
             key={mode}
             className={`view-toggle__btn${viewMode === mode ? ' view-toggle__btn--active' : ''}`}
@@ -94,7 +96,9 @@ export default function DashboardPage() {
             {mode === 'list' ? 'Requests' :
              mode === 'timeline' ? 'Timeline' :
              mode === 'packet-capture' ? 'Packet Capture' :
-             mode === 'manipulation' ? 'Manipulation' : 'Sessions'}
+             mode === 'manipulation' ? 'Manipulation' :
+             mode === 'sessions' ? 'Sessions' :
+             mode === 'scanner' ? 'Scanner' : 'OpenRTB'}
           </button>
         ))}
       </div>
@@ -207,6 +211,18 @@ export default function DashboardPage() {
       {viewMode === 'sessions' && (
         <ErrorBoundary>
           <SessionsPanel />
+        </ErrorBoundary>
+      )}
+
+      {viewMode === 'scanner' && (
+        <ErrorBoundary>
+          <ScannerPanel />
+        </ErrorBoundary>
+      )}
+
+      {viewMode === 'openrtb' && (
+        <ErrorBoundary>
+          <OpenRtbPanel />
         </ErrorBoundary>
       )}
 

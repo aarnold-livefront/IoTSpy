@@ -79,7 +79,7 @@ See `.dev/claude-skills/README.md` for full details.
 ## Current state
 
 All phases 1–16, 18–22 plus API & Backend Polish, Frontend Usability enhancements, Gaps Batches 4, 5, and 6 are complete:
-- 760 backend tests across 8 test projects; 58 frontend component tests; Playwright E2E suite (auth, captures, dashboard, manipulation)
+- 760 backend tests across 8 test projects; 61 frontend component tests; Playwright E2E suite (auth, captures, dashboard, manipulation)
 - 20 REST controllers, 180+ endpoints (added `ProtoSchemasController`)
 - 21 EF Core migrations up through `AuditWriteOnceTrigger`
 - GitHub Actions CI at `.github/workflows/ci.yml`
@@ -88,7 +88,10 @@ All phases 1–16, 18–22 plus API & Backend Polish, Frontend Usability enhance
 > Counts above last verified 2026-05-09. To re-check: `grep -rE "^\s*\[(Fact|Theory)" --include="*.cs" src/IoTSpy.*.Tests src/IoTSpy.Api.IntegrationTests | wc -l`, `ls src/IoTSpy.Api/Controllers | wc -l`, `ls src/IoTSpy.Storage/Migrations/*.cs | grep -vE "(Designer|Snapshot)" | wc -l`.
 
 ### Gaps Batch 6 (latest)
-- gRPC `.proto` upload: `ProtoParser` (regex-based field extraction), `ProtoSchema` model/repo, `ProtoSchemasController` at `/api/grpc/schemas`; `GrpcDecoder` accepts optional field map, populates `ProtobufField.FieldName`; `GrpcFrameType` enum + trailer frame detection (flag 0x80); 2 new EF migrations; 15 new backend tests; 22 new frontend tests (4 new spec files covering ScannerPanel, OpenRtbPanel, ContentRulesPanel, CaptureList); audit write-once trigger (`BEFORE UPDATE ON AuditEntries`); missing `scanner.css` created
+- gRPC `.proto` upload: `ProtoParser` (regex-based field extraction), `ProtoSchema` model/repo, `ProtoSchemasController` at `/api/grpc/schemas`; `GrpcDecoder` accepts optional field map, populates `ProtobufField.FieldName`; `GrpcFrameType` enum + trailer frame detection (flag 0x80); 2 new EF migrations; 15 new backend tests; audit write-once trigger (`BEFORE UPDATE ON AuditEntries`); missing `scanner.css` created
+- gRPC schema UI: `GrpcSchemasPanel` (upload form + schema list) wired as 8th tab in `ManipulationPanel`; `useGrpcSchemas` hook + `api/grpcSchemas.ts` client
+- Orphaned panels wired: `ScannerPanel` and `OpenRtbPanel` added as 'scanner'/'openrtb' view modes in `DashboardPage`; `ScheduledScansPanel` added as tab within `ScannerPanel`
+- 25 new frontend tests (4 new spec files + tab tests); total: 36 → 61 across 11 spec files
 
 ### Gaps Batch 5 (previous)
 - CoAP: `CoapMessage` exposes `Block1/Block2` (`CoapBlockOption`), `ObserveValue`, `Size1/2`, `IsWellKnownCore` computed from already-decoded options

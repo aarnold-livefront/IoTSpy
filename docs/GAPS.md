@@ -11,7 +11,6 @@ This document tracks remaining gaps, known limitations, and technical debt. Item
 | No LDAP / SAML SSO | Enterprise single sign-on not implemented | Low | Open | Deprioritized in Phase 16.5; valid candidate for future work |
 | No distributed / multi-node mode | Single-instance proxy per deployment; horizontal scaling requires Redis backplane | Low | Open | Deprioritized in Phase 16.8; see Design Assumptions |
 | No Bluetooth/Zigbee/Z-Wave | IoT protocols beyond IP-based networking are not supported | Low | Open | See Phase 17 for future work |
-| gRPC proto schema UI | Proto schema upload/view in the frontend dashboard | Low | Open | Backend API exists at `GET/POST/DELETE /api/grpc/schemas`; frontend not yet wired |
 
 ---
 
@@ -33,7 +32,7 @@ All previously open filtering gaps have been resolved — see Resolved Items bel
 
 | Component | Current Status | Gap |
 |---|---|---|
-| Frontend components | 11 spec files (~58 tests) | Major panels now covered: Manipulation, PacketCapture, Sessions, Scanner, OpenRtb, ContentRules, CaptureList |
+| Frontend components | 11 spec files (~61 tests) | All major panels covered: Manipulation (8 tabs incl. gRPC Schemas), PacketCapture, Sessions, Scanner, OpenRtb, ContentRules, CaptureList |
 | End-to-end frontend | Auth + Captures + Dashboard + Manipulation specs (Playwright) | Load testing, security fuzzing |
 | Load testing | None | Proxy throughput/latency baseline |
 | Security fuzzing | Limited | AFL/libFuzzer on MQTT, DNS, CoAP parsers |
@@ -125,7 +124,9 @@ See [AGENT-NOTES.md](AGENT-NOTES.md) for session setup and testing instructions.
 - ~~gRPC `.proto` file upload / field name resolution~~ — `ProtoParser` (regex-based, no external dep) extracts per-message and flat field maps; `ProtoSchema` model + `IProtoSchemaRepository`; `ProtoSchemasController` at `GET/POST/DELETE /api/grpc/schemas`; `GrpcDecoder.DecodeAsync` overload accepts `IReadOnlyDictionary<int, string>` and populates `ProtobufField.FieldName`; EF migration `AddProtoSchemas`; 14 new tests (7 `GrpcDecoderTests` + 7 `ProtoParserTests`)
 - ~~gRPC-Web trailer frame detection~~ — `GrpcDecoder.CanDecode` now accepts flag bytes `0x00`, `0x01`, and `0x80`; `GrpcFrameType` enum added (`Data`, `Trailer`); `GrpcMessage.FrameType` and `IsTrailerFrame` computed property set accordingly; trailer frames bypass protobuf field parsing; 4 new tests
 - ~~Audit log not write-once at DB level~~ — SQLite `BEFORE UPDATE` trigger `prevent_audit_update` added via `AuditWriteOnceTrigger` EF migration; `RAISE(ABORT, ...)` blocks any row modification; deletions remain permitted for data retention
-- ~~Frontend component tests insufficient~~ — 4 new spec files: `ScannerPanel.test.tsx` (7 tests), `OpenRtbPanel.test.tsx` (5 tests), `ContentRulesPanel.test.tsx` (6 tests), `CaptureList.test.tsx` (4 tests); total frontend tests: 36 → 58 across 11 spec files; also created missing `scanner.css` (component had the import but file was absent)
+- ~~Frontend component tests insufficient~~ — 4 new spec files: `ScannerPanel.test.tsx` (9 tests), `OpenRtbPanel.test.tsx` (5 tests), `ContentRulesPanel.test.tsx` (6 tests), `CaptureList.test.tsx` (4 tests); total frontend tests: 36 → 61 across 11 spec files; also created missing `scanner.css`
+- ~~gRPC proto schema UI not wired~~ — `GrpcSchemasPanel` component created with upload form + schema list (expand/collapse, delete); wired as 8th tab in `ManipulationPanel`; `useGrpcSchemas` hook + `api/grpcSchemas.ts` client; `ManipulationPanel.test.tsx` updated
+- ~~ScannerPanel / OpenRtbPanel orphaned~~ — Both panels were fully built but never mounted; wired into `DashboardPage` as 'scanner' and 'openrtb' view modes in the view-mode toggle bar; `ScheduledScansPanel` wired as 'Scheduled Scans' tab within `ScannerPanel`
 
 ### Gaps Batch 5 (2026-05-08)
 - ~~CoAP Block-wise transfer~~ — `CoapMessage` now exposes `Block1`, `Block2` (`CoapBlockOption` with `Num`, `More`, `Szx`, `BlockSize`), `Size1`, `Size2`, `ObserveValue`, and `IsWellKnownCore` as computed properties derived from the already-decoded options list; 7 new tests

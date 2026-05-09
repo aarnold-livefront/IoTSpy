@@ -23,6 +23,9 @@ vi.mock('../hooks/useDevices', () => ({
 }))
 vi.mock('../components/scanner/ScanJobList', () => ({ default: () => <div>ScanJobList</div> }))
 vi.mock('../components/scanner/ScanFindingsView', () => ({ default: () => <div>ScanFindingsView</div> }))
+vi.mock('../components/scanner/ScheduledScansPanel', () => ({
+  ScheduledScansPanel: () => <div>ScheduledScansPanel</div>,
+}))
 
 describe('ScannerPanel', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -70,5 +73,17 @@ describe('ScannerPanel', () => {
     expect(noop).toHaveBeenCalledWith(
       expect.objectContaining({ deviceId: 'dev-1' })
     )
+  })
+
+  it('renders Active Scans and Scheduled Scans tabs', () => {
+    render(<ScannerPanel />)
+    expect(screen.getByRole('button', { name: /Active Scans/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Scheduled Scans/i })).toBeInTheDocument()
+  })
+
+  it('switches to Scheduled Scans tab', async () => {
+    render(<ScannerPanel />)
+    await userEvent.click(screen.getByRole('button', { name: /Scheduled Scans/i }))
+    expect(screen.getByText('ScheduledScansPanel')).toBeInTheDocument()
   })
 })
