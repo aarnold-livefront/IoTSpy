@@ -519,7 +519,7 @@ src/
   IoTSpy.Scanner/       # Port scan, fingerprinting, CVE lookup, packet capture
   IoTSpy.Manipulation/  # Rules engine, replay, fuzzer, AI mock, OpenRTB PII, packet analysis, API spec generation, content replacement
   IoTSpy.Storage/       # EF Core DbContext, repositories, migrations
-  IoTSpy.Api/           # ASP.NET Core host, 19 controllers, 3 SignalR hubs
+  IoTSpy.Api/           # ASP.NET Core host, 20 controllers, 3 SignalR hubs
 frontend/               # Vite 6 + React 19 + TypeScript dashboard
 docs/
   ARCHITECTURE.md       # Full architecture spec
@@ -555,7 +555,7 @@ cd frontend && npm run dev
 
 See [`docs/PLAN.md`](docs/PLAN.md) for the full implementation plan, identified gaps, and forward-looking roadmap.
 
-> **745 backend tests** across 8 test projects; 36 frontend component tests; Playwright E2E suite. All passing.
+> **723 backend tests** across 8 test projects; 61 frontend component tests; Playwright E2E suite. All passing.
 
 | Phase | Scope | Status |
 |---|---|---|

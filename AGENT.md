@@ -119,7 +119,7 @@ SignalR hubs:
 
 ## Testing guidance
 
-- Run `dotnet test` before committing; all 683 backend tests must pass.
+- Run `dotnet test` before committing; all 723 backend tests must pass.
 - New backend code needs corresponding tests. Prefer unit tests with NSubstitute mocks; use EF Core SQLite in-memory for repository tests.
 - Frontend tests use Vitest + React Testing Library (`npm test` inside `frontend/`).
 - CI runs on every push/PR via `.github/workflows/ci.yml`.
