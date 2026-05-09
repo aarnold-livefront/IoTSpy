@@ -1,19 +1,207 @@
-.panel-packet-capture {
-  padding: 1rem;
+.ppc-root {
+  padding: var(--space-4);
+  height: 100%;
+  display: flex;
+  gap: var(--space-4);
 }
 
-.btn--back {
-  background-color: transparent;
+/* ── Left sidebar ─────────────────────────────── */
+.ppc-sidebar {
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.ppc-sidebar h3 {
+  margin: 0;
+  font-size: var(--font-size-md);
+}
+
+.ppc-error {
+  padding: var(--space-2);
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+  border-radius: var(--radius-sm);
+  color: var(--color-error);
+  font-size: var(--font-size-sm);
+}
+
+.ppc-label {
+  display: block;
+  margin-bottom: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.ppc-select {
+  width: 100%;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+.ppc-capture-controls {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.ppc-btn-start {
+  flex: 1;
+  padding: 10px;
+  background: var(--color-primary);
+  color: var(--color-surface);
   border: none;
-  color: #4caf50;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 0.9rem;
-  margin-bottom: 1rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
 }
 
-.btn--back:hover {
-  text-decoration: underline;
+.ppc-btn-stop {
+  flex: 1;
+  padding: 10px;
+  background: var(--color-danger);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.ppc-btn-refresh {
+  padding: var(--space-2);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  width: 100%;
+}
+
+.ppc-btn-refresh:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* ── Drop zone ───────────────────────────────── */
+.ppc-dropzone {
+  border: 2px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 8px;
+  text-align: center;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.ppc-dropzone--active {
+  border-color: var(--color-primary);
+  background: var(--color-surface-2);
+}
+
+.ppc-dropzone--importing {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.ppc-progress-track {
+  margin-top: 6px;
+  height: 4px;
+  background: var(--color-border);
+  border-radius: 2px;
+}
+
+.ppc-progress-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 2px;
+  transition: width 0.2s;
+}
+
+.ppc-import-summary {
+  margin-top: 6px;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ── Bottom sidebar buttons ──────────────────── */
+.ppc-sidebar-bottom {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ppc-btn-secondary {
+  width: 100%;
+  padding: var(--space-2);
+  background: var(--color-surface-2);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.ppc-btn-secondary:not(:disabled) {
+  cursor: pointer;
+}
+
+.ppc-btn-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* ── Main panel ──────────────────────────────── */
+.ppc-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Tab bar ─────────────────────────────────── */
+.ppc-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.ppc-tab {
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--color-text);
+  border: none;
+  border-radius: 4px 4px 0 0;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+
+.ppc-tab--active {
+  background: var(--color-primary);
+  color: var(--color-surface);
+  font-weight: 600;
+}
+
+.ppc-tab-badge {
+  margin-left: 6px;
+  padding: 1px 6px;
+  background: var(--color-danger);
+  color: #fff;
+  border-radius: 10px;
+  font-size: var(--font-size-xs);
+}
+
+.ppc-tab-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* ── Right inspector panel ───────────────────── */
+.ppc-inspector {
+  width: 400px;
 }

@@ -15,6 +15,7 @@ namespace IoTSpy.Api.Controllers;
 public class ManipulationController(
     IManipulationService manipulationService,
     IManipulationRuleRepository rules,
+    IManipulationRuleCache ruleCache,
     IBreakpointRepository breakpoints,
     IReplaySessionRepository replaySessions,
     IFuzzerJobRepository fuzzerJobs,
@@ -71,6 +72,7 @@ public class ManipulationController(
         };
 
         await rules.AddAsync(rule);
+        ruleCache.Invalidate();
         return CreatedAtAction(nameof(GetRule), new { id = rule.Id }, rule);
     }
 
@@ -98,6 +100,7 @@ public class ManipulationController(
         rule.DelayMs = dto.DelayMs ?? rule.DelayMs;
 
         await rules.UpdateAsync(rule, ct);
+        ruleCache.Invalidate();
         await auditRepo.AddAsync(new AuditEntry
         {
             UserId = CurrentUserId, Username = CurrentUsername,
@@ -119,6 +122,7 @@ public class ManipulationController(
                 OldValue = JsonSerializer.Serialize(rule), IpAddress = CurrentIp
             }, ct);
         await rules.DeleteAsync(id, ct);
+        ruleCache.Invalidate();
         return NoContent();
     }
 
@@ -132,12 +136,14 @@ public class ManipulationController(
             var allRules = await rules.GetAllAsync(ct);
             if (allRules.Count > 0)
                 await rules.DeleteManyAsync(allRules.Select(r => r.Id), ct);
+            ruleCache.Invalidate();
             return Ok(new { deleted = allRules.Count });
         }
 
         if (dto.Ids is { Count: > 0 })
         {
             await rules.DeleteManyAsync(dto.Ids, ct);
+            ruleCache.Invalidate();
             return Ok(new { deleted = dto.Ids.Count });
         }
 
@@ -156,6 +162,7 @@ public class ManipulationController(
             await rules.UpdateAsync(rule, ct);
             updated++;
         }
+        if (updated > 0) ruleCache.Invalidate();
         return Ok(new { updated });
     }
 
@@ -477,6 +484,7 @@ public class ManipulationController(
             specsImported++;
         }
 
+        if (rulesImported > 0) ruleCache.Invalidate();
         return Ok(new { rulesImported, breakpointsImported = bpsImported, contentRulesImported, apiSpecsImported = specsImported });
     }
 

@@ -32,7 +32,7 @@ public class BulkOperationsTests
         fj.CountAsync(Arg.Any<FuzzerJobStatus?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(0);
 
         return new ManipulationController(
-            Substitute.For<IManipulationService>(), r, bp, rs, fj,
+            Substitute.For<IManipulationService>(), r, Substitute.For<IManipulationRuleCache>(), bp, rs, fj,
             Substitute.For<ICaptureRepository>(), api, Substitute.For<IAuditRepository>());
     }
 

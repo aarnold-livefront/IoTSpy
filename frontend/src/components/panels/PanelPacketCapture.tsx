@@ -8,6 +8,7 @@ import PatternExplorer from '../../components/packet-capture/PatternExplorer'
 import SuspiciousActivityPanel from '../../components/packet-capture/SuspiciousActivityPanel'
 import { getToken } from '../../api/client'
 import type { CapturedPacket, PcapImportResult } from '../../types/api'
+import '../../styles/panel-packet-capture.css'
 
 type AnalysisTab = 'packets' | 'protocols' | 'patterns' | 'suspicious'
 
@@ -24,7 +25,6 @@ export default function PanelPacketCapture() {
   const [importResult, setImportResult] = useState<PcapImportResult | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Load analysis data when switching to an analysis tab
   useEffect(() => {
     if (activeTab === 'protocols') analysis.loadProtocols()
     else if (activeTab === 'patterns') analysis.loadPatterns()
@@ -80,33 +80,27 @@ export default function PanelPacketCapture() {
     { key: 'suspicious', label: 'Suspicious' },
   ]
 
+  const dropzoneClass = [
+    'ppc-dropzone',
+    isDragOver ? 'ppc-dropzone--active' : '',
+    isImporting ? 'ppc-dropzone--importing' : '',
+  ].filter(Boolean).join(' ')
+
   return (
-    <div style={{ padding: '16px', height: '100%', display: 'flex', gap: '16px' }}>
-      {/* Left panel - Device selection and capture controls */}
-      <div style={{ width: '280px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        <h3 style={{ margin: 0, fontSize: 'var(--font-size-md)' }}>Network Capture</h3>
+    <div className="ppc-root">
+      <div className="ppc-sidebar">
+        <h3>Network Capture</h3>
 
-        {error && (
-          <div style={{ padding: '8px', background: '#fee', borderRadius: '4px', color: '#c00' }}>
-            {error}
-          </div>
-        )}
-
-        {analysis.error && (
-          <div style={{ padding: '8px', background: '#fee', borderRadius: '4px', color: '#c00' }}>
-            {analysis.error}
-          </div>
-        )}
+        {error && <div className="ppc-error">{error}</div>}
+        {analysis.error && <div className="ppc-error">{analysis.error}</div>}
 
         <div>
-          <label style={{ display: 'block', marginBottom: '4px', fontSize: 'var(--font-size-sm)' }}>
-            Network Interface:
-          </label>
+          <label className="ppc-label">Network Interface:</label>
           <select
             value={selectedDevice || ''}
             onChange={(e) => setSelectedDevice(e.target.value)}
             disabled={isCapturing}
-            style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
+            className="ppc-select"
           >
             <option value="">Select a device...</option>
             {devices.map((device) => (
@@ -117,43 +111,22 @@ export default function PanelPacketCapture() {
           </select>
         </div>
 
-        <div style={{ display: 'flex', gap: '8px' }}>
+        <div className="ppc-capture-controls">
           {!isCapturing && selectedDevice && (
             <button
               onClick={() => startCapture(selectedDevice)}
-              style={{
-                flex: 1,
-                padding: '10px',
-                background: 'var(--color-primary)',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 'var(--radius-sm)',
-                cursor: 'pointer',
-              }}
+              className="ppc-btn-start"
             >
               Start Capture
             </button>
           )}
-
           {isCapturing && (
-            <button
-              onClick={stopCapture}
-              style={{
-                flex: 1,
-                padding: '10px',
-                background: '#d32f2f',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 'var(--radius-sm)',
-                cursor: 'pointer',
-              }}
-            >
+            <button onClick={stopCapture} className="ppc-btn-stop">
               Stop Capture
             </button>
           )}
         </div>
 
-        {/* Analysis refresh button */}
         {activeTab !== 'packets' && (
           <button
             onClick={() => {
@@ -162,38 +135,19 @@ export default function PanelPacketCapture() {
               else if (activeTab === 'suspicious') analysis.loadSuspicious()
             }}
             disabled={analysis.loading}
-            style={{
-              padding: '8px',
-              background: 'var(--color-surface-2)',
-              color: 'var(--color-text)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-sm)',
-              cursor: analysis.loading ? 'not-allowed' : 'pointer',
-            }}
+            className="ppc-btn-refresh"
           >
             {analysis.loading ? 'Loading...' : 'Refresh Analysis'}
           </button>
         )}
 
-        {/* PCAP Import drop zone */}
         <div>
           <div
             onDrop={handleDrop}
             onDragOver={(e) => { e.preventDefault(); setIsDragOver(true) }}
             onDragLeave={() => setIsDragOver(false)}
             onClick={() => fileInputRef.current?.click()}
-            style={{
-              border: `2px dashed ${isDragOver ? 'var(--color-primary)' : 'var(--color-border)'}`,
-              borderRadius: 'var(--radius-sm)',
-              padding: '12px 8px',
-              textAlign: 'center',
-              cursor: isImporting ? 'not-allowed' : 'pointer',
-              background: isDragOver ? 'var(--color-surface-2)' : 'transparent',
-              fontSize: 'var(--font-size-sm)',
-              color: 'var(--color-text-muted)',
-              transition: 'border-color 0.15s, background 0.15s',
-              opacity: isImporting ? 0.6 : 1,
-            }}
+            className={dropzoneClass}
           >
             <input
               ref={fileInputRef}
@@ -210,22 +164,17 @@ export default function PanelPacketCapture() {
             )}
           </div>
 
-          {/* Import progress bar */}
           {isImporting && importProgress && importProgress.total > 0 && (
-            <div style={{ marginTop: '6px', height: '4px', background: 'var(--color-border)', borderRadius: '2px' }}>
-              <div style={{
-                height: '100%',
-                width: `${importProgress.percent}%`,
-                background: 'var(--color-primary)',
-                borderRadius: '2px',
-                transition: 'width 0.2s',
-              }} />
+            <div className="ppc-progress-track">
+              <div
+                className="ppc-progress-fill"
+                style={{ width: `${importProgress.percent}%` }}
+              />
             </div>
           )}
 
-          {/* Import result summary */}
           {importResult && !isImporting && (
-            <div style={{ marginTop: '6px', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+            <div className="ppc-import-summary">
               Imported {importResult.packetsImported} packets
               {importResult.tcpSessionsReconstructed > 0 && `, ${importResult.tcpSessionsReconstructed} HTTP sessions reconstructed`}
               {importResult.packetsSkipped > 0 && `, ${importResult.packetsSkipped} skipped`}
@@ -233,84 +182,40 @@ export default function PanelPacketCapture() {
           )}
         </div>
 
-        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {/* Export button */}
+        <div className="ppc-sidebar-bottom">
           <button
             onClick={handleExport}
             disabled={!packets.length}
-            style={{
-              width: '100%',
-              padding: '8px',
-              background: 'var(--color-surface-2)',
-              color: 'var(--color-text)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-sm)',
-              cursor: packets.length ? 'pointer' : 'not-allowed',
-              opacity: packets.length ? 1 : 0.5,
-            }}
+            className="ppc-btn-secondary"
           >
             Export PCAP
           </button>
-
           <button
             onClick={clearPackets}
             disabled={!packets.length || isCapturing}
-            style={{
-              width: '100%',
-              padding: '8px',
-              background: isCapturing ? '#ccc' : 'var(--color-surface-2)',
-              color: 'var(--color-text)',
-              border: '1px solid var(--color-border)',
-              borderRadius: 'var(--radius-sm)',
-              cursor: packets.length && !isCapturing ? 'pointer' : 'not-allowed',
-            }}
+            className="ppc-btn-secondary"
           >
             Clear Packets ({packets.length})
           </button>
         </div>
       </div>
 
-      {/* Middle panel - Tabs + content */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-        {/* Tab bar */}
-        <div style={{
-          display: 'flex',
-          gap: '2px',
-          borderBottom: '2px solid var(--color-border)',
-          marginBottom: '0',
-        }}>
+      <div className="ppc-main">
+        <div className="ppc-tabs">
           {tabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              style={{
-                padding: '8px 16px',
-                background: activeTab === tab.key ? 'var(--color-primary)' : 'transparent',
-                color: activeTab === tab.key ? '#fff' : 'var(--color-text)',
-                border: 'none',
-                borderRadius: '4px 4px 0 0',
-                cursor: 'pointer',
-                fontWeight: activeTab === tab.key ? 'bold' : 'normal',
-              }}
+              className={`ppc-tab${activeTab === tab.key ? ' ppc-tab--active' : ''}`}
             >
               {tab.label}
               {tab.key === 'suspicious' && analysis.suspicious.length > 0 && (
-                <span style={{
-                  marginLeft: '6px',
-                  padding: '1px 6px',
-                  background: '#d32f2f',
-                  color: '#fff',
-                  borderRadius: '10px',
-                  fontSize: 'var(--font-size-xs)',
-                }}>
-                  {analysis.suspicious.length}
-                </span>
+                <span className="ppc-tab-badge">{analysis.suspicious.length}</span>
               )}
             </button>
           ))}
         </div>
 
-        {/* Tab content */}
         {activeTab === 'packets' && (
           <PacketListFilterable
             packets={packets}
@@ -320,29 +225,25 @@ export default function PanelPacketCapture() {
             freezeFrame={selectedPacket !== null}
           />
         )}
-
         {activeTab === 'protocols' && (
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div className="ppc-tab-content">
             <ProtocolDistributionView distribution={analysis.protocolDistribution} loading={analysis.loading} />
           </div>
         )}
-
         {activeTab === 'patterns' && (
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div className="ppc-tab-content">
             <PatternExplorer patterns={analysis.patterns} loading={analysis.loading} />
           </div>
         )}
-
         {activeTab === 'suspicious' && (
-          <div style={{ flex: 1, overflowY: 'auto' }}>
+          <div className="ppc-tab-content">
             <SuspiciousActivityPanel activities={analysis.suspicious} loading={analysis.loading} />
           </div>
         )}
       </div>
 
-      {/* Right panel - Packet inspector */}
       {selectedPacket && activeTab === 'packets' && (
-        <div style={{ width: '400px' }}>
+        <div className="ppc-inspector">
           <PacketInspector packet={selectedPacket} onClose={() => setSelectedPacket(null)} />
         </div>
       )}

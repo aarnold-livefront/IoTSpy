@@ -73,6 +73,8 @@ public sealed class DnsDecoder : IProtocolDecoder<DnsMessage>
         var authority = ReadResourceRecords(span, nsCount, ref pos);
         var additional = ReadResourceRecords(span, arCount, ref pos);
 
+        var edns = ParseEdnsRecord(additional);
+
         message = new DnsMessage
         {
             TransactionId = transactionId,
@@ -88,11 +90,54 @@ public sealed class DnsDecoder : IProtocolDecoder<DnsMessage>
             Answers = answers,
             Authority = authority,
             Additional = additional,
+            EdnsRecord = edns,
             TotalLength = span.Length,
             RawBytes = span.ToArray()
         };
 
         return true;
+    }
+
+    private static DnsEdnsRecord? ParseEdnsRecord(IReadOnlyList<DnsResourceRecord> additional)
+    {
+        var opt = additional.FirstOrDefault(r => r.Type == DnsRecordType.OPT);
+        if (opt is null) return null;
+
+        // OPT class field = UDP payload size
+        var udpPayloadSize = opt.Class;
+
+        // OPT TTL field = extended RCODE (8) | version (8) | flags (16)
+        // We stored TTL as uint; reconstruct from the 4 bytes in RData sibling field.
+        // Actually TTL is already stored as uint in DnsResourceRecord.Ttl.
+        var ttlRaw = opt.Ttl;
+        var extRcode = (byte)(ttlRaw >> 24);
+        var version = (byte)((ttlRaw >> 16) & 0xFF);
+        var flags = (ushort)(ttlRaw & 0xFFFF);
+        var doBit = (flags & 0x8000) != 0;
+
+        // OPT RDATA = list of {code(2), length(2), data(length)}
+        var options = new List<DnsEdnsOption>();
+        var rdata = opt.RData;
+        var i = 0;
+        while (i + 4 <= rdata.Length)
+        {
+            var code = (ushort)((rdata[i] << 8) | rdata[i + 1]);
+            var len = (ushort)((rdata[i + 2] << 8) | rdata[i + 3]);
+            i += 4;
+            if (i + len > rdata.Length) break;
+            var data = rdata.AsSpan(i, len).ToArray();
+            options.Add(new DnsEdnsOption(code, data));
+            i += len;
+        }
+
+        return new DnsEdnsRecord
+        {
+            UdpPayloadSize = udpPayloadSize,
+            ExtendedRcode = extRcode,
+            Version = version,
+            DoBit = doBit,
+            Options = options
+        };
     }
 
     // ── Resource record parsing ──────────────────────────────────────────────

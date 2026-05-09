@@ -19,6 +19,7 @@ public class FuzzerExportTests
         return new ManipulationController(
             Substitute.For<IManipulationService>(),
             Substitute.For<IManipulationRuleRepository>(),
+            Substitute.For<IManipulationRuleCache>(),
             Substitute.For<IBreakpointRepository>(),
             Substitute.For<IReplaySessionRepository>(),
             fuzzerJobs,

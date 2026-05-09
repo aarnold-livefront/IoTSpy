@@ -99,9 +99,9 @@ Domain models live in `IoTSpy.Core/Models/`; DTOs and result types are co-locate
 | `SuspiciousActivity` | Detection result: category, severity, evidence list |
 | `NetworkDeviceStatistics` | Live capture stats: PPS, BPS, drop rate |
 
-### Interfaces (32+)
+### Interfaces (33+)
 
-`ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`, `IAnomalyAlertPublisher`, `IPacketCaptureService`, `IPacketCaptureAnalyzer`, `IPacketCapturePublisher`, `IOpenRtbEventRepository`, `IOpenRtbPiiPolicyRepository`, `IOpenRtbService`, `IPiiStrippingLogRepository`, `ICaptureDeviceRepository`, `IAlertingService`, `IReportService`, `IScheduledScanRepository`, `IMqttBrokerProxy`, `ICoapProxy`, `IUserRepository`, `IAuditRepository`, `IDashboardLayoutRepository`, `IApiSpecRepository`, `IApiSpecService`
+`ICaptureRepository`, `IDeviceRepository`, `IProxySettingsRepository`, `ICertificateRepository`, `ICertificateAuthority`, `IProxyService`, `ICapturePublisher`, `IProtocolDecoder<T>`, `IScanJobRepository`, `IScannerService`, `IManipulationRuleRepository`, `IBreakpointRepository`, `IReplaySessionRepository`, `IFuzzerJobRepository`, `IManipulationService`, `IAiMockService`, `IAnomalyDetector`, `IAnomalyAlertPublisher`, `IPacketCaptureService`, `IPacketCaptureAnalyzer`, `IPacketCapturePublisher`, `IOpenRtbEventRepository`, `IOpenRtbPiiPolicyRepository`, `IOpenRtbService`, `IPiiStrippingLogRepository`, `ICaptureDeviceRepository`, `IAlertingService`, `IReportService`, `IScheduledScanRepository`, `IMqttBrokerProxy`, `ICoapProxy`, `IUserRepository`, `IAuditRepository`, `IDashboardLayoutRepository`, `IApiSpecRepository`, `IApiSpecService`, `IManipulationRuleCache`
 
 | `ApiSpecDocument` | API spec entity: name, host, version, OpenAPI JSON, status (Draft/Active/Archived), mock/passthrough/LLM flags, timestamps; nav property to `ContentReplacementRule` list |
 | `ContentReplacementRule` | Content replacement rule: match type (ContentType/JsonPath/HeaderValue/BodyRegex), action (ReplaceWithFile/ReplaceWithUrl/ReplaceWithValue/Redact/TrackingPixel/MockSseStream), priority, host/path scope patterns; nullable FK → ApiSpecDocument; `Host` column for standalone rules |
@@ -245,18 +245,17 @@ public interface IProtocolDecoder<T>
 
 | Subdirectory | Decoder | Message type | Protocol / format |
 |---|---|---|---|
-| `Mqtt/` | `MqttDecoder` | `MqttMessage` | MQTT 3.1.1 and 5.0 (all packet types, QoS, props) |
-| `Dns/` | `DnsDecoder` | `DnsMessage` | DNS (RFC 1035) and mDNS (RFC 6762), with label decompression |
-| `Coap/` | — | `CoapMessage` | CoAP (RFC 7252) UDP; `CoapCode`, `CoapMessageType`, `CoapOptionNumber` |
+| `Mqtt/` | `MqttDecoder` | `MqttMessage` | MQTT 3.1.1 and 5.0 (all packet types, QoS, properties); `MqttSessionAnalyzer` accumulates per-topic stats and QoS-2 flow phases |
+| `Dns/` | `DnsDecoder` | `DnsMessage` | DNS (RFC 1035) and mDNS (RFC 6762), label decompression, EDNS0 OPT record (`DnsEdnsRecord`: UDP size, DO bit, extended RCODE, EDNS options) |
+| `Coap/` | `CoapDecoder` | `CoapMessage` | RFC 7252 full decode; RFC 7959 Block1/Block2 (`CoapBlockOption`), RFC 7641 Observe, `.well-known/core` detection |
 | `Telemetry/` | `DatadogDecoder` | `TelemetryMessage` | Datadog v1/v2 series + logs intake JSON |
 | `Telemetry/` | `FirehoseDecoder` | `TelemetryMessage` | AWS Kinesis Firehose HTTP PUT (base64 records) |
 | `Telemetry/` | `SplunkHecDecoder` | `TelemetryMessage` | Splunk HEC single-event + newline-batched JSON |
 | `Telemetry/` | `AzureMonitorDecoder` | `TelemetryMessage` | Azure Monitor array / `records`-wrapped / DCR ingestion payloads |
 | `OpenRtb/` | `OpenRtbDecoder` | `OpenRtbEvent` | OpenRTB 2.5 bid request/response parsing |
-| `WebSocket/` | `WebSocketDecoder` | `WebSocketDecodedFrame` | RFC 6455 frame decoding (FIN, opcode, masking, extended lengths, close codes) |
+| `WebSocket/` | `WebSocketDecoder` | `WebSocketDecodedFrame` | RFC 6455 frame decoding; `DetectedSubProtocol: WsSubProtocol?` — STOMP, WAMP, or MQTT-over-WS via payload heuristics |
 | `Grpc/` | `GrpcDecoder` | `GrpcMessage` | gRPC Length-Prefixed Message framing + schema-less protobuf field extraction |
 | `Modbus/` | `ModbusDecoder` | `ModbusMessage` | Modbus TCP MBAP header, function codes 1-16 + exception responses |
-| `Coap/` | `CoapDecoder` | `CoapMessage` | RFC 7252 full message decoding (header, tokens, delta-encoded options, payload) |
 
 `TelemetryMessage` carries: detected protocol, source, timestamp, flat `Fields` map, per-event `Events` list, raw JSON (capped at 8 KB).
 
@@ -653,13 +652,13 @@ frontend/src/
 
 ## Test projects
 
-**683 backend tests** across 8 test projects + 13+ frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI. Test coverage includes Phase 10 decoders, Phase 11 multi-user/TLS/tests, Phase 12 API spec generation, Phase 14 API keys, Phase 15 collaboration, and Phase 20 admin/integration tests.
+**745 backend tests** across 8 test projects + 36 frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI. Test coverage includes Phase 10 decoders, Phase 11 multi-user/TLS/tests, Phase 12 API spec generation, Phase 14 API keys, Phase 15 collaboration, Phase 20 admin/integration tests, and Gaps Batch 5 (CoAP Block-wise/Observe, DNS EDNS0, WebSocket sub-protocol detection, MQTT topic statistics, rule cache).
 
 | Project | Test classes | Coverage |
 |---|---|---|
 | `IoTSpy.Core.Tests` | `ModelDefaultTests`, `EnumCoverageTests`, `UserModelTests`, `AuditEntryTests` | Model defaults/enum coverage; User/AuditEntry/DashboardLayout validation |
-| `IoTSpy.Protocols.Tests` | `MqttDecoderTests`, `DnsDecoderTests`, `TelemetryDecoderTests`, `AnomalyDetectorTests`, `WebSocketDecoderTests`, `GrpcDecoderTests`, `ModbusDecoderTests`, `CoapDecoderTests`, `MqttTopicMatchTests` | MQTT 3.1.1/5.0; DNS/mDNS; all four telemetry decoders; anomaly detection; WebSocket RFC 6455 frames; gRPC LPM; Modbus TCP; CoAP RFC 7252; MQTT topic wildcard matching |
-| `IoTSpy.Manipulation.Tests` | `RulesEngineTests`, `FuzzerServiceTests`, `OpenRtbPiiServiceTests`, `ApiSpecGeneratorTests`, `ContentReplacerTests` | Rule matching + all actions; fuzzer mutation strategies; OpenRTB PII detection + redaction; API spec path normalization + JSON schema inference; content replacement match types + actions |
+| `IoTSpy.Protocols.Tests` | `MqttDecoderTests`, `DnsDecoderTests`, `TelemetryDecoderTests`, `AnomalyDetectorTests`, `WebSocketDecoderTests`, `GrpcDecoderTests`, `ModbusDecoderTests`, `CoapDecoderTests`, `MqttTopicMatchTests`, `MqttSessionAnalyzerTests` | MQTT 3.1.1/5.0 + topic stats + QoS-2 flow tracking; DNS/mDNS + EDNS0 OPT; all four telemetry decoders; anomaly detection; WebSocket RFC 6455 frames + sub-protocol detection; gRPC LPM; Modbus TCP; CoAP RFC 7252 + Block-wise/Observe; MQTT topic wildcard matching |
+| `IoTSpy.Manipulation.Tests` | `RulesEngineTests`, `FuzzerServiceTests`, `OpenRtbPiiServiceTests`, `ApiSpecGeneratorTests`, `ContentReplacerTests`, `ManipulationRuleCacheTests` | Rule matching + all actions; fuzzer mutation strategies; OpenRTB PII detection + redaction; API spec path normalization + JSON schema inference; content replacement match types + actions; manipulation rule cache invalidation |
 | `IoTSpy.Scanner.Tests` | `PortScannerTests`, `PacketCaptureServiceTests` | Concurrency limiting, timeout handling; ring buffer, PCAP export |
 | `IoTSpy.Api.Tests` | `AuthControllerTests`, `ProxyControllerTests`, `CapturesControllerTests`, `DevicesControllerTests`, `ScannerControllerTests`, `AuthServiceTests` | Controller unit tests with NSubstitute mocks; multi-user + legacy auth; `AuthService` PBKDF2/JWT logic |
 | `IoTSpy.Proxy.Tests` | `ProxyServiceTests`, `ResilienceOptionsTests`, `GracefulShutdownTests`, `TlsClientHelloParserTests`, `TlsServerHelloParserTests`, `SslStripServiceTests` | ProxyService state machine; resilience defaults; graceful shutdown; TLS handshake parsing (JA3/JA3S/SNI); SSL strip redirect/HSTS/rewrite |

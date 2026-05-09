@@ -14,5 +14,6 @@ public enum DnsRecordType : ushort
     TXT = 16,
     AAAA = 28,
     SRV = 33,
+    OPT = 41,   // EDNS0 pseudo-RR (RFC 6891)
     ANY = 255
 }

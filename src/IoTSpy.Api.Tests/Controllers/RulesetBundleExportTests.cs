@@ -27,6 +27,7 @@ public class RulesetBundleExportTests
         var controller = new ManipulationController(
             Substitute.For<IManipulationService>(),
             rules,
+            Substitute.For<IManipulationRuleCache>(),
             breakpoints,
             Substitute.For<IReplaySessionRepository>(),
             Substitute.For<IFuzzerJobRepository>(),

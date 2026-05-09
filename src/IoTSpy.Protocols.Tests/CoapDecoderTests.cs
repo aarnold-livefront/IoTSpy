@@ -151,6 +151,123 @@ public class CoapDecoderTests
         Assert.Equal("2.05", msg.CodeString);
     }
 
+    // ── Block-wise transfer (RFC 7959) ───────────────────────────────────────
+
+    [Fact]
+    public async Task DecodeAsync_WithBlock2Option_DecodesBlockOption()
+    {
+        // GET with Block2 option (option 23): num=1, M=false, SZX=6 (1024 B)
+        // Delta=23 (>=13 so extended): nibble=0xD, extended=10 (23-13), len=1, value=0x16
+        // value byte: num=1 (bits[7:4]=0001), M=0 (bit3), SZX=6 (bits[2:0])
+        // raw = (1 << 4) | 0 | 6 = 0x16
+        byte[] data =
+        [
+            0x40, 0x01, 0x00, 0x01,   // CON GET MID=1
+            0xD1,                      // delta-ext nibble (0xD=13), len=1
+            0x0A,                      // extended delta = 10  → option 10+13=23 (Block2)
+            0x16                       // num=1, M=false, SZX=6
+        ];
+
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
+
+        Assert.Single(messages);
+        var block = messages[0].Block2;
+        Assert.NotNull(block);
+        Assert.Equal(1u, block.Num);
+        Assert.False(block.More);
+        Assert.Equal(6, block.Szx);
+        Assert.Equal(1024, block.BlockSize);
+    }
+
+    [Fact]
+    public async Task DecodeAsync_WithBlock2MoreBit_MoreIsTrue()
+    {
+        // Block2 num=0, M=true, SZX=6 → raw = (0<<4) | (1<<3) | 6 = 0x0E
+        byte[] data =
+        [
+            0x40, 0x01, 0x00, 0x01,
+            0xD1, 0x0A, 0x0E
+        ];
+
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
+
+        Assert.Single(messages);
+        var block = messages[0].Block2;
+        Assert.NotNull(block);
+        Assert.Equal(0u, block.Num);
+        Assert.True(block.More);
+    }
+
+    // ── Observe option (RFC 7641) ────────────────────────────────────────────
+
+    [Fact]
+    public async Task DecodeAsync_WithObserveRegister_ObserveValueIsZero()
+    {
+        // Observe option = 6, delta=6, len=1, value=0x00 (register)
+        byte[] data =
+        [
+            0x40, 0x01, 0x00, 0x01,   // GET CON
+            0x61, 0x00                 // delta=6 (Observe), len=1, value=0
+        ];
+
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
+
+        Assert.Single(messages);
+        Assert.Equal(0u, messages[0].ObserveValue);
+    }
+
+    [Fact]
+    public async Task DecodeAsync_WithObserveSequenceNumber_DecodesValue()
+    {
+        // Observe notification with sequence 42 (0x2A)
+        byte[] data =
+        [
+            0x60, 0x45, 0x00, 0x02,   // ACK 2.05 Content
+            0x61, 0x2A                 // delta=6 (Observe), len=1, value=42
+        ];
+
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
+
+        Assert.Single(messages);
+        Assert.Equal(42u, messages[0].ObserveValue);
+    }
+
+    [Fact]
+    public async Task DecodeAsync_WithoutObserveOption_ObserveValueIsNull()
+    {
+        byte[] data = [0x40, 0x01, 0x00, 0x01];
+
+        var messages = await _decoder.DecodeAsync(data, TestContext.Current.CancellationToken);
+
+        Assert.Single(messages);
+        Assert.Null(messages[0].ObserveValue);
+    }
+
+    // ── Well-known/core (resource discovery) ─────────────────────────────────
+
+    [Fact]
+    public async Task DecodeAsync_WellKnownCoreRequest_IsWellKnownCoreTrue()
+    {
+        // GET /.well-known/core
+        // Uri-Path option 11: ".well-known" (delta=11, len=11) then "core" (delta=0, len=4)
+        byte[] wellKnown = System.Text.Encoding.ASCII.GetBytes(".well-known");
+        byte[] core = System.Text.Encoding.ASCII.GetBytes("core");
+
+        var data = new List<byte> { 0x40, 0x01, 0x00, 0x01 };
+        // First segment: delta=11 (0xB), length=11 (0xB) → 0xBB
+        data.Add(0xBB);
+        data.AddRange(wellKnown);
+        // Second segment: delta=0, length=4 → 0x04
+        data.Add(0x04);
+        data.AddRange(core);
+
+        var messages = await _decoder.DecodeAsync(data.ToArray(), TestContext.Current.CancellationToken);
+
+        Assert.Single(messages);
+        Assert.True(messages[0].IsWellKnownCore);
+        Assert.Equal(".well-known/core", messages[0].UriPath);
+    }
+
     // ── DecodeAsync: edge cases ──────────────────────────────────────────────
 
     [Fact]
