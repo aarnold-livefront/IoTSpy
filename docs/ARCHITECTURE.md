@@ -652,7 +652,7 @@ frontend/src/
 
 ## Test projects
 
-**745 backend tests** across 8 test projects + 36 frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI. Test coverage includes Phase 10 decoders, Phase 11 multi-user/TLS/tests, Phase 12 API spec generation, Phase 14 API keys, Phase 15 collaboration, Phase 20 admin/integration tests, and Gaps Batch 5 (CoAP Block-wise/Observe, DNS EDNS0, WebSocket sub-protocol detection, MQTT topic statistics, rule cache).
+**765 backend tests** across 8 test projects + 61 frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI. Test coverage includes Phase 10 decoders, Phase 11 multi-user/TLS/tests, Phase 12 API spec generation, Phase 14 API keys, Phase 15 collaboration, Phase 20 admin/integration tests, Gaps Batch 5 (CoAP Block-wise/Observe, DNS EDNS0, WebSocket sub-protocol detection, MQTT topic statistics, rule cache), and Gaps Batch 6 (gRPC schema upload, audit write-once trigger).
 
 | Project | Test classes | Coverage |
 |---|---|---|

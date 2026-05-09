@@ -41,7 +41,7 @@ frontend/           Vite 6 + React 19 + TypeScript dashboard
 docs/               ARCHITECTURE.md, PLAN.md
 ```
 
-Controllers under `IoTSpy.Api/Controllers/` (19): Admin, ApiSpec, Auth, Captures, Certificates, ContentRules, Dashboard, Devices, Manipulation, OpenRtb, PacketCapture, PassiveCapture, Plugins, ProtocolProxy, Proxy, Report, Scanner, ScheduledScan, Sessions.
+Controllers under `IoTSpy.Api/Controllers/` (20): Admin, ApiSpec, Auth, Captures, Certificates, ContentRules, Dashboard, Devices, Manipulation, OpenRtb, PacketCapture, PassiveCapture, Plugins, ProtocolProxy, ProtoSchemas, Proxy, Report, Scanner, ScheduledScan, Sessions.
 
 ## Available skills
 
@@ -69,7 +69,7 @@ See `.dev/claude-skills/README.md` for full details.
 
 ## Workflow rules
 
-- **Always run `dotnet test` before committing.** All 715 backend tests must stay green.
+- **Always run `dotnet test` before committing.** All 765 backend tests must stay green.
 - New backend logic needs a corresponding test. Use NSubstitute for mocks; use EF Core SQLite in-memory for repository tests.
 - New EF entities require a migration (`dotnet ef migrations add ...`).
 - Keep `IoTSpy.Core` free of infrastructure dependencies.
@@ -79,13 +79,13 @@ See `.dev/claude-skills/README.md` for full details.
 ## Current state
 
 All phases 1–16, 18–22 plus API & Backend Polish, Frontend Usability enhancements, Gaps Batches 4, 5, and 6 are complete:
-- 760 backend tests across 8 test projects; 61 frontend component tests; Playwright E2E suite (auth, captures, dashboard, manipulation)
-- 20 REST controllers, 180+ endpoints (added `ProtoSchemasController`)
-- 21 EF Core migrations up through `AuditWriteOnceTrigger`
+- 765 backend tests across 8 test projects; 61 frontend component tests; Playwright E2E suite (auth, captures, dashboard, manipulation)
+- 20 REST controllers, 192 endpoints (added `ProtoSchemasController`)
+- 22 EF Core migrations up through `AuditWriteOnceTrigger`
 - GitHub Actions CI at `.github/workflows/ci.yml`
 - Helm chart at `deploy/helm/iotspy/`; production Docker Compose at `docker-compose.prod.yml`
 
-> Counts above last verified 2026-05-09. To re-check: `grep -rE "^\s*\[(Fact|Theory)" --include="*.cs" src/IoTSpy.*.Tests src/IoTSpy.Api.IntegrationTests | wc -l`, `ls src/IoTSpy.Api/Controllers | wc -l`, `ls src/IoTSpy.Storage/Migrations/*.cs | grep -vE "(Designer|Snapshot)" | wc -l`.
+> Counts above last verified 2026-05-09. To re-check: `grep -rE "^\s*\[(Fact|Theory)" --include="*.cs" src/IoTSpy.*.Tests src/IoTSpy.Api.IntegrationTests | wc -l`, `ls src/IoTSpy.Api/Controllers | wc -l`, `ls src/IoTSpy.Storage/Migrations/*.cs | grep -vE "(Designer|Snapshot)" | wc -l`, `grep -rE "\[Http" --include="*.cs" src/IoTSpy.Api/Controllers | wc -l`.
 
 ### Gaps Batch 6 (latest)
 - gRPC `.proto` upload: `ProtoParser` (regex-based field extraction), `ProtoSchema` model/repo, `ProtoSchemasController` at `/api/grpc/schemas`; `GrpcDecoder` accepts optional field map, populates `ProtobufField.FieldName`; `GrpcFrameType` enum + trailer frame detection (flag 0x80); 2 new EF migrations; 15 new backend tests; audit write-once trigger (`BEFORE UPDATE ON AuditEntries`); missing `scanner.css` created
@@ -122,7 +122,7 @@ All phases 1–16, 18–22 plus API & Backend Polish, Frontend Usability enhance
 - Ruleset import (`POST /api/manipulation/import`) — always resets entity IDs to avoid conflicts
 
 ### Content Rules (post-Phase 22 decoupling)
-`ContentReplacementRule` is now a first-class entity — no API spec required. Standalone rules are scoped by `Host` directly. The proxy pipeline (`ApiSpecMockService.ApplyMockAsync`) merges spec-attached and standalone rules by priority. UI: Manipulation panel has 7 tabs — **Traffic Rules** (header/body/status/delay/drop), **Breakpoints**, **Replay**, **Fuzzer**, **Content Rules** (all rules loaded immediately, host input is a live filter, no gate), **Assets** (promoted to top-level), **API Spec** (documentation-only: generate/import/export/refine).
+`ContentReplacementRule` is now a first-class entity — no API spec required. Standalone rules are scoped by `Host` directly. The proxy pipeline (`ApiSpecMockService.ApplyMockAsync`) merges spec-attached and standalone rules by priority. UI: Manipulation panel has 8 tabs — **Traffic Rules** (header/body/status/delay/drop), **Breakpoints**, **Replay**, **Fuzzer**, **Content Rules** (all rules loaded immediately, host input is a live filter, no gate), **Assets** (promoted to top-level), **API Spec** (documentation-only: generate/import/export/refine), **gRPC Schemas** (added in Batch 6: upload `.proto` files for field-name decoding).
 
 ### Operational notes
 
