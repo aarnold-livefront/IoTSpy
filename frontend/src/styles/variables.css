@@ -10,11 +10,16 @@
 
   --color-text: #e2e5f0;
   --color-text-muted: #8b93b0;
+  --color-text-secondary: #8b93b0;
   --color-text-faint: #555d7a;
 
   --color-primary: #00c9b1;
   --color-primary-hover: #00e4c9;
   --color-primary-active: #00a896;
+  --color-accent: #00c9b1;
+
+  --color-bg-alt: #22263a;
+  --color-input-bg: #22263a;
 
   --color-success: #2ecc71;
   --color-success-hover: #27ae60;
@@ -22,6 +27,7 @@
   --color-danger: #e74c3c;
   --color-danger-hover: #c0392b;
   --color-error: #e74c3c;
+  --color-error-bg: rgba(231, 76, 60, 0.12);
   --color-info: #3498db;
 
   /* Status badges */
@@ -82,11 +88,16 @@
 
   --color-text: #1a1d27;
   --color-text-muted: #5a6178;
+  --color-text-secondary: #5a6178;
   --color-text-faint: #8b93b0;
 
   --color-primary: #00a896;
   --color-primary-hover: #00c9b1;
   --color-primary-active: #008f7d;
+  --color-accent: #00a896;
+
+  --color-bg-alt: #f0f1f5;
+  --color-input-bg: #ffffff;
 
   --color-success: #27ae60;
   --color-success-hover: #1e8449;
@@ -94,6 +105,7 @@
   --color-danger: #c0392b;
   --color-danger-hover: #a93226;
   --color-error: #c0392b;
+  --color-error-bg: rgba(192, 57, 43, 0.12);
   --color-info: #2980b9;
 
   --color-method-get: #27ae60;

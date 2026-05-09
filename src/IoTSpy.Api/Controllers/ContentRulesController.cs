@@ -44,6 +44,10 @@ public class ContentRulesController(
         if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Name is required");
         if (string.IsNullOrWhiteSpace(dto.MatchPattern)) return BadRequest("MatchPattern is required");
 
+        string? safeReplacementPath;
+        try { safeReplacementPath = AssetsPaths.ResolveReplacementFilePath(dto.ReplacementFilePath); }
+        catch (ArgumentException ex) { return BadRequest(ex.Message); }
+
         var rule = new ContentReplacementRule
         {
             Host = dto.Host.Trim(),
@@ -53,7 +57,7 @@ public class ContentRulesController(
             Action = dto.Action,
             Enabled = dto.Enabled ?? true,
             ReplacementValue = dto.ReplacementValue,
-            ReplacementFilePath = dto.ReplacementFilePath,
+            ReplacementFilePath = safeReplacementPath,
             ReplacementContentType = dto.ReplacementContentType,
             HostPattern = dto.HostPattern,
             PathPattern = dto.PathPattern,
@@ -82,7 +86,11 @@ public class ContentRulesController(
         if (dto.MatchPattern is not null) rule.MatchPattern = dto.MatchPattern;
         if (dto.Action is not null) rule.Action = dto.Action.Value;
         if (dto.ReplacementValue is not null) rule.ReplacementValue = dto.ReplacementValue;
-        if (dto.ReplacementFilePath is not null) rule.ReplacementFilePath = dto.ReplacementFilePath;
+        if (dto.ReplacementFilePath is not null)
+        {
+            try { rule.ReplacementFilePath = AssetsPaths.ResolveReplacementFilePath(dto.ReplacementFilePath); }
+            catch (ArgumentException ex) { return BadRequest(ex.Message); }
+        }
         if (dto.ReplacementContentType is not null) rule.ReplacementContentType = dto.ReplacementContentType;
         if (dto.HostPattern is not null) rule.HostPattern = dto.HostPattern;
         if (dto.PathPattern is not null) rule.PathPattern = dto.PathPattern;

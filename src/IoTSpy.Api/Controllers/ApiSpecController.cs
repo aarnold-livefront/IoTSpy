@@ -178,6 +178,10 @@ public class ApiSpecController(
         var spec = await specRepo.GetByIdAsync(specId, ct);
         if (spec is null) return NotFound();
 
+        string? safeReplacementPath;
+        try { safeReplacementPath = AssetsPaths.ResolveReplacementFilePath(dto.ReplacementFilePath); }
+        catch (ArgumentException ex) { return BadRequest(ex.Message); }
+
         var rule = new ContentReplacementRule
         {
             ApiSpecDocumentId = specId,
@@ -187,7 +191,7 @@ public class ApiSpecController(
             MatchPattern = dto.MatchPattern,
             Action = dto.Action,
             ReplacementValue = dto.ReplacementValue,
-            ReplacementFilePath = dto.ReplacementFilePath,
+            ReplacementFilePath = safeReplacementPath,
             ReplacementContentType = dto.ReplacementContentType,
             HostPattern = dto.HostPattern,
             PathPattern = dto.PathPattern,
@@ -214,7 +218,11 @@ public class ApiSpecController(
         if (dto.MatchPattern is not null) rule.MatchPattern = dto.MatchPattern;
         if (dto.Action.HasValue) rule.Action = dto.Action.Value;
         if (dto.ReplacementValue is not null) rule.ReplacementValue = dto.ReplacementValue;
-        if (dto.ReplacementFilePath is not null) rule.ReplacementFilePath = dto.ReplacementFilePath;
+        if (dto.ReplacementFilePath is not null)
+        {
+            try { rule.ReplacementFilePath = AssetsPaths.ResolveReplacementFilePath(dto.ReplacementFilePath); }
+            catch (ArgumentException ex) { return BadRequest(ex.Message); }
+        }
         if (dto.ReplacementContentType is not null) rule.ReplacementContentType = dto.ReplacementContentType;
         if (dto.HostPattern is not null) rule.HostPattern = dto.HostPattern;
         if (dto.PathPattern is not null) rule.PathPattern = dto.PathPattern;
