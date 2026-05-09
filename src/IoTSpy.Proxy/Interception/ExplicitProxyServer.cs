@@ -37,6 +37,7 @@ public class ExplicitProxyServer(
     SslStripService sslStripService,
     IServiceScopeFactory scopeFactory,
     ResiliencePipelineProvider<string> connectPipelineProvider,
+    IPerHostConnectPipelineCache perHostPipelines,
     IPassiveProxyBuffer passiveBuffer,
     ICaptureBatchWriter captureBatchWriter,
     ILogger<ExplicitProxyServer> logger)
@@ -198,10 +199,10 @@ public class ExplicitProxyServer(
             ApplicationProtocols = [SslApplicationProtocol.Http11]
         }, ct);
 
-        // Resilient connect to upstream
+        // Resilient connect to upstream — per-host pipeline so one dead endpoint
+        // does not open the circuit for all other upstream targets.
         var upstreamTcp = new TcpClient();
-        var mitmConnectPipeline = connectPipelineProvider.GetPipeline(ProxyResiliencePipelines.ConnectPipelineKey);
-        await mitmConnectPipeline.ExecuteAsync(async token =>
+        await perHostPipelines.GetPipeline(host).ExecuteAsync(async token =>
         {
             await upstreamTcp.ConnectAsync(host, port, token);
             return upstreamTcp;
@@ -251,10 +252,9 @@ public class ExplicitProxyServer(
         var headerBlock = string.Join("\r\n", lines) + "\r\n";
         var headerBytes = Encoding.UTF8.GetBytes(headerBlock);
 
-        // Resilient connect to upstream
+        // Resilient connect to upstream — per-host pipeline.
         var upstreamTcp = new TcpClient();
-        var connectPipeline = connectPipelineProvider.GetPipeline(ProxyResiliencePipelines.ConnectPipelineKey);
-        await connectPipeline.ExecuteAsync(async token =>
+        await perHostPipelines.GetPipeline(host).ExecuteAsync(async token =>
         {
             await upstreamTcp.ConnectAsync(host, port, token);
             return upstreamTcp;
@@ -760,10 +760,9 @@ public class ExplicitProxyServer(
                 clientIp, connectHost, port);
         }
 
-        // Connect upstream
+        // Connect upstream — per-host pipeline.
         var upstream = new TcpClient();
-        var connectPipeline = connectPipelineProvider.GetPipeline(ProxyResiliencePipelines.ConnectPipelineKey);
-        await connectPipeline.ExecuteAsync(async token =>
+        await perHostPipelines.GetPipeline(sniHost).ExecuteAsync(async token =>
         {
             await upstream.ConnectAsync(sniHost, port, token);
             return upstream;

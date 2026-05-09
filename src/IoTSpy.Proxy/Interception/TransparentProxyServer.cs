@@ -40,6 +40,7 @@ public class TransparentProxyServer(
     SslStripService sslStripService,
     IServiceScopeFactory scopeFactory,
     ResiliencePipelineProvider<string> connectPipelineProvider,
+    IPerHostConnectPipelineCache perHostPipelines,
     ILogger<TransparentProxyServer> logger)
 {
     private TcpListener? _listener;
@@ -184,10 +185,9 @@ public class TransparentProxyServer(
             ApplicationProtocols = [SslApplicationProtocol.Http11]
         }, ct);
 
-        // Connect to real upstream
+        // Connect to real upstream — per-host pipeline.
         var upstreamTcp = new TcpClient();
-        var pipeline = connectPipelineProvider.GetPipeline(ProxyResiliencePipelines.ConnectPipelineKey);
-        await pipeline.ExecuteAsync(async token =>
+        await perHostPipelines.GetPipeline(host).ExecuteAsync(async token =>
         {
             await upstreamTcp.ConnectAsync(host, port, token);
             return upstreamTcp;
@@ -219,10 +219,9 @@ public class TransparentProxyServer(
     {
         var clientStream = client.GetStream();
 
-        // Connect to real upstream
+        // Connect to real upstream — per-host pipeline.
         var upstreamTcp = new TcpClient();
-        var pipeline = connectPipelineProvider.GetPipeline(ProxyResiliencePipelines.ConnectPipelineKey);
-        await pipeline.ExecuteAsync(async token =>
+        await perHostPipelines.GetPipeline(host).ExecuteAsync(async token =>
         {
             await upstreamTcp.ConnectAsync(host, port, token);
             return upstreamTcp;
@@ -299,12 +298,12 @@ public class TransparentProxyServer(
                 clientIp, host, port);
         }
 
-        // Connect upstream — use SNI hostname if available for DNS resolution
+        // Connect upstream — per-host pipeline; use SNI hostname if available.
         var upstream = new TcpClient();
-        var pipeline = connectPipelineProvider.GetPipeline(ProxyResiliencePipelines.ConnectPipelineKey);
-        await pipeline.ExecuteAsync(async token =>
+        var sniOrHost = sniHost != host ? sniHost : host;
+        await perHostPipelines.GetPipeline(sniOrHost).ExecuteAsync(async token =>
         {
-            await upstream.ConnectAsync(sniHost != host ? sniHost : host, port, token);
+            await upstream.ConnectAsync(sniOrHost, port, token);
             return upstream;
         }, ct);
 

@@ -1,5 +1,6 @@
 using IoTSpy.Core.Interfaces;
 using IoTSpy.Proxy.Interception;
+using IoTSpy.Proxy.Resilience;
 using Microsoft.Extensions.Logging.Abstractions;
 using NSubstitute;
 using Xunit;
@@ -62,6 +63,7 @@ public class GracefulShutdownTests
             new SslStripService(NullLogger<SslStripService>.Instance),
             Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(),
             Substitute.For<Polly.Registry.ResiliencePipelineProvider<string>>(),
+            Substitute.For<IPerHostConnectPipelineCache>(),
             Substitute.For<IPassiveProxyBuffer>(),
             Substitute.For<ICaptureBatchWriter>(),
             NullLogger<ExplicitProxyServer>.Instance);
@@ -79,6 +81,7 @@ public class GracefulShutdownTests
             new SslStripService(NullLogger<SslStripService>.Instance),
             Substitute.For<Microsoft.Extensions.DependencyInjection.IServiceScopeFactory>(),
             Substitute.For<Polly.Registry.ResiliencePipelineProvider<string>>(),
+            Substitute.For<IPerHostConnectPipelineCache>(),
             NullLogger<TransparentProxyServer>.Instance);
     }
 }
