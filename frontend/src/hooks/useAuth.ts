@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { getToken } from '../api/client'
+import { getToken, setOnUnauthorized } from '../api/client'
 import { getAuthStatus, getMe, login as apiLogin, setup as apiSetup } from '../api/auth'
 import {
   dispatchLogin,
@@ -32,8 +32,9 @@ export function useAuthInit(): AuthState {
     let cancelled = false
     async function init() {
       try {
-        const { passwordSet } = await getAuthStatus()
+        const { passwordSet, multiUser } = await getAuthStatus()
         if (cancelled) return
+        dispatch({ type: 'SET_MULTI_USER', value: multiUser ?? false })
         if (!passwordSet) {
           dispatch({ type: 'SET_NO_PASSWORD' })
           navigate('/setup', { replace: true })
@@ -46,6 +47,10 @@ export function useAuthInit(): AuthState {
           return
         }
         dispatch({ type: 'SET_AUTHENTICATED', token })
+        setOnUnauthorized(() => {
+          dispatch({ type: 'LOGOUT' })
+          navigate('/login', { replace: true })
+        })
         // Ensure user profile is in localStorage (missing for legacy/pre-multiuser logins)
         if (!localStorage.getItem(CURRENT_USER_KEY)) {
           try {
