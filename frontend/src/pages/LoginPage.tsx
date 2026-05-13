@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { ApiError } from '../api/client'
 import { useLogin } from '../hooks/useAuth'
+import { useAuthState } from '../store/authStore'
 import '../styles/auth.css'
 
 export default function LoginPage() {
   const login = useLogin()
+  const { multiUser } = useAuthState()
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -14,7 +17,7 @@ export default function LoginPage() {
     setError(null)
     setLoading(true)
     try {
-      await login({ username: 'admin', password })
+      await login({ username: multiUser ? username : 'admin', password })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Login failed.')
     } finally {
@@ -32,6 +35,20 @@ export default function LoginPage() {
         <p className="auth-subtitle">Sign in to your dashboard.</p>
         <form className="auth-form" onSubmit={handleSubmit}>
           {error && <div className="auth-error">{error}</div>}
+          {multiUser && (
+            <div className="form-group">
+              <label className="form-label" htmlFor="username">Username</label>
+              <input
+                id="username"
+                className="form-input"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoFocus
+                required
+              />
+            </div>
+          )}
           <div className="form-group">
             <label className="form-label" htmlFor="password">Password</label>
             <input
@@ -40,7 +57,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoFocus
+              autoFocus={!multiUser}
               required
             />
           </div>
