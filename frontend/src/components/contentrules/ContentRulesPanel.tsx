@@ -36,13 +36,16 @@ interface AssetPickerModalProps {
 
 function AssetPickerModal({ onClose, onPick }: AssetPickerModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
   useFocusTrap(dialogRef)
 
+  useEffect(() => { onCloseRef.current = onClose })
+
   useEffect(() => {
-    const handle = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const handle = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current() }
     document.addEventListener('keydown', handle)
     return () => document.removeEventListener('keydown', handle)
-  }, [onClose])
+  }, [])
 
   return (
     <div
@@ -157,15 +160,15 @@ export default function ContentRulesPanel() {
           <div className="cr-add-form__grid">
             <label>
               <span className="cr-add-form__hint">Name</span>
-              <input value={formName} onChange={(e) => setFormName(e.target.value)} style={{ width: '100%' }} />
+              <input value={formName} onChange={(e) => setFormName(e.target.value)} />
             </label>
             <label>
               <span className="cr-add-form__hint">Host (exact, required)</span>
-              <input value={hostFilter} onChange={(e) => setHostFilter(e.target.value)} placeholder="ads.example.com" style={{ width: '100%' }} />
+              <input value={hostFilter} onChange={(e) => setHostFilter(e.target.value)} placeholder="ads.example.com" />
             </label>
             <label>
               <span className="cr-add-form__hint">Match Type</span>
-              <select value={formMatchType} onChange={(e) => setFormMatchType(e.target.value as ContentMatchType)} style={{ width: '100%' }}>
+              <select value={formMatchType} onChange={(e) => setFormMatchType(e.target.value as ContentMatchType)}>
                 {MATCH_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </label>
@@ -176,11 +179,11 @@ export default function ContentRulesPanel() {
                 {formMatchType === 'JsonPath' && ' (e.g. $.data.imageUrl)'}
                 {formMatchType === 'BodyRegex' && ' (regex)'}
               </span>
-              <input value={formMatchPattern} onChange={(e) => setFormMatchPattern(e.target.value)} style={{ width: '100%' }} />
+              <input value={formMatchPattern} onChange={(e) => setFormMatchPattern(e.target.value)} />
             </label>
             <label>
               <span className="cr-add-form__hint">Action</span>
-              <select value={formAction} onChange={(e) => setFormAction(e.target.value as ContentReplacementAction)} style={{ width: '100%' }}>
+              <select value={formAction} onChange={(e) => setFormAction(e.target.value as ContentReplacementAction)}>
                 {ACTIONS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
               </select>
             </label>
@@ -196,20 +199,20 @@ export default function ContentRulesPanel() {
             {needsValue && (
               <label className="cr-add-form__full">
                 <span className="cr-add-form__hint">Replacement Value</span>
-                <input value={formValue} onChange={(e) => setFormValue(e.target.value)} style={{ width: '100%' }} />
+                <input value={formValue} onChange={(e) => setFormValue(e.target.value)} />
               </label>
             )}
             {(needsFile || needsValue) && (
               <label>
                 <span className="cr-add-form__hint">Override Content-Type</span>
-                <input value={formContentType} onChange={(e) => setFormContentType(e.target.value)} placeholder="e.g. image/png" style={{ width: '100%' }} />
+                <input value={formContentType} onChange={(e) => setFormContentType(e.target.value)} placeholder="e.g. image/png" />
               </label>
             )}
             {isSse && (
               <>
                 <label>
                   <span className="cr-add-form__hint">Inter-event delay (ms)</span>
-                  <input type="number" min={0} value={formSseDelay} onChange={(e) => setFormSseDelay(Number(e.target.value))} style={{ width: '100%' }} />
+                  <input type="number" min={0} value={formSseDelay} onChange={(e) => setFormSseDelay(Number(e.target.value))} />
                 </label>
                 <label className="cr-add-form__sse-check">
                   <input type="checkbox" checked={formSseLoop} onChange={(e) => setFormSseLoop(e.target.checked)} />
@@ -219,15 +222,15 @@ export default function ContentRulesPanel() {
             )}
             <label>
               <span className="cr-add-form__hint">Priority</span>
-              <input type="number" value={formPriority} onChange={(e) => setFormPriority(Number(e.target.value))} style={{ width: '100%' }} />
+              <input type="number" value={formPriority} onChange={(e) => setFormPriority(Number(e.target.value))} />
             </label>
             <label>
               <span className="cr-add-form__hint">Host Pattern (regex, optional)</span>
-              <input value={formHostPattern} onChange={(e) => setFormHostPattern(e.target.value)} placeholder="e.g. ads\.example\.com" style={{ width: '100%' }} />
+              <input value={formHostPattern} onChange={(e) => setFormHostPattern(e.target.value)} placeholder="e.g. ads\.example\.com" />
             </label>
             <label className="cr-add-form__full">
               <span className="cr-add-form__hint">Path Pattern (regex, optional)</span>
-              <input value={formPathPattern} onChange={(e) => setFormPathPattern(e.target.value)} placeholder="e.g. /ads/.*\.gif" style={{ width: '100%' }} />
+              <input value={formPathPattern} onChange={(e) => setFormPathPattern(e.target.value)} placeholder="e.g. /ads/.*\.gif" />
             </label>
           </div>
           <div className="cr-add-form__actions">
