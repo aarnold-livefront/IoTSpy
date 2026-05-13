@@ -156,7 +156,7 @@ Each entry includes the closing PR. Use `gh pr view <num>` for the full diff and
 
 ### High doc accuracy (3 of 3)
 
-- **#26 — Test count contradictions across CLAUDE.md / AGENT.md / README.md / ARCHITECTURE.md** [PR #60, bumped in follow-up to PR #61] — locked at 765 (grep `[Fact]/[Theory]` count). Re-bump after each test-adding PR.
+- **#26 — Test count contradictions across CLAUDE.md / AGENT.md / README.md / ARCHITECTURE.md** [PR #60, bumped in follow-up to PR #61, PR #66] — 771 backend / 94 frontend (as of modal-system PR). Re-bump after each test-adding PR.
 - **#27 — Controller list said 19, claimed 20** [PR #60] — added `ProtoSchemas` to enumeration; locked at 20.
 - **#28 — Manipulation panel "7 tabs" claim** [PR #60] — corrected to 8 (gRPC Schemas added in Batch 6).
 
