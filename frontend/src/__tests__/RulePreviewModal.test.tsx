@@ -13,7 +13,7 @@ const makeResult = (overrides: Partial<PreviewRuleResult> = {}): PreviewRuleResu
   bodyLength: 42,
   contentType: 'application/json',
   responseBodyText: '{"ok":true}',
-  responseBodyBase64: null,
+  responseBodyBase64: undefined,
   responseHeaders: { 'Content-Type': 'application/json' },
   warnings: [],
   wasStreamed: false,
