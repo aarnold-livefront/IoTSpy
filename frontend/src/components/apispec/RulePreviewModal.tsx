@@ -96,14 +96,14 @@ export default function RulePreviewModal({ specId, ruleId, ruleName, onClose, ov
     <div
       className="modal-overlay"
       onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="rule-preview-title"
     >
       <div
         ref={dialogRef}
         className="modal preview-modal"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="rule-preview-title"
       >
         <div className="modal__header">
           <span className="modal__title" id="rule-preview-title">Preview rule: {ruleName}</span>
