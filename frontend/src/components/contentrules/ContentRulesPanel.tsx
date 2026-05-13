@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useContentRules } from '../../hooks/useContentRules'
 import { previewContentRule } from '../../api/contentrules'
+import { useFocusTrap } from '../../hooks/useFocusTrap'
 import AssetLibrary from '../apispec/AssetLibrary'
 import RulePreviewModal from '../apispec/RulePreviewModal'
 import type {
@@ -9,6 +10,8 @@ import type {
   ContentReplacementAction,
   ContentReplacementRule,
 } from '../../types/api'
+import '../../styles/content-rules.css'
+import '../../styles/modal.css'
 
 const MATCH_TYPES: { value: ContentMatchType; label: string }[] = [
   { value: 'ContentType', label: 'Content-Type' },
@@ -25,6 +28,46 @@ const ACTIONS: { value: ContentReplacementAction; label: string }[] = [
   { value: 'TrackingPixel', label: 'Tracking Pixel (1×1 GIF)' },
   { value: 'MockSseStream', label: 'Mock SSE Stream' },
 ]
+
+interface AssetPickerModalProps {
+  onClose: () => void
+  onPick: (a: AssetInfo) => void
+}
+
+function AssetPickerModal({ onClose, onPick }: AssetPickerModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(dialogRef)
+
+  useEffect(() => {
+    const handle = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handle)
+    return () => document.removeEventListener('keydown', handle)
+  }, [onClose])
+
+  return (
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="asset-picker-title"
+    >
+      <div
+        ref={dialogRef}
+        className="modal asset-picker-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal__header">
+          <span className="modal__title" id="asset-picker-title">Pick an asset</span>
+          <button className="btn btn--secondary" onClick={onClose} aria-label="Close asset picker">×</button>
+        </div>
+        <div className="modal__body">
+          <AssetLibrary compact onPick={onPick} />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export default function ContentRulesPanel() {
   const [hostFilter, setHostFilter] = useState('')
@@ -88,49 +131,46 @@ export default function ContentRulesPanel() {
     editRule('', rule.id, { enabled: !rule.enabled })
 
   return (
-    <div style={{ padding: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <h3 style={{ margin: 0 }}>Content Rules {loading && <span style={{ fontSize: 12, color: '#888' }}>Loading…</span>}</h3>
-        <button className="btn btn--primary" onClick={() => setShowAdd(true)} style={{ fontSize: 12 }}>
+    <div className="cr-panel">
+      <div className="cr-panel__header">
+        <h3 style={{ margin: 0 }}>
+          Content Rules{' '}
+          {loading && <span className="cr-panel__loading">Loading…</span>}
+        </h3>
+        <button className="btn btn--primary" onClick={() => setShowAdd(true)} style={{ fontSize: 'var(--font-size-sm)' }}>
           Add Rule
         </button>
       </div>
 
-      {/* Host filter */}
-      <div style={{ marginBottom: 12 }}>
+      <div className="cr-host-filter">
         <input
           value={hostFilter}
           onChange={(e) => setHostFilter(e.target.value)}
           placeholder="Filter by host (e.g. ads.example.com)"
-          style={{ width: '100%', maxWidth: 400 }}
         />
       </div>
 
-      {error && (
-        <div style={{ padding: 8, background: '#3a1a1a', color: '#fca5a5', borderRadius: 4, marginBottom: 8, fontSize: 12 }}>
-          {error}
-        </div>
-      )}
+      {error && <div className="cr-error">{error}</div>}
 
       {showAdd && (
-        <div style={{ marginTop: 8, marginBottom: 12, padding: 12, background: '#1a1a2e', borderRadius: 6, border: '1px solid #4a4a6a' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+        <div className="cr-add-form">
+          <div className="cr-add-form__grid">
             <label>
-              <span style={{ fontSize: 11, color: '#aaa' }}>Name</span>
+              <span className="cr-add-form__hint">Name</span>
               <input value={formName} onChange={(e) => setFormName(e.target.value)} style={{ width: '100%' }} />
             </label>
             <label>
-              <span style={{ fontSize: 11, color: '#aaa' }}>Host (exact, required)</span>
+              <span className="cr-add-form__hint">Host (exact, required)</span>
               <input value={hostFilter} onChange={(e) => setHostFilter(e.target.value)} placeholder="ads.example.com" style={{ width: '100%' }} />
             </label>
             <label>
-              <span style={{ fontSize: 11, color: '#aaa' }}>Match Type</span>
+              <span className="cr-add-form__hint">Match Type</span>
               <select value={formMatchType} onChange={(e) => setFormMatchType(e.target.value as ContentMatchType)} style={{ width: '100%' }}>
                 {MATCH_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
               </select>
             </label>
             <label>
-              <span style={{ fontSize: 11, color: '#aaa' }}>
+              <span className="cr-add-form__hint">
                 Match Pattern
                 {formMatchType === 'ContentType' && ' (e.g. image/*, video/mp4)'}
                 {formMatchType === 'JsonPath' && ' (e.g. $.data.imageUrl)'}
@@ -139,65 +179,65 @@ export default function ContentRulesPanel() {
               <input value={formMatchPattern} onChange={(e) => setFormMatchPattern(e.target.value)} style={{ width: '100%' }} />
             </label>
             <label>
-              <span style={{ fontSize: 11, color: '#aaa' }}>Action</span>
+              <span className="cr-add-form__hint">Action</span>
               <select value={formAction} onChange={(e) => setFormAction(e.target.value as ContentReplacementAction)} style={{ width: '100%' }}>
                 {ACTIONS.map((a) => <option key={a.value} value={a.value}>{a.label}</option>)}
               </select>
             </label>
             {needsFile && (
-              <label style={{ gridColumn: '1 / -1' }}>
-                <span style={{ fontSize: 11, color: '#aaa' }}>{isSse ? 'Event file (.sse or .ndjson)' : 'Asset file path'}</span>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  <input value={formFilePath} onChange={(e) => setFormFilePath(e.target.value)} style={{ flex: 1 }} placeholder="Pick from library or paste path" />
-                  <button className="btn btn--secondary" onClick={() => setShowPicker(true)} style={{ fontSize: 11, whiteSpace: 'nowrap' }}>Pick asset</button>
+              <label className="cr-add-form__full">
+                <span className="cr-add-form__hint">{isSse ? 'Event file (.sse or .ndjson)' : 'Asset file path'}</span>
+                <div className="cr-add-form__file-row">
+                  <input value={formFilePath} onChange={(e) => setFormFilePath(e.target.value)} placeholder="Pick from library or paste path" />
+                  <button className="btn btn--secondary" onClick={() => setShowPicker(true)} style={{ fontSize: 'var(--font-size-xs)', whiteSpace: 'nowrap' }}>Pick asset</button>
                 </div>
               </label>
             )}
             {needsValue && (
-              <label style={{ gridColumn: '1 / -1' }}>
-                <span style={{ fontSize: 11, color: '#aaa' }}>Replacement Value</span>
+              <label className="cr-add-form__full">
+                <span className="cr-add-form__hint">Replacement Value</span>
                 <input value={formValue} onChange={(e) => setFormValue(e.target.value)} style={{ width: '100%' }} />
               </label>
             )}
             {(needsFile || needsValue) && (
               <label>
-                <span style={{ fontSize: 11, color: '#aaa' }}>Override Content-Type</span>
+                <span className="cr-add-form__hint">Override Content-Type</span>
                 <input value={formContentType} onChange={(e) => setFormContentType(e.target.value)} placeholder="e.g. image/png" style={{ width: '100%' }} />
               </label>
             )}
             {isSse && (
               <>
                 <label>
-                  <span style={{ fontSize: 11, color: '#aaa' }}>Inter-event delay (ms)</span>
+                  <span className="cr-add-form__hint">Inter-event delay (ms)</span>
                   <input type="number" min={0} value={formSseDelay} onChange={(e) => setFormSseDelay(Number(e.target.value))} style={{ width: '100%' }} />
                 </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 16 }}>
+                <label className="cr-add-form__sse-check">
                   <input type="checkbox" checked={formSseLoop} onChange={(e) => setFormSseLoop(e.target.checked)} />
-                  <span style={{ fontSize: 12 }}>Loop forever</span>
+                  <span>Loop forever</span>
                 </label>
               </>
             )}
             <label>
-              <span style={{ fontSize: 11, color: '#aaa' }}>Priority</span>
+              <span className="cr-add-form__hint">Priority</span>
               <input type="number" value={formPriority} onChange={(e) => setFormPriority(Number(e.target.value))} style={{ width: '100%' }} />
             </label>
             <label>
-              <span style={{ fontSize: 11, color: '#aaa' }}>Host Pattern (regex, optional)</span>
+              <span className="cr-add-form__hint">Host Pattern (regex, optional)</span>
               <input value={formHostPattern} onChange={(e) => setFormHostPattern(e.target.value)} placeholder="e.g. ads\.example\.com" style={{ width: '100%' }} />
             </label>
-            <label style={{ gridColumn: '1 / -1' }}>
-              <span style={{ fontSize: 11, color: '#aaa' }}>Path Pattern (regex, optional)</span>
+            <label className="cr-add-form__full">
+              <span className="cr-add-form__hint">Path Pattern (regex, optional)</span>
               <input value={formPathPattern} onChange={(e) => setFormPathPattern(e.target.value)} placeholder="e.g. /ads/.*\.gif" style={{ width: '100%' }} />
             </label>
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <div className="cr-add-form__actions">
             <button className="btn btn--primary" onClick={() => void handleAdd()}>Add</button>
             <button className="btn btn--secondary" onClick={resetForm}>Cancel</button>
           </div>
         </div>
       )}
 
-      <table style={{ width: '100%', marginTop: 8, fontSize: 13 }}>
+      <table className="cr-table">
         <thead>
           <tr>
             <th style={{ textAlign: 'left' }}>Name</th>
@@ -215,48 +255,41 @@ export default function ContentRulesPanel() {
               <td>
                 <div>{rule.name}</div>
                 {(rule.hostPattern || rule.pathPattern) && (
-                  <div style={{ fontSize: 10, color: '#888', marginTop: 2 }}>
+                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginTop: 2 }}>
                     {rule.hostPattern && <span>host: <code>{rule.hostPattern}</code></span>}
                     {rule.hostPattern && rule.pathPattern && ' · '}
                     {rule.pathPattern && <span>path: <code>{rule.pathPattern}</code></span>}
                   </div>
                 )}
               </td>
-              <td style={{ fontSize: 11, color: '#aaa' }}>{rule.host}</td>
-              <td><code style={{ fontSize: 11 }}>{rule.matchType}: {rule.matchPattern}</code></td>
+              <td style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>{rule.host}</td>
+              <td><code style={{ fontSize: 'var(--font-size-xs)' }}>{rule.matchType}: {rule.matchPattern}</code></td>
               <td>{rule.action}</td>
               <td style={{ textAlign: 'center' }}>{rule.priority}</td>
               <td style={{ textAlign: 'center' }}>
                 <input type="checkbox" checked={rule.enabled} onChange={() => void handleToggle(rule)} />
               </td>
               <td style={{ whiteSpace: 'nowrap' }}>
-                <button className="btn btn--secondary" style={{ fontSize: 11, padding: '2px 6px', marginRight: 4 }} onClick={() => setPreviewTarget(rule)}>Preview</button>
-                <button className="btn btn--danger" style={{ fontSize: 11, padding: '2px 6px' }} onClick={() => void removeRule('', rule.id)}>Delete</button>
+                <button className="btn btn--secondary" style={{ fontSize: 'var(--font-size-xs)', padding: '2px 6px', marginRight: 4 }} onClick={() => setPreviewTarget(rule)}>Preview</button>
+                <button className="btn btn--danger" style={{ fontSize: 'var(--font-size-xs)', padding: '2px 6px' }} onClick={() => void removeRule('', rule.id)}>Delete</button>
               </td>
             </tr>
           ))}
           {!loading && filteredRules.length === 0 && (
-            <tr><td colSpan={7} style={{ textAlign: 'center', color: '#666', padding: 16 }}>
+            <tr><td colSpan={7} className="cr-table__empty">
               {rules.length === 0 ? 'No content rules yet. Click Add Rule to get started.' : 'No rules match the current host filter.'}
             </td></tr>
           )}
         </tbody>
       </table>
 
-      {/* Asset picker modal */}
       {showPicker && (
-        <div onClick={() => setShowPicker(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(720px, 94vw)', maxHeight: '90vh', overflow: 'auto', background: '#1a1a2e', border: '1px solid #4a4a6a', borderRadius: 8, padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <h3 style={{ margin: 0 }}>Pick an asset</h3>
-              <button className="btn btn--secondary" onClick={() => setShowPicker(false)}>Close</button>
-            </div>
-            <AssetLibrary compact onPick={(a: AssetInfo) => { setFormFilePath(a.filePath); setShowPicker(false) }} />
-          </div>
-        </div>
+        <AssetPickerModal
+          onClose={() => setShowPicker(false)}
+          onPick={(a: AssetInfo) => { setFormFilePath(a.filePath); setShowPicker(false) }}
+        />
       )}
 
-      {/* Preview modal — uses the content-rules preview endpoint */}
       {previewTarget && (
         <RulePreviewModal
           specId=""
