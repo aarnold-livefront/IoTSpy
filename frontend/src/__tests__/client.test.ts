@@ -12,6 +12,7 @@ describe('apiFetch — 401 handling', () => {
   beforeEach(() => {
     setOnUnauthorized(null)
     clearToken()
+    localStorage.clear()
   })
 
   afterEach(() => {
@@ -41,7 +42,7 @@ describe('apiFetch — 401 handling', () => {
     const cb = vi.fn()
     setOnUnauthorized(cb)
 
-    await expect(apiFetch('/api/test')).rejects.toThrow()
+    await expect(apiFetch('/api/test')).rejects.toMatchObject({ status: 403 })
     expect(cb).not.toHaveBeenCalled()
   })
 

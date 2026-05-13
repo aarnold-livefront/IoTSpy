@@ -28,6 +28,19 @@ export function setOnUnauthorized(cb: (() => void) | null): void {
   onUnauthorized = cb
 }
 
+function normalizeHeaders(h: HeadersInit | undefined): Record<string, string> {
+  if (!h) return {}
+  if (h instanceof Headers) {
+    const out: Record<string, string> = {}
+    h.forEach((v, k) => { out[k] = v })
+    return out
+  }
+  if (Array.isArray(h)) {
+    return Object.fromEntries(h)
+  }
+  return h as Record<string, string>
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
@@ -35,7 +48,7 @@ export async function apiFetch<T>(
   const token = getToken()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
-    ...(init.headers as Record<string, string>),
+    ...normalizeHeaders(init.headers),
   }
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
