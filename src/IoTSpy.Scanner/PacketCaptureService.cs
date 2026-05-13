@@ -410,10 +410,20 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
     public Task<bool> DeletePacketAsync(Guid id, CancellationToken ct = default)
         => Task.FromResult(_buffer.TryDelete(id));
 
-    public Task<bool> ClearCapturesAsync()
+    public async Task<bool> ClearCapturesAsync()
     {
         _buffer.Clear();
-        return Task.FromResult(true);
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var repo = scope.ServiceProvider.GetRequiredService<IPacketRepository>();
+            await repo.DeleteAllAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to clear persisted packets from DB");
+        }
+        return true;
     }
 
     // ── PCAP export ──────────────────────────────────────────────────────────

@@ -19,6 +19,7 @@ public static class ScannerExtensions
         services.AddSingleton<IScannerService, ScannerService>();
         services.AddSingleton<IPacketBuffer>(new LockFreePacketRingBuffer(ringBufferCapacity));
         services.AddSingleton<IPacketCaptureService, PacketCaptureService>();
+        services.AddHostedService<PacketCaptureCheckpointService>();
         services.AddSingleton<IReportService, ReportService>();
 
         services.AddHttpClient<CveLookupService>(client =>
