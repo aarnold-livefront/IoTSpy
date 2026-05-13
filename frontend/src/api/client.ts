@@ -22,6 +22,12 @@ export class ApiError extends Error {
   }
 }
 
+let onUnauthorized: (() => void) | null = null
+
+export function setOnUnauthorized(cb: (() => void) | null): void {
+  onUnauthorized = cb
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
@@ -45,6 +51,12 @@ export async function apiFetch<T>(
     } catch {
       // ignore parse errors
     }
+
+    if (res.status === 401) {
+      clearToken()
+      onUnauthorized?.()
+    }
+
     throw new ApiError(res.status, message)
   }
 
