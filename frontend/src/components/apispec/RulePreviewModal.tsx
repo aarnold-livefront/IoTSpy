@@ -157,7 +157,6 @@ export default function RulePreviewModal({ specId, ruleId, ruleName, onClose, ov
                 onChange={(e) => setCaptureSearch(e.target.value)}
                 placeholder="Filter by host, path, or method..."
                 className="preview-modal__capture-search"
-                style={{ width: '100%', marginBottom: 'var(--space-2)' }}
               />
               {capturesLoading && <div className="preview-modal__loading">Loading captures...</div>}
               <div
