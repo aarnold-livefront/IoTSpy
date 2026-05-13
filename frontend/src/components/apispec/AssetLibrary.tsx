@@ -7,6 +7,7 @@ import {
 } from '../../api/apispec'
 import ConfirmDialog from '../common/ConfirmDialog'
 import type { AssetInfo } from '../../types/api'
+import '../../styles/asset-library.css'
 
 interface Props {
   /** When provided, clicking an asset calls this instead of showing delete controls. */
@@ -46,17 +47,6 @@ function assetKind(name: string): 'image' | 'video' | 'audio' | 'stream' | 'text
   if (/\.(sse|ndjson)$/.test(lower)) return 'stream'
   if (/\.(json|txt|html|xml|csv|css|js)$/.test(lower)) return 'text'
   return 'binary'
-}
-
-function kindBadgeColor(kind: ReturnType<typeof assetKind>): string {
-  switch (kind) {
-    case 'image': return '#4ade80'
-    case 'video': return '#60a5fa'
-    case 'audio': return '#c084fc'
-    case 'stream': return '#f59e0b'
-    case 'text': return '#94a3b8'
-    case 'binary': return '#6b7280'
-  }
 }
 
 function formatSize(bytes: number): string {
@@ -128,7 +118,7 @@ export default function AssetLibrary({ onPick, compact }: Props) {
   }
 
   return (
-    <div style={{ marginTop: compact ? 0 : 16 }}>
+    <div className={`asset-library${compact ? ' asset-library--compact' : ''}`}>
       {confirmDeleteName && (
         <ConfirmDialog
           title="Delete asset"
@@ -139,14 +129,14 @@ export default function AssetLibrary({ onPick, compact }: Props) {
           onCancel={() => setConfirmDeleteName(null)}
         />
       )}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+
+      <div className="asset-library__header">
         {!compact
-          ? <h3 style={{ margin: 0 }}>Asset Library ({assets.length})</h3>
-          : <span style={{ fontSize: 12, color: '#aaa' }}>Assets ({assets.length})</span>
+          ? <h3 className="asset-library__title">Asset Library ({assets.length})</h3>
+          : <span className="asset-library__subtitle">Assets ({assets.length})</span>
         }
         <button
-          className="btn btn--primary"
-          style={{ fontSize: 12 }}
+          className="btn btn--primary asset-library__upload-btn"
           onClick={() => fileInputRef.current?.click()}
         >
           Upload
@@ -159,115 +149,62 @@ export default function AssetLibrary({ onPick, compact }: Props) {
         multiple
         accept={ALLOWED_EXTENSIONS.join(',')}
         onChange={onPicked}
-        style={{ display: 'none' }}
+        className="asset-library__file-input"
       />
 
       <div
+        className={`asset-library__drop-zone${dragOver ? ' asset-library__drop-zone--active' : ''}`}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
         onClick={() => fileInputRef.current?.click()}
-        style={{
-          marginTop: 8,
-          padding: 16,
-          border: `2px dashed ${dragOver ? '#60a5fa' : '#4a4a6a'}`,
-          borderRadius: 6,
-          background: dragOver ? 'rgba(96, 165, 250, 0.08)' : '#1a1a2e',
-          textAlign: 'center',
-          color: '#aaa',
-          fontSize: 13,
-          cursor: 'pointer',
-        }}
       >
         {dragOver ? 'Drop files to upload' : 'Drop files here or click to upload (images, video, audio, .sse, .ndjson, text)'}
       </div>
 
       {error && (
-        <div style={{ marginTop: 8, padding: 8, background: '#3a1a1a', color: '#fca5a5', borderRadius: 4, fontSize: 12 }}>
-          {error}
-        </div>
+        <div className="asset-library__error">{error}</div>
       )}
 
-      <div
-        style={{
-          marginTop: 8,
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-          gap: 8,
-        }}
-      >
+      <div className="asset-library__grid">
         {assets.map((a) => {
           const kind = assetKind(a.fileName)
           const url = getAssetContentUrl(a.fileName)
           return (
             <div
               key={a.fileName}
+              className={`asset-library__card${onPick ? ' asset-library__card--pickable' : ''}`}
               onClick={() => onPick?.(a)}
-              style={{
-                padding: 8,
-                background: '#1a1a2e',
-                border: '1px solid #4a4a6a',
-                borderRadius: 6,
-                cursor: onPick ? 'pointer' : 'default',
-              }}
+              tabIndex={onPick ? 0 : undefined}
+              onKeyDown={onPick ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(a) }
+              } : undefined}
             >
-              <div style={{
-                height: 80,
-                background: '#0f0f1a',
-                borderRadius: 4,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-                marginBottom: 6,
-              }}>
+              <div className="asset-library__preview">
                 {kind === 'image' && (
-                  <img src={url} alt={a.fileName} style={{ maxWidth: '100%', maxHeight: '100%' }} />
+                  <img src={url} alt={a.fileName} className="asset-library__preview-media" />
                 )}
                 {kind === 'video' && (
-                  <video src={url} preload="metadata" muted style={{ maxWidth: '100%', maxHeight: '100%' }} />
+                  <video src={url} preload="metadata" muted className="asset-library__preview-media" />
                 )}
-                {kind === 'audio' && (
-                  <span style={{ fontSize: 24 }}>♪</span>
-                )}
-                {kind === 'stream' && (
-                  <span style={{ fontSize: 24 }}>≋</span>
-                )}
+                {kind === 'audio' && <span className="asset-library__preview-icon">♪</span>}
+                {kind === 'stream' && <span className="asset-library__preview-icon">≋</span>}
                 {(kind === 'text' || kind === 'binary') && (
-                  <span style={{ fontSize: 22, color: '#666' }}>{kind === 'text' ? 'T' : '□'}</span>
+                  <span className="asset-library__preview-icon--faint">{kind === 'text' ? 'T' : '□'}</span>
                 )}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                <span
-                  style={{
-                    fontSize: 9,
-                    padding: '1px 5px',
-                    background: kindBadgeColor(kind),
-                    color: '#000',
-                    borderRadius: 3,
-                    textTransform: 'uppercase',
-                    fontWeight: 600,
-                  }}
-                >
-                  {kind}
-                </span>
-                <span style={{ fontSize: 10, color: '#777' }}>{formatSize(a.size)}</span>
+
+              <div className="asset-library__badge-row">
+                <span className="asset-library__kind-badge" data-kind={kind}>{kind}</span>
+                <span className="asset-library__size">{formatSize(a.size)}</span>
               </div>
-              <div
-                title={a.fileName}
-                style={{
-                  fontSize: 11,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  color: '#ccc',
-                }}
-              >
+
+              <div className="asset-library__filename" title={a.fileName}>
                 {a.fileName}
               </div>
+
               <button
-                className="btn btn--danger"
-                style={{ fontSize: 10, padding: '2px 6px', marginTop: 4 }}
+                className="btn btn--danger asset-library__delete-btn"
                 onClick={(e) => { e.stopPropagation(); setConfirmDeleteName(a.fileName) }}
               >
                 Delete
@@ -276,7 +213,7 @@ export default function AssetLibrary({ onPick, compact }: Props) {
           )
         })}
         {!loading && assets.length === 0 && (
-          <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: '#666', padding: 16, fontSize: 12 }}>
+          <div className="asset-library__empty">
             No assets yet. Drop files above to upload.
           </div>
         )}
