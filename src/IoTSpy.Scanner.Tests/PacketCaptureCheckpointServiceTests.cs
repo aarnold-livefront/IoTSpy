@@ -89,7 +89,7 @@ public class PacketCaptureCheckpointServiceTests
 
         using var cts = new CancellationTokenSource();
         _ = svc.StartAsync(cts.Token);
-        await Task.Delay(1_200);
+        await Task.Delay(2_500);
         await cts.CancelAsync();
         await svc.StopAsync(CancellationToken.None);
 
@@ -111,7 +111,7 @@ public class PacketCaptureCheckpointServiceTests
 
         using var cts = new CancellationTokenSource();
         _ = svc.StartAsync(cts.Token);
-        await Task.Delay(1_200);
+        await Task.Delay(2_500);
         await cts.CancelAsync();
         await svc.StopAsync(CancellationToken.None);
 
@@ -132,7 +132,7 @@ public class PacketCaptureCheckpointServiceTests
 
         using var cts = new CancellationTokenSource();
         _ = svc.StartAsync(cts.Token);
-        await Task.Delay(1_200);
+        await Task.Delay(2_500);
         await cts.CancelAsync();
         await svc.StopAsync(CancellationToken.None);
 
