@@ -18,7 +18,7 @@ export default function ProxyStatusBadge({ isRunning, port, signalRConnected }: 
   return (
     <div className="proxy-status-badge" title={isRunning ? `Listening on port ${port}` : 'Proxy not running'}>
       <span className={dotClass} />
-      <span>{label}</span>
+      <span className="proxy-status-badge__label">{label}</span>
     </div>
   )
 }
