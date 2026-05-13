@@ -60,6 +60,11 @@
   margin-bottom: 2px;
 }
 
+.cr-add-form input,
+.cr-add-form select {
+  width: 100%;
+}
+
 .cr-add-form__file-row {
   display: flex;
   gap: var(--space-1);
