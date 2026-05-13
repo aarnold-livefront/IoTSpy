@@ -14,11 +14,13 @@ export type AuthStatus = 'unknown' | 'no-password' | 'unauthenticated' | 'authen
 export interface AuthState {
   status: AuthStatus
   token: string | null
+  multiUser: boolean
 }
 
 const initialState: AuthState = {
   status: 'unknown',
   token: null,
+  multiUser: false,
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────────
@@ -27,19 +29,22 @@ type AuthAction =
   | { type: 'SET_NO_PASSWORD' }
   | { type: 'SET_UNAUTHENTICATED' }
   | { type: 'SET_AUTHENTICATED'; token: string }
+  | { type: 'SET_MULTI_USER'; value: boolean }
   | { type: 'LOGOUT' }
 
-function reducer(state: AuthState, action: AuthAction): AuthState {
+export function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
     case 'SET_NO_PASSWORD':
-      return { status: 'no-password', token: null }
+      return { ...state, status: 'no-password', token: null }
     case 'SET_UNAUTHENTICATED':
-      return { status: 'unauthenticated', token: null }
+      return { ...state, status: 'unauthenticated', token: null }
     case 'SET_AUTHENTICATED':
-      return { status: 'authenticated', token: action.token }
+      return { ...state, status: 'authenticated', token: action.token }
+    case 'SET_MULTI_USER':
+      return { ...state, multiUser: action.value }
     case 'LOGOUT':
       clearToken()
-      return { status: 'unauthenticated', token: null }
+      return { ...state, status: 'unauthenticated', token: null }
     default:
       return state
   }
@@ -53,7 +58,7 @@ const AuthDispatchCtx = createContext<Dispatch<AuthAction>>(() => undefined)
 import { createElement } from 'react'
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, initialState)
+  const [state, dispatch] = useReducer(authReducer, initialState)
   return createElement(
     AuthStateCtx.Provider,
     { value: state },
