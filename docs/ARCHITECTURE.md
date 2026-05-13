@@ -568,11 +568,11 @@ Login response writes `user: { id, username, displayName, role }` to `localStora
 | Captures | Split-pane list + detail (request / response / TLS tabs) | `CaptureFilterBar`; `BodyViewer` with three modes (Pretty/Raw/Hex); SSE/NDJSON stream rendering with collapsible per-event rows |
 | Devices | Device list with timeline swimlane view per device | Real-time sync via SignalR; swimlane labels resizable and ellipsis-truncated |
 | Scanner | `ScannerPanel` → `ScanJobList` + `ScanFindingsView` | Scan job progress tracking; detailed findings with severity classification |
-| Manipulation | `ManipulationPanel` → `RulesEditor` (tab: "Traffic Rules"), `BreakpointsEditor`, `ReplayPanel`, `FuzzerPanel`, `ContentRulesPanel`, `AssetLibrary`, `ApiSpecPanel` | Traffic Rules: header/body/status/delay/drop manipulation; Content Rules: binary-safe content replacement + SSE stream mocking, live host filter; Assets: upload/manage replacement files; API Spec: documentation-only (generate/import/export/refine) |
+| Manipulation | `ManipulationPanel` → `RulesEditor` (tab: "Traffic Rules"), `BreakpointsEditor`, `ReplayPanel`, `FuzzerPanel`, `ContentRulesPanel`, `AssetLibrary`, `ApiSpecPanel`, `GrpcSchemasPanel` | Traffic Rules: header/body/status/delay/drop manipulation; Content Rules: binary-safe content replacement + SSE stream mocking, live host filter; Assets: upload/manage replacement files; API Spec: documentation-only (generate/import/export/refine); gRPC Schemas: upload `.proto` files for field-name decoding |
 | Packet Capture | `PanelPacketCapture` (tabbed: Packets / Protocols / Patterns / Suspicious) | `PacketListFilterable`, `PacketInspector` (Details / Hex Dump / Layers), `ProtocolDistributionView`, `PatternExplorer`, `SuspiciousActivityPanel`; drag-drop PCAP import with progress bar |
 | Live stream | `useTrafficStream` via SignalR | New captures prepended in real time with teal glow animation; alternating row stripes; HTTP method + status color coding |
 | Sessions (Phase 15) | `SessionsPanel` → list/create/detail views | `AnnotationPanel` for per-capture notes + tags; `PresenceIndicator` with avatar chips; session export (ZIP); AirDrop sharing |
-| Admin (`/admin`, Phase 20) | `AdminPage` — role-guarded (`admin` only) | Four management tabs: **Database** (stats, purge, export), **Certificates** (CA metadata, DER/PEM download, regenerate), **Audit** (paginated log), **Users** (CRUD with safety guards) |
+| Admin (`/admin`, Phase 20) | `AdminPage` — role-guarded (`admin` only) | Five management tabs: **Database** (stats, purge, export), **Certificates** (CA metadata, DER/PEM download, regenerate), **Audit** (paginated log), **Users** (CRUD with safety guards), **Plugins** (list + admin-only reload) |
 
 ### BodyViewer (Phase 19–20)
 
@@ -615,6 +615,7 @@ frontend/src/
     useManipulation.ts
     usePacketCapture.ts      # SignalR packet stream + capture lifecycle
     usePacketAnalysis.ts     # Protocol distribution, patterns, suspicious activity
+    useFocusTrap.ts          # Tab/Shift+Tab trap for modals; auto-focuses first element
   pages/                     # SetupPage, LoginPage, DashboardPage
   components/                # layout, captures, capture-detail, proxy, devices,
                              # scanner, manipulation, common
@@ -637,6 +638,10 @@ frontend/src/
 - Border radius tokens: `sm` 5px (4→5), `lg` 10px (8→10)
 - Scrollbars: 4px width (6→4), transparent track, semi-transparent thumb
 - Focus rings: Global `:focus-visible` with teal outline
+- Modal accessibility: `useFocusTrap` hook (Tab/Shift+Tab cycles within modal, auto-focuses first element); `role="dialog"` / `aria-modal` / `aria-labelledby` on all modal inner divs; Escape handler via stable `useRef` pattern
+- ARIA tab semantics: `ManipulationPanel`, `PanelPacketCapture`, `PacketInspector` all use `role="tablist"` / `role="tab"` / `aria-selected` / `role="tabpanel"`
+- Capture list keyboard access: `RulePreviewModal` capture rows have `role="listbox"` / `role="option"` / `tabIndex={0}` / `onKeyDown` (Enter/Space)
+- CSS migrations: inline `style={{}}` with hex literals extracted to component-scoped stylesheets (`content-rules.css`, `asset-library.css`, `packet-inspector.css`); all colors use `var(--color-*)` tokens
 
 **Responsive design:**
 - Breakpoints: 480px (mobile), 768px (tablet), 1024px (desktop)
@@ -652,7 +657,7 @@ frontend/src/
 
 ## Test projects
 
-**765 backend tests** across 8 test projects + 61 frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI. Test coverage includes Phase 10 decoders, Phase 11 multi-user/TLS/tests, Phase 12 API spec generation, Phase 14 API keys, Phase 15 collaboration, Phase 20 admin/integration tests, Gaps Batch 5 (CoAP Block-wise/Observe, DNS EDNS0, WebSocket sub-protocol detection, MQTT topic statistics, rule cache), and Gaps Batch 6 (gRPC schema upload, audit write-once trigger).
+**771 backend tests** across 8 test projects + 94 frontend component tests. All passing. Coverage reported via Coverlet + ReportGenerator in CI. Test coverage includes Phase 10 decoders, Phase 11 multi-user/TLS/tests, Phase 12 API spec generation, Phase 14 API keys, Phase 15 collaboration, Phase 20 admin/integration tests, Gaps Batch 5 (CoAP Block-wise/Observe, DNS EDNS0, WebSocket sub-protocol detection, MQTT topic statistics, rule cache), Gaps Batch 6 (gRPC schema upload, audit write-once trigger), and the modal-system pass (RulePreviewModal accessibility + focus trap).
 
 | Project | Test classes | Coverage |
 |---|---|---|
