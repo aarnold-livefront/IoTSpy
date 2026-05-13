@@ -30,16 +30,16 @@ vi.mock('../components/grpc/GrpcSchemasPanel', () => ({ default: () => <div>Grpc
 describe('ManipulationPanel', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('renders all eight tab buttons', () => {
+  it('renders all eight tabs', () => {
     render(<ManipulationPanel />)
-    expect(screen.getByRole('button', { name: 'Traffic Rules' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Breakpoints' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Replay' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Fuzzer' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Content Rules' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Assets' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'API Spec' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'gRPC Schemas' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Traffic Rules' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Breakpoints' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Replay' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Fuzzer' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Content Rules' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Assets' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'API Spec' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'gRPC Schemas' })).toBeInTheDocument()
   })
 
   it('shows Traffic Rules tab content by default', () => {
@@ -49,47 +49,47 @@ describe('ManipulationPanel', () => {
 
   it('switches to Breakpoints tab on click', async () => {
     render(<ManipulationPanel />)
-    await userEvent.click(screen.getByRole('button', { name: 'Breakpoints' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Breakpoints' }))
     expect(screen.getByText('BreakpointsEditor')).toBeInTheDocument()
   })
 
   it('switches to Fuzzer tab on click', async () => {
     render(<ManipulationPanel />)
-    await userEvent.click(screen.getByRole('button', { name: 'Fuzzer' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Fuzzer' }))
     expect(screen.getByText('FuzzerPanel')).toBeInTheDocument()
   })
 
   it('switches to Content Rules tab on click', async () => {
     render(<ManipulationPanel />)
-    await userEvent.click(screen.getByRole('button', { name: 'Content Rules' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Content Rules' }))
     expect(screen.getByText('ContentRulesPanel')).toBeInTheDocument()
   })
 
   it('switches to Assets tab on click', async () => {
     render(<ManipulationPanel />)
-    await userEvent.click(screen.getByRole('button', { name: 'Assets' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Assets' }))
     expect(screen.getByText('AssetLibrary')).toBeInTheDocument()
   })
 
   it('switches to API Spec tab on click', async () => {
     render(<ManipulationPanel />)
-    await userEvent.click(screen.getByRole('button', { name: 'API Spec' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'API Spec' }))
     expect(screen.getByText('ApiSpecPanel')).toBeInTheDocument()
   })
 
   it('switches to gRPC Schemas tab on click', async () => {
     render(<ManipulationPanel />)
-    await userEvent.click(screen.getByRole('button', { name: 'gRPC Schemas' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'gRPC Schemas' }))
     expect(screen.getByText('GrpcSchemasPanel')).toBeInTheDocument()
   })
 
   it('marks the active tab with the active CSS class', async () => {
     render(<ManipulationPanel />)
-    const trafficBtn = screen.getByRole('button', { name: 'Traffic Rules' })
+    const trafficBtn = screen.getByRole('tab', { name: 'Traffic Rules' })
     expect(trafficBtn.className).toContain('manip-tab--active')
 
-    await userEvent.click(screen.getByRole('button', { name: 'Breakpoints' }))
-    const bpBtn = screen.getByRole('button', { name: 'Breakpoints' })
+    await userEvent.click(screen.getByRole('tab', { name: 'Breakpoints' }))
+    const bpBtn = screen.getByRole('tab', { name: 'Breakpoints' })
     expect(bpBtn.className).toContain('manip-tab--active')
     expect(trafficBtn.className).not.toContain('manip-tab--active')
   })
