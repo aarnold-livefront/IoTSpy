@@ -70,11 +70,8 @@ public class PacketCaptureCheckpointServiceTests
         var persisted = new[] { MakePacket(1), MakePacket(2) };
         var (svc, _, buffer) = BuildSut(maxIndex: 2, recent: persisted);
 
-        using var cts = new CancellationTokenSource();
-        var task = svc.StartAsync(cts.Token);
-        await Task.Delay(50);
-        await cts.CancelAsync();
-        try { await task; } catch (OperationCanceledException) { }
+        await svc.StartAsync(TestContext.Current.CancellationToken);
+        await svc.StopAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(2, buffer.Count);
     }
@@ -87,11 +84,9 @@ public class PacketCaptureCheckpointServiceTests
         buffer.Add(MakePacket(1));
         buffer.Add(MakePacket(2));
 
-        using var cts = new CancellationTokenSource();
-        _ = svc.StartAsync(cts.Token);
-        await Task.Delay(2_500);
-        await cts.CancelAsync();
-        await svc.StopAsync(CancellationToken.None);
+        _ = svc.StartAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(2_500, TestContext.Current.CancellationToken);
+        await svc.StopAsync(TestContext.Current.CancellationToken);
 
         repoMock.Verify(
             r => r.AddRangeAsync(
@@ -109,11 +104,9 @@ public class PacketCaptureCheckpointServiceTests
         buffer.Add(MakePacket(4));
         buffer.Add(MakePacket(6));
 
-        using var cts = new CancellationTokenSource();
-        _ = svc.StartAsync(cts.Token);
-        await Task.Delay(2_500);
-        await cts.CancelAsync();
-        await svc.StopAsync(CancellationToken.None);
+        _ = svc.StartAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(2_500, TestContext.Current.CancellationToken);
+        await svc.StopAsync(TestContext.Current.CancellationToken);
 
         repoMock.Verify(
             r => r.AddRangeAsync(
@@ -130,11 +123,9 @@ public class PacketCaptureCheckpointServiceTests
         buffer.Add(MakePacket(1));
         buffer.Add(MakePacket(2));
 
-        using var cts = new CancellationTokenSource();
-        _ = svc.StartAsync(cts.Token);
-        await Task.Delay(2_500);
-        await cts.CancelAsync();
-        await svc.StopAsync(CancellationToken.None);
+        _ = svc.StartAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(2_500, TestContext.Current.CancellationToken);
+        await svc.StopAsync(TestContext.Current.CancellationToken);
 
         repoMock.Verify(
             r => r.AddRangeAsync(
@@ -156,11 +147,9 @@ public class PacketCaptureCheckpointServiceTests
         // Explicit reset called by StartCaptureAsync when a new capture session begins.
         svc.ResetFlushWatermark();
 
-        using var cts = new CancellationTokenSource();
-        _ = svc.StartAsync(cts.Token);
-        await Task.Delay(2_500);
-        await cts.CancelAsync();
-        await svc.StopAsync(CancellationToken.None);
+        _ = svc.StartAsync(TestContext.Current.CancellationToken);
+        await Task.Delay(2_500, TestContext.Current.CancellationToken);
+        await svc.StopAsync(TestContext.Current.CancellationToken);
 
         // Both packets must have been flushed (reset unblocked them).
         repoMock.Verify(
