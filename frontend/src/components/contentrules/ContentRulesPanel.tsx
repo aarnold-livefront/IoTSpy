@@ -51,14 +51,14 @@ function AssetPickerModal({ onClose, onPick }: AssetPickerModalProps) {
     <div
       className="modal-overlay"
       onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="asset-picker-title"
     >
       <div
         ref={dialogRef}
         className="modal asset-picker-modal"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="asset-picker-title"
       >
         <div className="modal__header">
           <span className="modal__title" id="asset-picker-title">Pick an asset</span>
