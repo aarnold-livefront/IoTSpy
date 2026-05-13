@@ -132,12 +132,39 @@ namespace IoTSpy.Storage.Repositories
 
         public async Task ClearAllAsync(Guid deviceId)
         {
-            var packets = await GetByDeviceIdAsync(deviceId, limit: null);
-            foreach (var packet in packets)
-            {
-                _context.Packets.Remove(packet);
-            }
-            await _context.SaveChangesAsync();
+            await _context.Packets
+                .Where(p => p.DeviceId == deviceId)
+                .ExecuteDeleteAsync();
+        }
+
+        public async Task AddRangeAsync(IEnumerable<CapturedPacket> packets, CancellationToken ct = default)
+        {
+            await _context.Packets.AddRangeAsync(packets, ct);
+            await _context.SaveChangesAsync(ct);
+        }
+
+        public async Task<long> GetMaxCaptureIndexAsync(CancellationToken ct = default)
+        {
+            if (!await _context.Packets.AnyAsync(ct))
+                return 0L;
+            return await _context.Packets.MaxAsync(p => p.CaptureIndex, ct);
+        }
+
+        public async Task<IReadOnlyList<CapturedPacket>> GetRecentAsync(int limit, CancellationToken ct = default)
+        {
+            // Fetch most-recent by CaptureIndex descending, then reverse so callers
+            // get oldest-first (matching Add() order for ring buffer restoration).
+            var rows = await _context.Packets
+                .OrderByDescending(p => p.CaptureIndex)
+                .Take(limit)
+                .ToListAsync(ct);
+            rows.Reverse();
+            return rows;
+        }
+
+        public async Task DeleteAllAsync(CancellationToken ct = default)
+        {
+            await _context.Packets.ExecuteDeleteAsync(ct);
         }
     }
 }
