@@ -1,0 +1,175 @@
+.pi-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.pi-header {
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.pi-header__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.pi-header__title {
+  margin: 0;
+  font-size: var(--font-size-md);
+}
+
+.pi-header__close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  color: var(--color-text);
+  line-height: 1;
+  padding: 0;
+}
+
+.pi-tabs {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+
+.pi-tab {
+  padding: 4px 12px;
+  background: transparent;
+  color: var(--color-text-muted);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.pi-tab--active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.pi-body {
+  flex: 1;
+  overflow-y: auto;
+}
+
+/* ── Details view ─────────────────────────────────────────────── */
+
+.pi-details {
+  padding: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.pi-details__row {
+  margin-bottom: var(--space-2);
+}
+
+.pi-section {
+  margin-bottom: var(--space-3);
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+}
+
+.pi-section h4 {
+  margin: 0 0 var(--space-2) 0;
+}
+
+.pi-network-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: var(--space-2);
+}
+
+.pi-network-grid__arrow {
+  text-align: center;
+  opacity: 0.5;
+  align-self: center;
+}
+
+.pi-flag--error {
+  color: var(--color-danger);
+  margin-top: var(--space-1);
+}
+
+.pi-flag--retransmission {
+  color: var(--color-warning);
+  margin-top: var(--space-1);
+}
+
+.pi-payload {
+  margin-bottom: var(--space-3);
+  padding: var(--space-2);
+  background: var(--color-surface-2);
+  border-radius: var(--radius-sm);
+}
+
+.pi-payload h4 {
+  margin: 0 0 var(--space-2) 0;
+}
+
+.pi-payload__pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.pi-no-payload {
+  padding: var(--space-2);
+  background: var(--color-surface-2);
+  border-radius: var(--radius-sm);
+}
+
+/* ── Loading / empty states ───────────────────────────────────── */
+
+.pi-loading,
+.pi-empty {
+  padding: var(--space-6);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+/* ── Hex dump view ────────────────────────────────────────────── */
+
+.pi-hex-pre {
+  padding: var(--space-3);
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  white-space: pre;
+  overflow-x: auto;
+}
+
+/* ── Layers view ──────────────────────────────────────────────── */
+
+.pi-layers {
+  padding: var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.pi-layer {
+  margin-bottom: var(--space-3);
+  padding: var(--space-2);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+}
+
+.pi-layer h4 {
+  margin: 0 0 var(--space-2) 0;
+}
+
+.pi-layer__pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
