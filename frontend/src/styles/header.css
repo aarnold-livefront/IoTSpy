@@ -197,7 +197,6 @@
 
 /* ── Mobile breakpoint ≤640px ────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  .header__logo-text         { display: none; }
   .proxy-status-badge__label { display: none; }
   .header__btn-label         { display: none; }
   .header__btn--desktop      { display: none; }
