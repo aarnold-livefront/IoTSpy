@@ -144,28 +144,17 @@ public class PacketCaptureCheckpointServiceTests
     }
 
     [Fact]
-    public void ResetFlushWatermark_SetsWatermarkToZero()
+    public async Task ResetFlushWatermark_UnblocksPacketsBelowStaleWatermark()
     {
-        // Arrange — build with non-zero watermark (recovered from DB on StartAsync)
-        var (svc, _, _) = BuildSut(maxIndex: 500);
+        // Watermark starts at 50 (simulates previous session that flushed up to index 50).
+        var (svc, repoMock, buffer) = BuildSut(maxIndex: 50);
 
-        // Act — reset before any recovery (simulates StartCaptureAsync signal)
-        svc.ResetFlushWatermark();
-
-        // Assert — structural: method exists, is public, and does not throw.
-        Assert.True(true);
-    }
-
-    [Fact]
-    public async Task ResetFlushWatermark_AllowsPacketsBelowOldWatermarkToFlush()
-    {
-        var (svc, repoMock, buffer) = BuildSut(maxIndex: 0); // clean start
-
+        // New session: packets start at index 1 (below watermark — would normally be skipped).
         buffer.Add(MakePacket(1));
         buffer.Add(MakePacket(2));
 
-        // Simulate high watermark from a previous session, then explicit reset
-        svc.ResetFlushWatermark(); // called by StartCaptureAsync when new session begins
+        // Explicit reset called by StartCaptureAsync when a new capture session begins.
+        svc.ResetFlushWatermark();
 
         using var cts = new CancellationTokenSource();
         _ = svc.StartAsync(cts.Token);
@@ -173,6 +162,7 @@ public class PacketCaptureCheckpointServiceTests
         await cts.CancelAsync();
         await svc.StopAsync(CancellationToken.None);
 
+        // Both packets must have been flushed (reset unblocked them).
         repoMock.Verify(
             r => r.AddRangeAsync(
                 It.Is<IEnumerable<CapturedPacket>>(pkts => pkts.Count() == 2),
