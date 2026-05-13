@@ -17,7 +17,7 @@ export interface AuthState {
   multiUser: boolean
 }
 
-const initialState: AuthState = {
+export const initialState: AuthState = {
   status: 'unknown',
   token: null,
   multiUser: false,

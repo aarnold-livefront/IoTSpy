@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { authReducer } from '../store/authStore'
+import { authReducer, initialState } from '../store/authStore'
 import type { AuthState } from '../store/authStore'
 
 const base: AuthState = { status: 'unauthenticated', token: null, multiUser: false }
@@ -18,7 +18,6 @@ describe('authReducer — SET_MULTI_USER', () => {
   })
 
   it('initial multiUser is false', () => {
-    const next = authReducer(base, { type: 'SET_MULTI_USER', value: false })
-    expect(next.multiUser).toBe(false)
+    expect(initialState.multiUser).toBe(false)
   })
 })
