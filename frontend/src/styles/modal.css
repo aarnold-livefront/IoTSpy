@@ -253,6 +253,11 @@
   margin-bottom: 2px;
 }
 
+.preview-modal__capture-search {
+  width: 100%;
+  margin-bottom: var(--space-2);
+}
+
 .preview-modal__capture-list {
   max-height: 200px;
   overflow-y: auto;
