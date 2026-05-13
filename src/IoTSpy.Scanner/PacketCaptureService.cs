@@ -28,6 +28,7 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IPacketCapturePublisher _publisher;
     private readonly IPacketBuffer _buffer;
+    private readonly PacketCaptureCheckpointService _checkpoint;
     private readonly ILogger<PacketCaptureService> _logger;
 
     private ILiveDevice? _activeDevice;
@@ -50,11 +51,13 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
         IServiceScopeFactory scopeFactory,
         IPacketCapturePublisher publisher,
         IPacketBuffer buffer,
+        PacketCaptureCheckpointService checkpoint,
         ILogger<PacketCaptureService> logger)
     {
         _scopeFactory = scopeFactory;
         _publisher = publisher;
         _buffer = buffer;
+        _checkpoint = checkpoint;
         _logger = logger;
     }
 
@@ -206,6 +209,7 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
             }
 
             _buffer.Clear();
+            _checkpoint.ResetFlushWatermark();
             _activeDeviceId = deviceId;
             Interlocked.Exchange(ref _captureIndex, 0);
 
@@ -418,6 +422,7 @@ public sealed class PacketCaptureService : IPacketCaptureService, IDisposable
             using var scope = _scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<IPacketRepository>();
             await repo.DeleteAllAsync();
+            _checkpoint.ResetFlushWatermark();
         }
         catch (Exception ex)
         {

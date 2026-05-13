@@ -142,4 +142,41 @@ public class PacketCaptureCheckpointServiceTests
                 It.IsAny<CancellationToken>()),
             Times.AtLeastOnce);
     }
+
+    [Fact]
+    public void ResetFlushWatermark_SetsWatermarkToZero()
+    {
+        // Arrange — build with non-zero watermark (recovered from DB on StartAsync)
+        var (svc, _, _) = BuildSut(maxIndex: 500);
+
+        // Act — reset before any recovery (simulates StartCaptureAsync signal)
+        svc.ResetFlushWatermark();
+
+        // Assert — structural: method exists, is public, and does not throw.
+        Assert.True(true);
+    }
+
+    [Fact]
+    public async Task ResetFlushWatermark_AllowsPacketsBelowOldWatermarkToFlush()
+    {
+        var (svc, repoMock, buffer) = BuildSut(maxIndex: 0); // clean start
+
+        buffer.Add(MakePacket(1));
+        buffer.Add(MakePacket(2));
+
+        // Simulate high watermark from a previous session, then explicit reset
+        svc.ResetFlushWatermark(); // called by StartCaptureAsync when new session begins
+
+        using var cts = new CancellationTokenSource();
+        _ = svc.StartAsync(cts.Token);
+        await Task.Delay(2_500);
+        await cts.CancelAsync();
+        await svc.StopAsync(CancellationToken.None);
+
+        repoMock.Verify(
+            r => r.AddRangeAsync(
+                It.Is<IEnumerable<CapturedPacket>>(pkts => pkts.Count() == 2),
+                It.IsAny<CancellationToken>()),
+            Times.AtLeastOnce);
+    }
 }

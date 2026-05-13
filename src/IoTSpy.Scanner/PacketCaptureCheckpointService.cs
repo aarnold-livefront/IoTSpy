@@ -22,10 +22,18 @@ public sealed class PacketCaptureCheckpointService : BackgroundService
         _logger = logger;
     }
 
+    /// <summary>Signals that the capture index was reset; next flush will re-scan from zero.</summary>
+    public void ResetFlushWatermark() =>
+        Interlocked.Exchange(ref _lastFlushedIndex, 0L);
+
+    public override async Task StartAsync(CancellationToken cancellationToken)
+    {
+        await RecoverFromDatabaseAsync(cancellationToken);
+        await base.StartAsync(cancellationToken);
+    }
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await RecoverFromDatabaseAsync(stoppingToken);
-
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
@@ -40,7 +48,7 @@ public sealed class PacketCaptureCheckpointService : BackgroundService
             using var scope = _scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<IPacketRepository>();
 
-            _lastFlushedIndex = await repo.GetMaxCaptureIndexAsync(ct);
+            Interlocked.Exchange(ref _lastFlushedIndex, await repo.GetMaxCaptureIndexAsync(ct));
             var recent = await repo.GetRecentAsync(_buffer.Capacity, ct);
 
             foreach (var pkt in recent)
@@ -49,7 +57,7 @@ public sealed class PacketCaptureCheckpointService : BackgroundService
             if (recent.Count > 0)
                 _logger.LogInformation(
                     "PacketCaptureCheckpoint: recovered {Count} packets from DB (max index {Max})",
-                    recent.Count, _lastFlushedIndex);
+                    recent.Count, Interlocked.Read(ref _lastFlushedIndex));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -62,12 +70,14 @@ public sealed class PacketCaptureCheckpointService : BackgroundService
         var snapshot = _buffer.Snapshot();
         if (snapshot.Length == 0) return;
 
+        long lastFlushed = Interlocked.Read(ref _lastFlushedIndex);
+
         // Detect capture-index reset (new session started without clearing DB watermark).
         long maxInBuffer = snapshot.Max(p => p.CaptureIndex);
-        if (maxInBuffer < _lastFlushedIndex)
-            _lastFlushedIndex = 0;
+        if (maxInBuffer < lastFlushed)
+            Interlocked.Exchange(ref _lastFlushedIndex, lastFlushed = 0);
 
-        var toFlush = snapshot.Where(p => p.CaptureIndex > _lastFlushedIndex).ToList();
+        var toFlush = snapshot.Where(p => p.CaptureIndex > lastFlushed).ToList();
         if (toFlush.Count == 0) return;
 
         try
@@ -75,7 +85,7 @@ public sealed class PacketCaptureCheckpointService : BackgroundService
             using var scope = _scopeFactory.CreateScope();
             var repo = scope.ServiceProvider.GetRequiredService<IPacketRepository>();
             await repo.AddRangeAsync(toFlush, ct);
-            _lastFlushedIndex = toFlush.Max(p => p.CaptureIndex);
+            Interlocked.Exchange(ref _lastFlushedIndex, toFlush.Max(p => p.CaptureIndex));
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
