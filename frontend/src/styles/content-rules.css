@@ -1,0 +1,101 @@
+/* frontend/src/styles/content-rules.css */
+
+.cr-panel {
+  padding: var(--space-4);
+}
+
+.cr-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+}
+
+.cr-panel__loading {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.cr-host-filter {
+  margin-bottom: var(--space-3);
+}
+
+.cr-host-filter input {
+  width: 100%;
+  max-width: 400px;
+}
+
+.cr-error {
+  padding: var(--space-2);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-2);
+  font-size: var(--font-size-sm);
+}
+
+.cr-add-form {
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.cr-add-form__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.cr-add-form__full {
+  grid-column: 1 / -1;
+}
+
+.cr-add-form__hint {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
+}
+
+.cr-add-form input,
+.cr-add-form select {
+  width: 100%;
+}
+
+.cr-add-form__file-row {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.cr-add-form__file-row input {
+  flex: 1;
+}
+
+.cr-add-form__sse-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--space-4);
+  font-size: var(--font-size-sm);
+}
+
+.cr-add-form__actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.cr-table {
+  width: 100%;
+  margin-top: var(--space-2);
+  font-size: var(--font-size-md);
+}
+
+.cr-table__empty {
+  text-align: center;
+  color: var(--color-text-faint);
+  padding: var(--space-4);
+}

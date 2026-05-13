@@ -51,12 +51,12 @@ vi.mock('../components/packet-capture/SuspiciousActivityPanel', () => ({ default
 describe('PanelPacketCapture', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('renders all four analysis tab buttons', () => {
+  it('renders all four analysis tabs', () => {
     render(<PanelPacketCapture />)
-    expect(screen.getByRole('button', { name: 'Packets' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Protocols' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Patterns' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Suspicious' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Packets' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Protocols' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Patterns' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Suspicious' })).toBeInTheDocument()
   })
 
   it('shows the packet list by default', () => {
@@ -66,19 +66,19 @@ describe('PanelPacketCapture', () => {
 
   it('switches to Protocols tab on click', async () => {
     render(<PanelPacketCapture />)
-    await userEvent.click(screen.getByRole('button', { name: 'Protocols' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Protocols' }))
     expect(screen.getByText('ProtocolDistribution')).toBeInTheDocument()
   })
 
   it('switches to Patterns tab on click', async () => {
     render(<PanelPacketCapture />)
-    await userEvent.click(screen.getByRole('button', { name: 'Patterns' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Patterns' }))
     expect(screen.getByText('PatternExplorer')).toBeInTheDocument()
   })
 
   it('switches to Suspicious tab on click', async () => {
     render(<PanelPacketCapture />)
-    await userEvent.click(screen.getByRole('button', { name: 'Suspicious' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Suspicious' }))
     expect(screen.getByText('SuspiciousActivity')).toBeInTheDocument()
   })
 

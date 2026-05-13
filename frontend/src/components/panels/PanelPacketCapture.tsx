@@ -211,10 +211,14 @@ export default function PanelPacketCapture() {
       </div>
 
       <div className="ppc-main">
-        <div className="ppc-tabs">
+        <div className="ppc-tabs" role="tablist" aria-label="Packet analysis views">
           {tabs.map(tab => (
             <button
               key={tab.key}
+              role="tab"
+              aria-selected={activeTab === tab.key}
+              aria-controls={`ppc-tabpanel-${tab.key}`}
+              id={`ppc-tab-${tab.key}`}
               onClick={() => setActiveTab(tab.key)}
               className={`ppc-tab${activeTab === tab.key ? ' ppc-tab--active' : ''}`}
             >
@@ -226,30 +230,36 @@ export default function PanelPacketCapture() {
           ))}
         </div>
 
-        {activeTab === 'packets' && (
-          <PacketListFilterable
-            packets={packets}
-            isCapturing={isCapturing}
-            selectedPacket={selectedPacket}
-            onSelect={setSelectedPacket}
-            freezeFrame={selectedPacket !== null}
-          />
-        )}
-        {activeTab === 'protocols' && (
-          <div className="ppc-tab-content">
-            <ProtocolDistributionView distribution={analysis.protocolDistribution} loading={analysis.loading} />
-          </div>
-        )}
-        {activeTab === 'patterns' && (
-          <div className="ppc-tab-content">
-            <PatternExplorer patterns={analysis.patterns} loading={analysis.loading} />
-          </div>
-        )}
-        {activeTab === 'suspicious' && (
-          <div className="ppc-tab-content">
-            <SuspiciousActivityPanel activities={analysis.suspicious} loading={analysis.loading} />
-          </div>
-        )}
+        <div
+          role="tabpanel"
+          id={`ppc-tabpanel-${activeTab}`}
+          aria-labelledby={`ppc-tab-${activeTab}`}
+        >
+          {activeTab === 'packets' && (
+            <PacketListFilterable
+              packets={packets}
+              isCapturing={isCapturing}
+              selectedPacket={selectedPacket}
+              onSelect={setSelectedPacket}
+              freezeFrame={selectedPacket !== null}
+            />
+          )}
+          {activeTab === 'protocols' && (
+            <div className="ppc-tab-content">
+              <ProtocolDistributionView distribution={analysis.protocolDistribution} loading={analysis.loading} />
+            </div>
+          )}
+          {activeTab === 'patterns' && (
+            <div className="ppc-tab-content">
+              <PatternExplorer patterns={analysis.patterns} loading={analysis.loading} />
+            </div>
+          )}
+          {activeTab === 'suspicious' && (
+            <div className="ppc-tab-content">
+              <SuspiciousActivityPanel activities={analysis.suspicious} loading={analysis.loading} />
+            </div>
+          )}
+        </div>
       </div>
 
       {selectedPacket && activeTab === 'packets' && (

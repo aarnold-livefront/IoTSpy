@@ -207,3 +207,187 @@
 .modal--sm {
   max-width: 360px;
 }
+
+/* ── Preview Modal (RulePreviewModal) ──────────────────────────── */
+
+.preview-modal {
+  max-width: min(760px, 96vw);
+  max-height: 92vh;
+}
+
+.preview-modal__mode-toggle {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.preview-modal__mode-btn {
+  padding: var(--space-1) 14px;
+  font-size: var(--font-size-sm);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.preview-modal__mode-btn--active {
+  background: var(--color-surface-3);
+  color: var(--color-text);
+}
+
+.preview-modal__form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.preview-modal__form-grid--full {
+  grid-column: 1 / -1;
+}
+
+.preview-modal__form-hint {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  margin-bottom: 2px;
+}
+
+.preview-modal__capture-search {
+  width: 100%;
+  margin-bottom: var(--space-2);
+}
+
+.preview-modal__capture-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+}
+
+.preview-modal__capture-empty {
+  padding: var(--space-3);
+  color: var(--color-text-faint);
+}
+
+.preview-modal__loading {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.preview-modal__capture-item {
+  padding: 6px var(--space-3);
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-surface-2);
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.preview-modal__capture-item:hover,
+.preview-modal__capture-item:focus {
+  background: var(--color-surface-2);
+  outline: none;
+}
+
+.preview-modal__capture-item--selected {
+  background: var(--color-surface-3);
+}
+
+.preview-modal__method-badge {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: var(--color-surface-3);
+  color: #c084fc;
+  flex-shrink: 0;
+}
+
+.preview-modal__capture-host {
+  color: var(--color-text);
+  flex-shrink: 0;
+}
+
+.preview-modal__capture-path {
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preview-modal__capture-status {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  flex-shrink: 0;
+}
+
+.preview-modal__capture-status--ok   { color: #86efac; }
+.preview-modal__capture-status--err  { color: #fca5a5; }
+
+.preview-modal__capture-summary {
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.preview-modal__actions {
+  margin-top: var(--space-3);
+}
+
+.preview-modal__result-meta {
+  font-size: var(--font-size-md);
+  margin-bottom: var(--space-2);
+}
+
+.preview-modal__warnings {
+  padding: var(--space-2);
+  background: var(--color-surface-2);
+  border-left: 3px solid var(--color-warning);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-2);
+}
+
+.preview-modal__warnings ul {
+  margin: var(--space-1) 0 0 var(--space-4);
+}
+
+.preview-modal__summary-detail {
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.preview-modal__pre {
+  font-size: var(--font-size-xs);
+  margin: var(--space-1) 0 0 0;
+  padding: var(--space-2);
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  max-height: 120px;
+  overflow: auto;
+}
+
+.preview-modal__pre--body {
+  max-height: 240px;
+  white-space: pre-wrap;
+}
+
+.preview-modal__binary-note {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  padding: var(--space-2);
+}
+
+/* ── Asset Picker Modal ─────────────────────────────────────────── */
+
+.asset-picker-modal {
+  max-width: min(720px, 94vw);
+  max-height: 90vh;
+}
