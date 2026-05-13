@@ -132,12 +132,9 @@ namespace IoTSpy.Storage.Repositories
 
         public async Task ClearAllAsync(Guid deviceId)
         {
-            var packets = await GetByDeviceIdAsync(deviceId, limit: null);
-            foreach (var packet in packets)
-            {
-                _context.Packets.Remove(packet);
-            }
-            await _context.SaveChangesAsync();
+            await _context.Packets
+                .Where(p => p.DeviceId == deviceId)
+                .ExecuteDeleteAsync();
         }
 
         public async Task AddRangeAsync(IEnumerable<CapturedPacket> packets, CancellationToken ct = default)

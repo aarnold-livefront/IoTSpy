@@ -93,4 +93,32 @@ public class PacketRepositoryTests : IDisposable
 
         Assert.Equal(0, _db.Packets.Count());
     }
+
+    [Fact]
+    public async Task ClearAllAsync_RemovesOnlyPacketsForSpecifiedDevice()
+    {
+        var repo = new CaptureDeviceRepository(_db);
+        var otherDevice = new CaptureDevice
+        {
+            Id = Guid.NewGuid(),
+            Name = "eth1",
+            DisplayName = "Other Device",
+            MacAddress = string.Empty,
+            IpAddress = string.Empty,
+        };
+        _db.CaptureDevices.Add(otherDevice);
+        await _db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var pkt1 = MakePacket(1);            // belongs to _deviceId
+        var pkt2 = MakePacket(2);            // belongs to _deviceId
+        var pkt3 = MakePacket(3);            // belongs to otherDevice
+        pkt3.DeviceId = otherDevice.Id;
+
+        await repo.AddRangeAsync(new[] { pkt1, pkt2, pkt3 }, TestContext.Current.CancellationToken);
+
+        await repo.ClearAllAsync(_deviceId);
+
+        Assert.Equal(0, _db.Packets.Count(p => p.DeviceId == _deviceId));
+        Assert.Equal(1, _db.Packets.Count(p => p.DeviceId == otherDevice.Id));
+    }
 }
