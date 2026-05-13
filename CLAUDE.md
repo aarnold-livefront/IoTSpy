@@ -89,7 +89,7 @@ See `.dev/claude-skills/README.md` for full details.
 ## Current state
 
 All phases 1–16, 18–22 plus API & Backend Polish, Frontend Usability enhancements, Gaps Batches 4, 5, and 6 are complete:
-- 765 backend tests across 8 test projects; 61 frontend component tests; Playwright E2E suite (auth, captures, dashboard, manipulation)
+- 771 backend tests across 8 test projects; 94 frontend component tests; Playwright E2E suite (auth, captures, dashboard, manipulation)
 - 20 REST controllers, 192 endpoints (added `ProtoSchemasController`)
 - 22 EF Core migrations up through `AuditWriteOnceTrigger`
 - GitHub Actions CI at `.github/workflows/ci.yml`

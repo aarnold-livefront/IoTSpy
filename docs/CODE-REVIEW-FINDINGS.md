@@ -12,14 +12,14 @@ Severity legend: **Critical** = ship blocker · **High** = next-sprint · **Medi
 
 | State | Count | Items |
 |---|---|---|
-| ✅ Completed | 24 | #1, #2, #3, #5, #6, #7, #9, #10, #11, #12, #14, #15, #17, #18, #19, #22, #23, #24, #25, #26, #27, #28, #47 + #20 partial |
+| ✅ Completed | 28 | #1, #2, #3, #5, #6, #7, #9, #10, #11, #12, #14, #15, #17, #18, #19, #20, #21, #22, #23, #24, #25, #26, #27, #28, #47, #49, #50 |
 | ⏳ In-flight (open PR) | 0 | — |
 | 🟥 Critical remaining | 2 | #4, #8 |
-| 🟧 High remaining | 4 | #13, #16, #20 (modal remainder), #21 |
-| 🟨 Medium remaining | 22 | #29–#46, #48–#50 |
+| 🟧 High remaining | 2 | #13, #16 |
+| 🟨 Medium remaining | 20 | #29–#46, #48 |
 | 🟩 Low remaining | 9 | #51–#59 |
 
-PR history that closed items: **#59** (day-0 hotfixes), **#60** (doc accuracy), **#61** (test backfill), **#62** (responsive pass), **#63** (security hardening).
+PR history that closed items: **#59** (day-0 hotfixes), **#60** (doc accuracy), **#61** (test backfill), **#62** (responsive pass), **#63** (security hardening), **#66** (modal system: #20, #21, #49, #50).
 
 ---
 
@@ -42,16 +42,6 @@ PR history that closed items: **#59** (day-0 hotfixes), **#60** (doc accuracy), 
 **13. Replay/Fuzzer silently bypass TLS validation** — `ManipulationExtensions.cs:41-44, :51-53` set `ServerCertificateCustomValidationCallback => true` per named-client (always-on), not per-request. Make it an opt-in `BypassTlsValidation` flag on `StartReplayDto` / `StartFuzzerDto` with audit-log warning. Surface the toggle in the Replay/Fuzzer UI.
 
 **16. No code signing on plugin loader** — `PluginLoaderService` loads arbitrary `.dll`s with no hash/signature check. At minimum, document the trust boundary in the admin UI; better, require a manifest with SHA-256 and check against an allowlist. Decision needed on key-mgmt approach before implementation.
-
-### Frontend modal system (the "modal system PR" deferred from #62)
-
-**20 (remainder). Inline-styled modals — RulePreviewModal, ContentRulesPanel modal, AssetLibrary, PacketInspector body** — three of the seven Batch-6 components were migrated in PR #62 (`PluginsTab`, `ProtocolProxyPanel`, `GrpcSchemasPanel`); these four remain. Each is a 200–300 line component restyle: extract every `style={{}}` to a component-scoped CSS module, replace hardcoded hex literals with `var(--color-*)`, and add CSS classes the responsive media queries can reach.
-
-**21. No focus trap in any modal** — `RulePreviewModal`, inline `ContentRulesPanel` modal, `AssetLibrary` picker. Tab leaks focus to background. Use native `<dialog>` element or set `inert` on `.app-main` when a modal is open. Best done together with #20 remainder since the same files are touched.
-
-**49. Tab-button groups lack ARIA tab semantics** — `PacketInspector`, `ManipulationPanel`, `PanelPacketCapture` use plain `<button>` without `role="tab"` / `aria-selected` / `role="tablist"`. Add roles. Bundle with #21 if the modal-system PR also touches these tab groups.
-
-**50. Clickable `<div>` rows in `RulePreviewModal` capture list** — no keyboard access. Add `tabIndex={0}`, `role="option"`, `onKeyDown` (Enter/Space), wrap list in `role="listbox"`. Also belongs in the modal-system PR.
 
 ---
 
@@ -159,6 +149,10 @@ Each entry includes the closing PR. Use `gh pr view <num>` for the full diff and
 - **#23 — `ScannerPanel` body lacked base flex declarations** [PR #62] — base rules added to `scanner.css`; responsive override now has something to override.
 - **#24 — Admin tabs (6) clipped on mobile** [PR #62] — `overflow-x: auto` + `flex-shrink: 0` in mobile breakpoint.
 - **#25 — `PluginsTab` table missing `admin-table-wrap`** [PR #62] — table wrapped; assembly-path `<code>` no longer overflows page.
+- **#20 (complete) — Inline-styled modals** [PR #66] — `RulePreviewModal`, `ContentRulesPanel` modal, `AssetLibrary`, `PacketInspector` fully migrated: component-scoped CSS files (`modal.css` extensions, `content-rules.css`, `asset-library.css`, `packet-inspector.css`), all `style={{}}` with hex literals replaced by `var(--color-*)` tokens.
+- **#21 — Focus traps in modals** [PR #66] — new `useFocusTrap` hook (Tab/Shift+Tab cycles within container, auto-focuses first element on open); applied to `RulePreviewModal`, `AssetPickerModal` inside `ContentRulesPanel`. Escape handler uses stable `useRef` pattern.
+- **#49 — Tab groups lack ARIA semantics** [PR #66] — `PacketInspector`, `ManipulationPanel`, `PanelPacketCapture` now have `role="tablist"` / `role="tab"` / `aria-selected` / `aria-controls` / `role="tabpanel"`. Tests updated to query `role="tab"`.
+- **#50 — Capture list rows not keyboard-accessible** [PR #66] — `RulePreviewModal` capture list rows: `role="listbox"` container, each row has `role="option"` + `aria-selected` + `tabIndex={0}` + `onKeyDown` Enter/Space handler.
 
 ### High doc accuracy (3 of 3)
 
@@ -176,33 +170,31 @@ Each entry includes the closing PR. Use `gh pr view <num>` for the full diff and
 
 The original sequencing has been followed; remaining PRs in priority order:
 
-1. **Modal system PR** — bundle #20 (remainder), #21, #49, #50. The four big modals all need ARIA roles, focus trap, and inline-style → CSS-module migration done together since they touch the same files. Estimated 600–900 lines of churn across four components + new `modal.css` infrastructure.
+1. **Crash resilience PR** — #8 alone. New `PacketCaptureCheckpointService` (or fold into existing `PacketCaptureService`) that batch-flushes the ring buffer to the `Packets` table on a 1-second cadence. Decide upfront: synchronous write-then-broadcast, or async durable buffer. Affects `PacketCaptureService`, possibly `Packets` table indices, and the integration test suite.
 
-2. **Crash resilience PR** — #8 alone. New `PacketCaptureCheckpointService` (or fold into existing `PacketCaptureService`) that batch-flushes the ring buffer to the `Packets` table on a 1-second cadence. Decide upfront: synchronous write-then-broadcast, or async durable buffer. Affects `PacketCaptureService`, possibly `Packets` table indices, and the integration test suite.
+2. **Scope-enforcement + consent gate PR** — bundle #4 + #45. They share the onboarding-wizard UX and the audit-log surface. New `ScanScope` model + repo, CIDR allowlist enforcement at `ScannerService.StartScanAsync` boundary, and an "I am authorized to test this network" acknowledgment step. Largest design surface of all remaining items — consider a design doc first.
 
-3. **Scope-enforcement + consent gate PR** — bundle #4 + #45. They share the onboarding-wizard UX and the audit-log surface. New `ScanScope` model + repo, CIDR allowlist enforcement at `ScannerService.StartScanAsync` boundary, and an "I am authorized to test this network" acknowledgment step. Largest design surface of all remaining items — consider a design doc first.
+3. **Replay/Fuzzer TLS opt-in PR** — #13. DTO field, controller parse, audit-log emit, UI checkbox. Smaller than it looks.
 
-4. **Replay/Fuzzer TLS opt-in PR** — #13. DTO field, controller parse, audit-log emit, UI checkbox. Smaller than it looks.
+4. **Incomplete-feature bundle (medium)** — #29 (HAR headers), #30 + #31 (config round-trip), #32 (scheduled-scan history), #34 (ProtoParser System.Text.Json), #35 (storage estimates). All small, all safe; consider a single "polish" PR or split per concern.
 
-5. **Incomplete-feature bundle (medium)** — #29 (HAR headers), #30 + #31 (config round-trip), #32 (scheduled-scan history), #34 (ProtoParser System.Text.Json), #35 (storage estimates). All small, all safe; consider a single "polish" PR or split per concern.
-
-6. **User-story PRs (medium, high-value)** — pick one per persona-PR:
+5. **User-story PRs (medium, high-value)** — pick one per persona-PR:
    - Researcher: #36 (capture-to-curl), #39 (body search), #55 (capture diff)
    - Pen-tester: #38 (replay base URL), #57 (CVSS override), #56 (project concept)
    - Developer: #37 (HAR import)
    - Admin: #41 (UsersTab audit), #42 (backup/restore), #43 (retention runtime API), #40 (in-app alerts)
 
-7. **Per-user data isolation PR** — #48. Touches many controllers; bundle as a single multi-controller PR with a row-level ownership filter helper in `IoTSpy.Storage`.
+6. **Per-user data isolation PR** — #48. Touches many controllers; bundle as a single multi-controller PR with a row-level ownership filter helper in `IoTSpy.Storage`.
 
-8. **Plugin signing PR** — #16. Needs a key-mgmt design decision before code; write a short ADR first.
+7. **Plugin signing PR** — #16. Needs a key-mgmt design decision before code; write a short ADR first.
 
-9. **Audit DELETE protection PR** — #46. Needs a retention-vs-immutability decision (immutable archive sink vs. drop pruning); ADR before code.
+8. **Audit DELETE protection PR** — #46. Needs a retention-vs-immutability decision (immutable archive sink vs. drop pruning); ADR before code.
 
-10. **Protocol coverage** — #44. One PR per protocol; AMQP and RTSP first (highest IoT relevance).
+9. **Protocol coverage** — #44. One PR per protocol; AMQP and RTSP first (highest IoT relevance).
 
-11. **Operational observability** — #51 (OTEL), #52 (more metrics), #53 (Grafana dashboards), #54 (runbook). Each independent; can be picked up in any order.
+10. **Operational observability** — #51 (OTEL), #52 (more metrics), #53 (Grafana dashboards), #54 (runbook). Each independent; can be picked up in any order.
 
-12. **SSO/OIDC** — #59. Largest single feature in the Low tier; only do this if a customer is asking.
+11. **SSO/OIDC** — #59. Largest single feature in the Low tier; only do this if a customer is asking.
 
 Each item above is sized to fit a focused PR. Avoid bundling across categories — the cleaner the diff, the easier the review.
 
