@@ -20,5 +20,11 @@ namespace IoTSpy.Core.Interfaces
         Task AddAsync(CapturedPacket packet);
         Task DeleteAsync(Guid id);
         Task ClearAllAsync(Guid deviceId);
+
+        // Checkpoint service methods
+        Task AddRangeAsync(IEnumerable<CapturedPacket> packets, CancellationToken ct = default);
+        Task<long> GetMaxCaptureIndexAsync(CancellationToken ct = default);
+        Task<IReadOnlyList<CapturedPacket>> GetRecentAsync(int limit, CancellationToken ct = default);
+        Task DeleteAllAsync(CancellationToken ct = default);
     }
 }
