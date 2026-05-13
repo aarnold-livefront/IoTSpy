@@ -127,11 +127,6 @@
     gap: var(--space-2);
   }
 
-  .header__logo span,
-  .header__logo-text {
-    display: none;
-  }
-
   .proxy-status-badge {
     font-size: var(--font-size-xs);
     padding: 2px var(--space-1);
