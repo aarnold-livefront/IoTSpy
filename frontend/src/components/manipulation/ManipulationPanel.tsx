@@ -32,10 +32,14 @@ export default function ManipulationPanel() {
 
   return (
     <div className="manipulation-panel">
-      <div className="manip-tabs">
+      <div className="manip-tabs" role="tablist" aria-label="Manipulation panels">
         {tabs.map((tab) => (
           <button
             key={tab.key}
+            role="tab"
+            aria-selected={activeTab === tab.key}
+            aria-controls={`manip-tabpanel-${tab.key}`}
+            id={`manip-tab-${tab.key}`}
             className={`manip-tab ${activeTab === tab.key ? 'manip-tab--active' : ''}`}
             onClick={() => setActiveTab(tab.key)}
           >
@@ -44,7 +48,12 @@ export default function ManipulationPanel() {
         ))}
       </div>
 
-      <div className="manip-content">
+      <div
+        className="manip-content"
+        role="tabpanel"
+        id={`manip-tabpanel-${activeTab}`}
+        aria-labelledby={`manip-tab-${activeTab}`}
+      >
         {activeTab === 'trafficrules' && (
           <RulesEditor
             rules={manip.rules}
