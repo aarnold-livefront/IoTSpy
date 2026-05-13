@@ -107,19 +107,34 @@ Submit handler uses `username || 'admin'` only when `!multiUser`, or just `usern
 
 ### Problem
 
-`header.css` has no responsive breakpoints. On narrow screens (≤480px), the logo text ("IoTSpy") plus the ProxyStatusBadge plus 5–6 action buttons overflow horizontally.
+`header.css` has no responsive breakpoints. Budget analysis on a 375px phone (343px usable after padding): even hiding just the logo text, the status badge (~112px) + Start/Stop (~55px) + Root CA (~70px) + 4 icon buttons (~160px) + gaps (~48px) ≈ 473px — still ~130px over budget.
 
-### Solution
+### Solution — layered compaction + overflow menu
 
-**`src/styles/header.css`** — append:
+**Breakpoint: ≤640px** (covers XS and SM phones/tablets in portrait):
 
-```css
-@media (max-width: 480px) {
-  .header__logo-text { display: none; }
-}
-```
+**CSS compaction (`src/styles/header.css`):**
+- Hide `.header__logo-text` (saves ~64px; icon stays)
+- Hide `.proxy-status-badge span:last-child` (badge text) — dot-only indicator (saves ~92px)
+- Hide the "Root CA" text span inside the Root CA button; show only its download SVG (saves ~38px)
+- Hide `.header__btn--icon-group` buttons (Admin, Theme, Settings, Logout) — they move into the overflow menu
 
-The 28×28px icon remains visible. The freed ~60px is enough to accommodate the action buttons. No JS changes needed.
+**Overflow menu (`src/components/layout/Header.tsx`):**
+- Add `menuOpen: boolean` state to `Header`
+- Add a `⋮` hamburger button (32px), visible only on ≤640px
+- Render a `header__menu` dropdown (position: absolute, right-aligned below the button) containing: Admin link (if admin role), Theme toggle, Settings, Logout
+- Click-outside closes the menu via a `useEffect` document click listener
+- On ≥640px: hamburger hidden, all buttons shown inline as today
+
+**Result on 375px:** Logo icon (28) + dot (22) + spacer + Start/Stop (55) + Root CA icon (32) + `⋮` (32) + gaps (~40) ≈ 209px — comfortably fits.
+
+**`src/components/proxy/ProxyStatusBadge.tsx`:**
+- Wrap the label text in `<span className="proxy-status-badge__label">` so CSS can target it independently.
+
+**`src/components/layout/Header.tsx`:**
+- Root CA `<a>` gets an inline download SVG and a `<span className="header__btn-label">Root CA</span>` (hidden on mobile via CSS).
+- Admin/Theme/Settings/Logout buttons gain class `header__btn--desktop` (hidden on ≤640px).
+- New `header__hamburger` button (hidden on ≥640px) + `header__menu` dropdown element.
 
 ---
 
@@ -131,10 +146,11 @@ The 28×28px icon remains visible. The freed ~60px is enough to accommodate the 
 | `src/store/authStore.ts` | Add `multiUser` to `AuthState`, add `SET_MULTI_USER` action |
 | `src/hooks/useAuth.ts` | Dispatch `SET_MULTI_USER` in `useAuthInit`; register `setOnUnauthorized` callback after auth |
 | `src/pages/LoginPage.tsx` | Conditional username field driven by `useAuthState().multiUser` |
-| `src/styles/header.css` | Add XS media query hiding `.header__logo-text` |
+| `src/components/proxy/ProxyStatusBadge.tsx` | Wrap label text in `.proxy-status-badge__label` span |
+| `src/components/layout/Header.tsx` | Add overflow menu state + hamburger button + dropdown; label spans on Root CA and desktop-only class on icon buttons |
+| `src/styles/header.css` | Media query ≤640px: hide logo text, badge label, Root CA label, desktop-only buttons; add hamburger + dropdown styles |
 
 ## Out of scope
 
 - Backend changes (already supports multi-user, `LoginRequest.username` already exists)
-- Hamburger/overflow menu for action buttons (deferred)
 - Token refresh / silent re-auth (not in scope — redirect is the correct UX for expired sessions)
