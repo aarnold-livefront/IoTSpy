@@ -17,10 +17,15 @@ public class FilteringTests
 {
     // ── Scanner job filtering ────────────────────────────────────────────────
 
-    private static ScannerController MakeScannerController(IScanJobRepository? scanJobs = null) =>
-        new(Substitute.For<IScannerService>(),
+    private static ScannerController MakeScannerController(IScanJobRepository? scanJobs = null)
+    {
+        var scopes = Substitute.For<IScanScopeRepository>();
+        scopes.GetActiveAsync(Arg.Any<CancellationToken>()).Returns(new List<ScanScope>());
+        return new(Substitute.For<IScannerService>(),
             scanJobs ?? Substitute.For<IScanJobRepository>(),
-            Substitute.For<IDeviceRepository>());
+            Substitute.For<IDeviceRepository>(),
+            scopes);
+    }
 
     [Fact]
     public async Task ListJobs_FilterByStatus_PassesStatusToRepository()
@@ -32,7 +37,7 @@ public class FilteringTests
             .Returns(1);
 
         var controller = MakeScannerController(scanJobs);
-        var result = await controller.ListJobs(1, 20, status: ScanStatus.Running, ct: CancellationToken.None) as OkObjectResult;
+        var result = await controller.ListJobs(1, 20, status: ScanStatus.Running, ct: TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -51,7 +56,7 @@ public class FilteringTests
             .Returns(1);
 
         var controller = MakeScannerController(scanJobs);
-        var result = await controller.ListJobs(1, 20, deviceId: deviceId, ct: CancellationToken.None) as OkObjectResult;
+        var result = await controller.ListJobs(1, 20, deviceId: deviceId, ct: TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         await scanJobs.Received(1).GetAllAsync(1, 20, Arg.Any<ScanStatus?>(), deviceId, Arg.Any<DateTimeOffset?>(), Arg.Any<CancellationToken>());
@@ -68,7 +73,7 @@ public class FilteringTests
             .Returns(0);
 
         var controller = MakeScannerController(scanJobs);
-        var result = await controller.ListJobs(1, 20, createdAfter: after, ct: CancellationToken.None) as OkObjectResult;
+        var result = await controller.ListJobs(1, 20, createdAfter: after, ct: TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         await scanJobs.Received(1).GetAllAsync(1, 20, Arg.Any<ScanStatus?>(), Arg.Any<Guid?>(), after, Arg.Any<CancellationToken>());
@@ -108,7 +113,7 @@ public class FilteringTests
             .Returns(1);
 
         var controller = MakeManipController(fj);
-        var result = await controller.ListFuzzerJobs(1, 20, status: FuzzerJobStatus.Completed, ct: CancellationToken.None) as OkObjectResult;
+        var result = await controller.ListFuzzerJobs(1, 20, status: FuzzerJobStatus.Completed, ct: TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -127,7 +132,7 @@ public class FilteringTests
             .Returns(1);
 
         var controller = MakeManipController(fj);
-        var result = await controller.ListFuzzerJobs(1, 20, captureId: captureId, ct: CancellationToken.None) as OkObjectResult;
+        var result = await controller.ListFuzzerJobs(1, 20, captureId: captureId, ct: TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         await fj.Received(1).GetAllAsync(1, 20, Arg.Any<FuzzerJobStatus?>(), captureId, Arg.Any<CancellationToken>());
@@ -162,7 +167,7 @@ public class FilteringTests
         var controller = MakeApiSpecController();
 
         // The controller will try to create the assets directory and write a file — use a temp dir
-        var result = await controller.UploadAsset(file, CancellationToken.None);
+        var result = await controller.UploadAsset(file, TestContext.Current.CancellationToken);
 
         // Not 415
         Assert.IsNotType<ObjectResult>(result is ObjectResult oor && oor.StatusCode == 415 ? result : null);
@@ -175,7 +180,7 @@ public class FilteringTests
         var file = MakeFormFile("photo.png", jpegBytes); // wrong extension for the magic bytes
         var controller = MakeApiSpecController();
 
-        var result = await controller.UploadAsset(file, CancellationToken.None);
+        var result = await controller.UploadAsset(file, TestContext.Current.CancellationToken);
 
         var statusResult = Assert.IsType<ObjectResult>(result);
         Assert.Equal(415, statusResult.StatusCode);
@@ -189,7 +194,7 @@ public class FilteringTests
         var file = MakeFormFile("image.jpg", gifBytes);
         var controller = MakeApiSpecController();
 
-        var result = await controller.UploadAsset(file, CancellationToken.None);
+        var result = await controller.UploadAsset(file, TestContext.Current.CancellationToken);
 
         var statusResult = Assert.IsType<ObjectResult>(result);
         Assert.Equal(415, statusResult.StatusCode);
@@ -204,7 +209,7 @@ public class FilteringTests
         var controller = MakeApiSpecController();
 
         // Text-based files have no magic bytes — should not be rejected as 415
-        var result = await controller.UploadAsset(file, CancellationToken.None);
+        var result = await controller.UploadAsset(file, TestContext.Current.CancellationToken);
 
         if (result is ObjectResult oor)
             Assert.NotEqual(415, oor.StatusCode);
@@ -217,7 +222,7 @@ public class FilteringTests
         var file = MakeFormFile("video.webm", webmHeader);
         var controller = MakeApiSpecController();
 
-        var result = await controller.UploadAsset(file, CancellationToken.None);
+        var result = await controller.UploadAsset(file, TestContext.Current.CancellationToken);
 
         if (result is ObjectResult oor)
             Assert.NotEqual(415, oor.StatusCode);

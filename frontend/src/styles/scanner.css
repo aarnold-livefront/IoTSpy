@@ -124,3 +124,28 @@
   color: var(--color-text-muted);
   text-align: center;
 }
+
+/* Scan scope form in Admin panel */
+.scan-scope-form {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.scan-scope-form .scan-form__input {
+  flex: 1;
+  min-width: 160px;
+}
+
+.scan-scope-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* Consent checkbox emphasis */
+.scan-form__checkbox--consent {
+  font-weight: 500;
+  color: var(--color-warning, #d97706);
+}

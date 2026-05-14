@@ -8,12 +8,13 @@ import AuditLogTab from '../components/admin/AuditLogTab'
 import UsersTab from '../components/admin/UsersTab'
 import ApiKeysTab from '../components/admin/ApiKeysTab'
 import PluginsTab from '../components/admin/PluginsTab'
+import ScanScopesTab from '../components/admin/ScanScopesTab'
 import { useCurrentUser } from '../hooks/useAuth'
 import { useProxy } from '../hooks/useProxy'
 import { useTheme } from '../hooks/useTheme'
 import '../styles/admin.css'
 
-type AdminTab = 'database' | 'certificates' | 'audit' | 'users' | 'apikeys' | 'plugins'
+type AdminTab = 'database' | 'certificates' | 'audit' | 'users' | 'apikeys' | 'plugins' | 'scopes'
 
 const TABS: { key: AdminTab; label: string }[] = [
   { key: 'database', label: 'Database' },
@@ -22,6 +23,7 @@ const TABS: { key: AdminTab; label: string }[] = [
   { key: 'users', label: 'Users' },
   { key: 'apikeys', label: 'API Keys' },
   { key: 'plugins', label: 'Plugins' },
+  { key: 'scopes', label: 'Scan Scopes' },
 ]
 
 export default function AdminPage() {
@@ -78,6 +80,7 @@ export default function AdminPage() {
           {activeTab === 'users' && <UsersTab currentUsername={currentUser.username} />}
           {activeTab === 'apikeys' && <ApiKeysTab />}
           {activeTab === 'plugins' && <PluginsTab />}
+          {activeTab === 'scopes' && <ScanScopesTab />}
         </div>
       </div>
     </AppShell>

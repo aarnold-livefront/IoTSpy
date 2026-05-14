@@ -52,6 +52,8 @@ IoT network security platform: transparent MITM proxy, protocol analyzer, pen-te
 - **CVE lookup** — OSV.dev API integration for known vulnerabilities
 - **Config audit** — Telnet access, UPnP exposure, anonymous MQTT, exposed databases, HTTP admin panels
 - **Security scoring** — per-device composite score based on scan findings
+- **Scan scope enforcement** — admin-defined CIDR allowlist (`/api/scopes`); scans are blocked with 403 if the target IP falls outside all active scopes; empty allowlist = unrestricted
+- **Consent gate** — every scan request must include `consentAcknowledged: true`; UI enforces this with a mandatory checkbox before enabling the Start Scan button
 
 ### Traffic manipulation
 - **Declarative rules engine** — match by host/path/method (regex), modify headers/body, override status, delay, or drop
@@ -76,13 +78,15 @@ IoT network security platform: transparent MITM proxy, protocol analyzer, pen-te
 - **Freeze frame** — hex dump + layer-by-layer packet analysis
 - **PCAP export** — standard format for Wireshark analysis
 
-### Administration (Phase 20)
+### Administration
 
 - **System admin page** — `/admin` route accessible only to users with the `admin` role; wrench icon in the header
 - **Database tab** — view row counts and estimated sizes for captures, packets, and scan findings; purge by date range or hostname; export captures/packets/configuration as JSON or CSV; purge-all confirmation guard
 - **Certificates tab** — view root CA metadata (CN, serial, validity); download CA as DER or PEM; regenerate root CA (audit-logged); purge leaf certificates
 - **Audit log tab** — paginated table of all audit entries with timestamp, user, action, entity type, details, source IP
 - **Users tab** — manage users with inline role selector; create new users; delete with confirmation guards; blocks self-delete and last-admin demotion/deletion
+- **Plugins tab** — list loaded protocol-decoder plugins (protocol, name, version, assembly path, load status); Admin-only reload button
+- **Scan Scopes tab** — define CIDR allowlists for scanning; add, enable/disable, and delete scopes; active scopes are enforced by the scanner (targets outside any active scope are rejected)
 - **Safety guards** — cannot delete your own account; cannot delete or demote the last admin; UI prevents destructive mistakes
 
 ### Anomaly detection
@@ -365,7 +369,7 @@ All endpoints require `admin` role.
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/api/scanner/scan` | Start a new scan job (`{ "targetHost": "...", "portRange": "1-1024" }`) |
+| POST | `/api/scanner/scan` | Start a new scan job — requires `consentAcknowledged: true`; blocked with 403 if target IP is outside all active scan scopes |
 | GET | `/api/scanner/jobs` | List all scan jobs |
 | GET | `/api/scanner/jobs/{id}` | Get scan job details |
 | GET | `/api/scanner/jobs/{id}/findings` | Get findings for a scan job |
@@ -373,6 +377,17 @@ All endpoints require `admin` role.
 | POST | `/api/scanner/jobs/{id}/cancel` | Cancel a running scan |
 | DELETE | `/api/scanner/jobs/{id}` | Delete a scan job and its findings |
 | GET | `/api/scanner/device/{deviceId}` | Get all scan results for a device |
+
+### Scan Scopes
+
+Admin-defined CIDR allowlists for the scanner. Write operations require the `admin` role.
+
+| Method | Path | Description |
+|---|---|---|
+| GET | `/api/scopes` | List all scan scopes |
+| POST | `/api/scopes` | Create a scope (`{ "name": "Lab", "cidr": "192.168.1.0/24" }`) — admin only |
+| PATCH | `/api/scopes/{id}/toggle` | Enable or disable a scope — admin only |
+| DELETE | `/api/scopes/{id}` | Delete a scope — admin only |
 
 ### Manipulation
 
@@ -555,7 +570,7 @@ cd frontend && npm run dev
 
 See [`docs/PLAN.md`](docs/PLAN.md) for the full implementation plan, identified gaps, and forward-looking roadmap.
 
-> **771 backend tests** across 8 test projects; 94 frontend component tests; Playwright E2E suite. All passing.
+> **814 backend tests** across 8 test projects; 102 frontend component tests; Playwright E2E suite. All passing.
 
 | Phase | Scope | Status |
 |---|---|---|

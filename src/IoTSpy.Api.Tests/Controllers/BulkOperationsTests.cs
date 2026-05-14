@@ -51,7 +51,7 @@ public class BulkOperationsTests
 
         var controller = MakeManipController(rules);
         var dto = new BulkUpdateRulesDto([id1, id2], Enabled: true);
-        var result = await controller.BulkUpdateRules(dto, CancellationToken.None) as OkObjectResult;
+        var result = await controller.BulkUpdateRules(dto, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -67,7 +67,7 @@ public class BulkOperationsTests
 
         var controller = MakeManipController(rules);
         var dto = new BulkUpdateRulesDto([Guid.NewGuid(), Guid.NewGuid()], Enabled: false);
-        var result = await controller.BulkUpdateRules(dto, CancellationToken.None) as OkObjectResult;
+        var result = await controller.BulkUpdateRules(dto, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -98,8 +98,10 @@ public class BulkOperationsTests
         scanner.IsScanRunning(id2).Returns(false);
         scanner.IsScanRunning(id3).Returns(true);
 
-        var controller = new ScannerController(scanner, scanJobs, Substitute.For<IDeviceRepository>());
-        var result = await controller.CancelAllScans(CancellationToken.None) as OkObjectResult;
+        var scopes = Substitute.For<IScanScopeRepository>();
+        scopes.GetActiveAsync(Arg.Any<CancellationToken>()).Returns(new List<ScanScope>());
+        var controller = new ScannerController(scanner, scanJobs, Substitute.For<IDeviceRepository>(), scopes);
+        var result = await controller.CancelAllScans(TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -117,8 +119,10 @@ public class BulkOperationsTests
         scanJobs.CountAsync(Arg.Any<ScanStatus?>(), Arg.Any<Guid?>(), Arg.Any<DateTimeOffset?>(), Arg.Any<CancellationToken>()).Returns(0);
 
         var scanner = Substitute.For<IScannerService>();
-        var controller = new ScannerController(scanner, scanJobs, Substitute.For<IDeviceRepository>());
-        var result = await controller.CancelAllScans(CancellationToken.None) as OkObjectResult;
+        var scopes = Substitute.For<IScanScopeRepository>();
+        scopes.GetActiveAsync(Arg.Any<CancellationToken>()).Returns(new List<ScanScope>());
+        var controller = new ScannerController(scanner, scanJobs, Substitute.For<IDeviceRepository>(), scopes);
+        var result = await controller.CancelAllScans(TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -135,7 +139,7 @@ public class BulkOperationsTests
 
         var controller = new CapturesController(repo);
         var result = await controller.Clear(
-            null, "api.example.com", "GET", null, null, null, null, CancellationToken.None);
+            null, "api.example.com", "GET", null, null, null, null, TestContext.Current.CancellationToken);
 
         Assert.IsType<NoContentResult>(result);
         await repo.Received(1).ClearByFilterAsync(
@@ -152,7 +156,7 @@ public class BulkOperationsTests
         repo.ClearByFilterAsync(Arg.Any<CaptureFilter>(), Arg.Any<CancellationToken>()).Returns(Task.CompletedTask);
 
         var controller = new CapturesController(repo);
-        var result = await controller.Clear(null, null, null, null, from, to, null, CancellationToken.None);
+        var result = await controller.Clear(null, null, null, null, from, to, null, TestContext.Current.CancellationToken);
 
         Assert.IsType<NoContentResult>(result);
         await repo.Received(1).ClearByFilterAsync(

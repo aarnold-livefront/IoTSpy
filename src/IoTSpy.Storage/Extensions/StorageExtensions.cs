@@ -72,6 +72,9 @@ services.AddScoped<IOpenRtbEventRepository, OpenRtbEventRepository>();
         // Gaps Batch 6 — gRPC proto schemas
         services.AddScoped<IProtoSchemaRepository, ProtoSchemaRepository>();
 
+        // Security — scan scope CIDR allowlist
+        services.AddScoped<IScanScopeRepository, ScanScopeRepository>();
+
         return services;
     }
 

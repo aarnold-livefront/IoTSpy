@@ -79,7 +79,7 @@ public class ManipulationControllerTests
         rules.GetAllAsync(Arg.Any<CancellationToken>())
             .Returns(new List<ManipulationRule> { MakeRule(), MakeRule(), MakeRule() });
 
-        var result = await MakeController(rules).ListRules(1, 10, CancellationToken.None) as OkObjectResult;
+        var result = await MakeController(rules).ListRules(1, 10, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -94,7 +94,7 @@ public class ManipulationControllerTests
         var rules = Substitute.For<IManipulationRuleRepository>();
         rules.GetAllAsync(Arg.Any<CancellationToken>()).Returns(new List<ManipulationRule>());
 
-        var result = await MakeController(rules).ListRules(1, 9999, CancellationToken.None) as OkObjectResult;
+        var result = await MakeController(rules).ListRules(1, 9999, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -153,7 +153,7 @@ public class ManipulationControllerTests
         var audit = Substitute.For<IAuditRepository>();
 
         var dto = new UpdateRuleDto(Name: "Renamed");
-        var result = await MakeController(rules, audit: audit).UpdateRule(id, dto, CancellationToken.None) as OkObjectResult;
+        var result = await MakeController(rules, audit: audit).UpdateRule(id, dto, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         Assert.Equal("Renamed", rule.Name);
@@ -169,7 +169,7 @@ public class ManipulationControllerTests
         var rules = Substitute.For<IManipulationRuleRepository>();
         rules.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((ManipulationRule?)null);
 
-        var result = await MakeController(rules).UpdateRule(Guid.NewGuid(), new UpdateRuleDto(), CancellationToken.None);
+        var result = await MakeController(rules).UpdateRule(Guid.NewGuid(), new UpdateRuleDto(), TestContext.Current.CancellationToken);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -182,7 +182,7 @@ public class ManipulationControllerTests
         rules.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(MakeRule(id));
         var audit = Substitute.For<IAuditRepository>();
 
-        var result = await MakeController(rules, audit: audit).DeleteRule(id, CancellationToken.None);
+        var result = await MakeController(rules, audit: audit).DeleteRule(id, TestContext.Current.CancellationToken);
 
         Assert.IsType<NoContentResult>(result);
         await rules.Received(1).DeleteAsync(id, Arg.Any<CancellationToken>());
@@ -198,7 +198,7 @@ public class ManipulationControllerTests
         var rules = Substitute.For<IManipulationRuleRepository>();
         rules.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns((ManipulationRule?)null);
 
-        var result = await MakeController(rules).DeleteRule(id, CancellationToken.None);
+        var result = await MakeController(rules).DeleteRule(id, TestContext.Current.CancellationToken);
 
         Assert.IsType<NoContentResult>(result);
         await rules.Received(1).DeleteAsync(id, Arg.Any<CancellationToken>());
@@ -214,7 +214,7 @@ public class ManipulationControllerTests
         var rules = Substitute.For<IManipulationRuleRepository>();
 
         var dto = new BulkDeleteRulesDto([id1, id2]);
-        var result = await MakeController(rules).BulkDeleteRules(dto, CancellationToken.None) as OkObjectResult;
+        var result = await MakeController(rules).BulkDeleteRules(dto, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -232,7 +232,7 @@ public class ManipulationControllerTests
             .Returns(new List<ManipulationRule> { MakeRule(), MakeRule() });
 
         var dto = new BulkDeleteRulesDto(All: true);
-        var result = await MakeController(rules).BulkDeleteRules(dto, CancellationToken.None) as OkObjectResult;
+        var result = await MakeController(rules).BulkDeleteRules(dto, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -246,7 +246,7 @@ public class ManipulationControllerTests
         var rules = Substitute.For<IManipulationRuleRepository>();
 
         var dto = new BulkDeleteRulesDto();
-        var result = await MakeController(rules).BulkDeleteRules(dto, CancellationToken.None) as OkObjectResult;
+        var result = await MakeController(rules).BulkDeleteRules(dto, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -264,7 +264,7 @@ public class ManipulationControllerTests
             .Returns(new List<Breakpoint> { MakeBreakpoint(), MakeBreakpoint() });
 
         var result = await MakeController(breakpoints: breakpoints)
-            .ListBreakpoints(1, 50, CancellationToken.None) as OkObjectResult;
+            .ListBreakpoints(1, 50, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -320,7 +320,7 @@ public class ManipulationControllerTests
         var audit = Substitute.For<IAuditRepository>();
 
         var result = await MakeController(breakpoints: breakpoints, audit: audit)
-            .DeleteBreakpoint(id, CancellationToken.None);
+            .DeleteBreakpoint(id, TestContext.Current.CancellationToken);
 
         Assert.IsType<NoContentResult>(result);
         await breakpoints.Received(1).DeleteAsync(id, Arg.Any<CancellationToken>());

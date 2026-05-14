@@ -24,6 +24,7 @@ export default function ScannerPanel() {
   const [formCredTest, setFormCredTest] = useState(true)
   const [formCveLookup, setFormCveLookup] = useState(true)
   const [formConfigAudit, setFormConfigAudit] = useState(true)
+  const [formConsent, setFormConsent] = useState(false)
   const [scanning, setScanning] = useState(false)
 
   const handleScan = async () => {
@@ -38,6 +39,7 @@ export default function ScannerPanel() {
       enableCredentialTest: formCredTest,
       enableCveLookup: formCveLookup,
       enableConfigAudit: formConfigAudit,
+      consentAcknowledged: formConsent,
     }
     await scan(request)
     setScanning(false)
@@ -148,10 +150,18 @@ export default function ScannerPanel() {
             />
             Config Audit
           </label>
+          <label className="scan-form__checkbox scan-form__checkbox--consent">
+            <input
+              type="checkbox"
+              checked={formConsent}
+              onChange={(e) => setFormConsent(e.target.checked)}
+            />
+            I confirm I have authorisation to scan this device
+          </label>
           <button
             className="scan-btn scan-btn--primary"
             onClick={handleScan}
-            disabled={!formDeviceId || scanning}
+            disabled={!formDeviceId || !formConsent || scanning}
           >
             {scanning ? 'Starting...' : 'Start Scan'}
           </button>

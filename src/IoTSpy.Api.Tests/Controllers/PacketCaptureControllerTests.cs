@@ -396,7 +396,7 @@ public class PacketCaptureControllerTests
     public async Task ImportPcap_WhenNoFile_ReturnsBadRequest()
     {
         var controller = MakeController();
-        var result = await controller.ImportPcap(null!, CancellationToken.None);
+        var result = await controller.ImportPcap(null!, TestContext.Current.CancellationToken);
 
         Assert.IsType<BadRequestObjectResult>(result);
     }
@@ -409,7 +409,7 @@ public class PacketCaptureControllerTests
         file.Length.Returns(100L);
 
         var controller = MakeController();
-        var result = await controller.ImportPcap(file, CancellationToken.None);
+        var result = await controller.ImportPcap(file, TestContext.Current.CancellationToken);
 
         Assert.IsType<BadRequestObjectResult>(result);
     }
@@ -435,7 +435,7 @@ public class PacketCaptureControllerTests
         file.OpenReadStream().Returns(new MemoryStream(new byte[1024]));
 
         var controller = MakeController(captureService);
-        var result = await controller.ImportPcap(file, CancellationToken.None) as OkObjectResult;
+        var result = await controller.ImportPcap(file, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = System.Text.Json.JsonSerializer.Serialize(result.Value);
@@ -457,7 +457,7 @@ public class PacketCaptureControllerTests
         file.OpenReadStream().Returns(new MemoryStream(new byte[1024]));
 
         var controller = MakeController(captureService);
-        var result = await controller.ImportPcap(file, CancellationToken.None);
+        var result = await controller.ImportPcap(file, TestContext.Current.CancellationToken);
 
         Assert.IsType<BadRequestObjectResult>(result);
     }

@@ -23,7 +23,7 @@ public class DevicesControllerTests
         repo.GetAllAsync(Arg.Any<CancellationToken>()).Returns(new List<Device> { MakeDevice(), MakeDevice() });
 
         var controller = new DevicesController(repo);
-        var result = await controller.List(1, 100, CancellationToken.None) as OkObjectResult;
+        var result = await controller.List(1, 100, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = System.Text.Json.JsonSerializer.Serialize(result.Value);

@@ -79,25 +79,33 @@ See `.dev/claude-skills/README.md` for full details.
 
 ## Workflow rules
 
-- **Always run `dotnet test` before committing.** All 765 backend tests must stay green.
+- **Always run `dotnet test` before committing.** All backend tests must stay green.
 - New backend logic needs a corresponding test. Use NSubstitute for mocks; use EF Core SQLite in-memory for repository tests.
 - New EF entities require a migration (`dotnet ef migrations add ...`).
 - Keep `IoTSpy.Core` free of infrastructure dependencies.
 - Use the `AddHostedService(sp => sp.GetRequiredService<T>())` pattern for services that are both singleton and hosted — never double-register.
 - Namespace prefix is `IoTSpy` (capital I, o, T, S). Docker image/container name is `iotspy`.
+- **Do not add `Co-Authored-By: Claude` trailers** to commit messages or PR descriptions. Keep attribution noise out of the git history.
 
 ## Current state
 
 All phases 1–16, 18–22 plus API & Backend Polish, Frontend Usability enhancements, Gaps Batches 4, 5, and 6 are complete:
-- 771 backend tests across 8 test projects; 94 frontend component tests; Playwright E2E suite (auth, captures, dashboard, manipulation)
-- 20 REST controllers, 192 endpoints (added `ProtoSchemasController`)
-- 22 EF Core migrations up through `AuditWriteOnceTrigger`
+- 814 backend tests across 8 test projects; 102 frontend component tests; Playwright E2E suite (auth, captures, dashboard, manipulation)
+- 21 REST controllers, 196 endpoints (added `ScanScopeController`)
+- 23 EF Core migrations up through `AddScanScopes`
 - GitHub Actions CI at `.github/workflows/ci.yml`
 - Helm chart at `deploy/helm/iotspy/`; production Docker Compose at `docker-compose.prod.yml`
 
 > Counts above last verified 2026-05-09. To re-check: `grep -rE "^\s*\[(Fact|Theory)" --include="*.cs" src/IoTSpy.*.Tests src/IoTSpy.Api.IntegrationTests | wc -l`, `ls src/IoTSpy.Api/Controllers | wc -l`, `ls src/IoTSpy.Storage/Migrations/*.cs | grep -vE "(Designer|Snapshot)" | wc -l`, `grep -rE "\[Http" --include="*.cs" src/IoTSpy.Api/Controllers | wc -l`.
 
-### Gaps Batch 6 (latest)
+### feature/scan-scope-consent-gate (latest)
+- Scan scope enforcement: `ScanScope` model + `IScanScopeRepository` + `ScanScopeRepository`; `CidrHelper` (IPv4/IPv6 CIDR containment, bare-IP = /32 or /128); `ScanScopeController` at `GET/POST /api/scopes`, `PATCH /api/scopes/{id}/toggle`, `DELETE /api/scopes/{id}` (Admin-only writes); `AddScanScopes` EF Core migration; gate in `ScannerController.StartScan`: 403 if any active scopes exist and device IP is not in one
+- Consent gate: `StartScanDto.ConsentAcknowledged: bool`; returns 400 if false (checked first, before device lookup); frontend consent checkbox in `ScannerPanel`; Start Scan button gated on both device selection and consent checkbox
+- Admin UI: **Scan Scopes** tab added to the Admin page (add, enable/disable toggle, delete); `api/scanScopes.ts` + `hooks/useScanScopes.ts`
+- All xUnit1051 `CancellationToken.None` → `TestContext.Current.CancellationToken` across 14 test files; pattern documented in `AGENT.md`
+- 37 new backend tests (`CidrHelperTests` 17, `ScanScopeRepositoryTests` 7, `ScanScopeControllerTests` 9, scanner gate tests 4); 8 new frontend tests (`ScanScopesTab.test.tsx` 7, updated `ScannerPanel.test.tsx` +1)
+
+### Gaps Batch 6 (previous)
 - gRPC `.proto` upload: `ProtoParser` (regex-based field extraction), `ProtoSchema` model/repo, `ProtoSchemasController` at `/api/grpc/schemas`; `GrpcDecoder` accepts optional field map, populates `ProtobufField.FieldName`; `GrpcFrameType` enum + trailer frame detection (flag 0x80); 2 new EF migrations; 15 new backend tests; audit write-once trigger (`BEFORE UPDATE ON AuditEntries`); missing `scanner.css` created
 - gRPC schema UI: `GrpcSchemasPanel` (upload form + schema list) wired as 8th tab in `ManipulationPanel`; `useGrpcSchemas` hook + `api/grpcSchemas.ts` client
 - Orphaned panels wired: `ScannerPanel` and `OpenRtbPanel` added as 'scanner'/'openrtb' view modes in `DashboardPage`; `ScheduledScansPanel` added as tab within `ScannerPanel`

@@ -12,22 +12,18 @@ Severity legend: **Critical** = ship blocker · **High** = next-sprint · **Medi
 
 | State | Count | Items |
 |---|---|---|
-| ✅ Completed | 29 | #1, #2, #3, #5, #6, #7, #8, #9, #10, #11, #12, #14, #15, #17, #18, #19, #20, #21, #22, #23, #24, #25, #26, #27, #28, #47, #49, #50 |
+| ✅ Completed | 31 | #1, #2, #3, #4, #5, #6, #7, #8, #9, #10, #11, #12, #14, #15, #17, #18, #19, #20, #21, #22, #23, #24, #25, #26, #27, #28, #45, #47, #49, #50 |
 | ⏳ In-flight (open PR) | 0 | — |
-| 🟥 Critical remaining | 1 | #4 |
+| 🟥 Critical remaining | 0 | — |
 | 🟧 High remaining | 2 | #13, #16 |
-| 🟨 Medium remaining | 20 | #29–#46, #48 |
+| 🟨 Medium remaining | 19 | #29–#44, #46, #48 |
 | 🟩 Low remaining | 9 | #51–#59 |
 
-PR history that closed items: **#59** (day-0 hotfixes), **#60** (doc accuracy), **#61** (test backfill), **#62** (responsive pass), **#63** (security hardening), **#66** (auth: session expiry redirect, multi-user login), **#68** (modal system: #20, #21, #49, #50), **#69** (crash resilience: #8).
+PR history that closed items: **#59** (day-0 hotfixes), **#60** (doc accuracy), **#61** (test backfill), **#62** (responsive pass), **#63** (security hardening), **#66** (auth: session expiry redirect, multi-user login), **#68** (modal system: #20, #21, #49, #50), **#69** (crash resilience: #8), **feature/scan-scope-consent-gate** (scan scope enforcement + consent gate: #4, #45).
 
 ---
 
-## 🟥 Critical — remaining
-
-### 4. No scan scope enforcement
-`ScannerController.StartScan` accepts any `DeviceId`; `ScannerService` scans whatever IP is on the device record. No CIDR allowlist, no local-subnet check, no authorization gate. A misconfigured rule could scan arbitrary internet hosts.
-**Slot:** new `ScanScope` model + enforcement in `ExplicitProxyServer` and `ScannerService`. Add CIDR allowlist + acknowledgment of authorization on first scan-start of an engagement. Audit-log the scope decision on each scan job. Pairs naturally with #45 (consent gate) — they share the same UX onboarding step.
+## 🟥 Critical — all resolved ✅
 
 ---
 
@@ -82,8 +78,6 @@ PR history that closed items: **#59** (day-0 hotfixes), **#60** (doc accuracy), 
 **44. AMQP 1.0** (Azure IoT Hub, ActiveMQ — high IoT relevance), **RTSP/RTP** (IP cameras — frequent IoT finding), **MQTT-SN** (constrained-device UDP variant), **DoH/DoT detection** (devices increasingly evade DNS inspection). All on roadmap, none shipped. Slot: `IoTSpy.Protocols`. One PR per protocol.
 
 ### Trust & safety
-
-**45. No "I am authorized" consent gate** in onboarding — `OnboardingWizard.tsx`. Add an acknowledgment step + audit-log on first run. Pairs with #4.
 
 **46. Audit log DELETE not blocked** — `AuditWriteOnceTrigger` covers UPDATE only. Adding `BEFORE DELETE` would conflict with `DataRetentionService.DeleteOlderThanAsync`. Decision needed: either retention writes to an immutable archive sink before deleting, or DELETE-protect entirely and stop pruning audit. Not a one-line fix.
 
@@ -160,7 +154,12 @@ Each entry includes the closing PR. Use `gh pr view <num>` for the full diff and
 
 - **#8 — No crash resilience for live captures** [PR #69] — `PacketCaptureCheckpointService` (singleton + hosted service) flushes the ring buffer to SQLite on a 1-second cadence; startup recovery reads the most-recent N packets back into the ring buffer before the HTTP listener opens. `IPacketRepository` extended with `AddRangeAsync`, `GetMaxCaptureIndexAsync`, `GetRecentAsync`, `DeleteAllAsync`. `ClearCapturesAsync` and `StartCaptureAsync` reset the flush watermark. N+1 delete bug in `ClearAllAsync` fixed with `ExecuteDeleteAsync`. 11 new tests.
 
-### Trust & safety (1 of 4)
+### Critical (2 of 2) — all complete ✅
+
+- **#4 — No scan scope enforcement** [branch: feature/scan-scope-consent-gate] — `ScanScope` model + `IScanScopeRepository` + `ScanScopeRepository`; `CidrHelper` (IPv4/IPv6 CIDR matching, bare IP as /32 or /128); `ScanScopeController` at `GET/POST/PATCH /{id}/toggle/DELETE /api/scopes` (Admin-only writes); `AddScanScopes` EF Core migration; gate wired into `ScannerController.StartScan`: if any active scopes exist and the device IP is not in one, returns 403. Admin UI: **Scan Scopes** tab in the Admin page (add/enable/disable/delete scopes). 17 new `CidrHelperTests` + 7 `ScanScopeRepositoryTests` + 9 `ScanScopeControllerTests` + 4 new gate tests in `ScannerControllerTests`. All xUnit1051 `CancellationToken.None` warnings across the entire test suite resolved in the same branch.
+- **#45 — No "I am authorized" consent gate** [branch: feature/scan-scope-consent-gate] — `StartScanDto` gains `ConsentAcknowledged: bool`; `ScannerController.StartScan` returns 400 if it is false (checked before any device lookup). Frontend: consent checkbox added to `ScannerPanel`; **Start Scan** button stays disabled until both a device is selected and the checkbox is ticked. `StartScanRequest` TypeScript type updated; `ScannerPanel.test.tsx` updated with consent-gate assertions.
+
+### Trust & safety (2 of 4)
 
 - **#47 — Scanner `MaxConcurrency` defaulted to 100** [PR #63] — default lowered to 25; user values clamped to ≤100.
 
@@ -168,31 +167,29 @@ Each entry includes the closing PR. Use `gh pr view <num>` for the full diff and
 
 ## Recommended next PRs
 
-Updated after PR #69 (crash resilience) merged. Remaining PRs in priority order:
+Updated after feature/scan-scope-consent-gate (scope enforcement + consent gate: #4, #45) landed. All Critical items are now resolved. Remaining PRs in priority order:
 
-1. **Scope-enforcement + consent gate PR** — bundle #4 + #45. Last Critical item. They share the onboarding-wizard UX and the audit-log surface. New `ScanScope` model + repo, CIDR allowlist enforcement at `ScannerService.StartScanAsync` boundary, and an "I am authorized to test this network" acknowledgment step in `OnboardingWizard.tsx`. Largest design surface of all remaining items — consider a short design doc / ADR first.
+1. **Replay/Fuzzer TLS opt-in PR** — #13. Opt-in `BypassTlsValidation` flag on `StartReplayDto` / `StartFuzzerDto`; `ManipulationExtensions.cs:41-53` moves the `ServerCertificateCustomValidationCallback` behind that flag; audit-log warning emitted when opt-in is true; UI checkbox in Replay/Fuzzer tab. Smaller than it looks.
 
-2. **Replay/Fuzzer TLS opt-in PR** — #13. Opt-in `BypassTlsValidation` flag on `StartReplayDto` / `StartFuzzerDto`; `ManipulationExtensions.cs:41-53` moves the `ServerCertificateCustomValidationCallback` behind that flag; audit-log warning emitted when opt-in is true; UI checkbox in Replay/Fuzzer tab. Smaller than it looks.
+2. **Incomplete-feature polish PR** — bundle #29 (HAR headers), #30 + #31 (config export/import round-trip including `ContentReplacementRule` + `ProtoSchema`), #32 (scheduled-scan `LastRunScanJobId` / `LastRunStatus` columns + migration), #34 (replace `ProtoParser.FromJson` hand-rolled split with `JsonSerializer`), #35 (real storage estimates via `PRAGMA page_count * page_size` / `pg_relation_size`). All contained, all safe; can be one PR or split per concern.
 
-3. **Incomplete-feature polish PR** — bundle #29 (HAR headers), #30 + #31 (config export/import round-trip including `ContentReplacementRule` + `ProtoSchema`), #32 (scheduled-scan `LastRunScanJobId` / `LastRunStatus` columns + migration), #34 (replace `ProtoParser.FromJson` hand-rolled split with `JsonSerializer`), #35 (real storage estimates via `PRAGMA page_count * page_size` / `pg_relation_size`). All contained, all safe; can be one PR or split per concern.
-
-4. **User-story PRs (medium, high-value)** — pick one per persona-PR:
+3. **User-story PRs (medium, high-value)** — pick one per persona-PR:
    - Researcher: #36 (capture-to-curl `GET /api/captures/{id}/curl`), #39 (body FTS5 search on `RequestBody`/`ResponseBody`), #55 (capture diff endpoint)
    - Pen-tester: #38 (replay base-URL override end-to-end), #57 (CVSS override `PATCH /api/scanner/findings/{id}`), #56 (project/workspace concept)
    - Developer: #37 (`POST /api/captures/import/har`)
    - Admin: #41 (audit `UsersTab.tsx` create/edit wiring), #42 (backup/restore endpoints), #43 (`GET/PUT /api/admin/retention` + DatabaseTab UI), #40 (in-app SignalR alerts via collaboration hub)
 
-5. **Per-user data isolation PR** — #48. Row-level ownership filter helper in `IoTSpy.Storage`; applied across captures, scans, and device queries. Touches many controllers; bundle as a single multi-controller PR.
+4. **Per-user data isolation PR** — #48. Row-level ownership filter helper in `IoTSpy.Storage`; applied across captures, scans, and device queries. Touches many controllers; bundle as a single multi-controller PR.
 
-6. **Plugin signing PR** — #16. Write an ADR on key-management approach first; then add manifest + SHA-256 check in `PluginLoaderService`.
+5. **Plugin signing PR** — #16. Write an ADR on key-management approach first; then add manifest + SHA-256 check in `PluginLoaderService`.
 
-7. **Audit DELETE protection PR** — #46. Write an ADR on retention-vs-immutability first (immutable archive sink vs. drop pruning for `DataRetentionService`).
+6. **Audit DELETE protection PR** — #46. Write an ADR on retention-vs-immutability first (immutable archive sink vs. drop pruning for `DataRetentionService`).
 
-8. **Protocol coverage** — #44. One PR per protocol; AMQP 1.0 and RTSP/RTP first (highest IoT relevance). Slot: `IoTSpy.Protocols`.
+7. **Protocol coverage** — #44. One PR per protocol; AMQP 1.0 and RTSP/RTP first (highest IoT relevance). Slot: `IoTSpy.Protocols`.
 
-9. **Operational observability** — #51 (OTEL tracing), #52 (broader Prometheus metrics), #53 (Grafana dashboards), #54 (runbook). Each independent; pick up in any order.
+8. **Operational observability** — #51 (OTEL tracing), #52 (broader Prometheus metrics), #53 (Grafana dashboards), #54 (runbook). Each independent; pick up in any order.
 
-10. **SSO/OIDC** — #59. Largest single feature in the Low tier; only prioritize if a customer is asking.
+9. **SSO/OIDC** — #59. Largest single feature in the Low tier; only prioritize if a customer is asking.
 
 Each item above is sized to fit a focused PR. Avoid bundling across categories — the cleaner the diff, the easier the review.
 
