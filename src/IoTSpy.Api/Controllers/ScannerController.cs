@@ -14,7 +14,8 @@ namespace IoTSpy.Api.Controllers;
 public class ScannerController(
     IScannerService scanner,
     IScanJobRepository scanJobs,
-    IDeviceRepository devices) : ControllerBase
+    IDeviceRepository devices,
+    IScanScopeRepository scanScopes) : ControllerBase
 {
     // Bounds for the dual-use scanner. Aggressive defaults are unfriendly on
     // shared networks; the previous MaxConcurrency=100 default could SYN-flood
@@ -26,10 +27,21 @@ public class ScannerController(
     private const int MaxAllowedConcurrency = 100;
 
     [HttpPost("scan")]
-    public async Task<IActionResult> StartScan([FromBody] StartScanDto dto)
+    public async Task<IActionResult> StartScan([FromBody] StartScanDto dto, CancellationToken ct = default)
     {
+        if (!dto.ConsentAcknowledged)
+            return BadRequest("You must acknowledge that you have authorisation to scan this device.");
+
         var device = await devices.GetByIdAsync(dto.DeviceId);
         if (device is null) return NotFound("Device not found");
+
+        var activeScopes = await scanScopes.GetActiveAsync(ct);
+        if (activeScopes.Count > 0)
+        {
+            var inScope = activeScopes.Any(s => IoTSpy.Scanner.CidrHelper.Contains(s.Cidr, device.IpAddress));
+            if (!inScope)
+                return StatusCode(403, $"Device IP {device.IpAddress} is not within any active scan scope.");
+        }
 
         var portRange = dto.PortRange ?? "1-1024";
         if (portRange.Length > MaxPortRangeStringLength)
@@ -159,7 +171,8 @@ public record StartScanDto(
     bool? EnableFingerprinting = null,
     bool? EnableCredentialTest = null,
     bool? EnableCveLookup = null,
-    bool? EnableConfigAudit = null
+    bool? EnableConfigAudit = null,
+    bool ConsentAcknowledged = false
 );
 
 public record BulkDeleteJobsDto(

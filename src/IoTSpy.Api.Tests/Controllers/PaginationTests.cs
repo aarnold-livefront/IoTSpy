@@ -52,7 +52,7 @@ public class PaginationTests
         });
 
         var controller = MakeManipController(rules);
-        var result = await controller.ListRules(1, 100, CancellationToken.None) as OkObjectResult;
+        var result = await controller.ListRules(1, 100, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -71,7 +71,7 @@ public class PaginationTests
         });
 
         var controller = MakeManipController(breakpoints: bps);
-        var result = await controller.ListBreakpoints(1, 100, CancellationToken.None) as OkObjectResult;
+        var result = await controller.ListBreakpoints(1, 100, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -91,7 +91,7 @@ public class PaginationTests
         replaySessions.CountAsync(Arg.Any<CancellationToken>()).Returns(42);
 
         var controller = MakeManipController(replays: replaySessions);
-        var result = await controller.ListReplays(1, 20, CancellationToken.None) as OkObjectResult;
+        var result = await controller.ListReplays(1, 20, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -110,7 +110,7 @@ public class PaginationTests
         fuzzerJobs.CountAsync(Arg.Any<FuzzerJobStatus?>(), Arg.Any<Guid?>(), Arg.Any<CancellationToken>()).Returns(1);
 
         var controller = MakeManipController(fuzzer: fuzzerJobs);
-        var result = await controller.ListFuzzerJobs(1, 20, ct: CancellationToken.None) as OkObjectResult;
+        var result = await controller.ListFuzzerJobs(1, 20, ct: TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -129,9 +129,11 @@ public class PaginationTests
         });
         scanJobs.CountAsync(Arg.Any<ScanStatus?>(), Arg.Any<Guid?>(), Arg.Any<DateTimeOffset?>(), Arg.Any<CancellationToken>()).Returns(55);
 
+        var scopes = Substitute.For<IScanScopeRepository>();
+        scopes.GetActiveAsync(Arg.Any<CancellationToken>()).Returns(new List<ScanScope>());
         var controller = new ScannerController(
-            Substitute.For<IScannerService>(), scanJobs, Substitute.For<IDeviceRepository>());
-        var result = await controller.ListJobs(1, 20, ct: CancellationToken.None) as OkObjectResult;
+            Substitute.For<IScannerService>(), scanJobs, Substitute.For<IDeviceRepository>(), scopes);
+        var result = await controller.ListJobs(1, 20, ct: TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -151,7 +153,7 @@ public class PaginationTests
         });
 
         var controller = new DevicesController(devices);
-        var result = await controller.List(1, 100, CancellationToken.None) as OkObjectResult;
+        var result = await controller.List(1, 100, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);

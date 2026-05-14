@@ -129,10 +129,24 @@ SignalR hubs:
 
 ## Testing guidance
 
-- Run `dotnet test` before committing; all 771 backend tests must pass.
+- Run `dotnet test` before committing; all backend tests must pass.
 - New backend code needs corresponding tests. Prefer unit tests with NSubstitute mocks; use EF Core SQLite in-memory for repository tests.
 - Frontend tests use Vitest + React Testing Library (`npm test` inside `frontend/`).
 - CI runs on every push/PR via `.github/workflows/ci.yml`.
+
+### CancellationToken in xUnit tests (xUnit1051)
+
+**Never pass `CancellationToken.None` to async methods in xUnit tests.** Use `TestContext.Current.CancellationToken` instead. This lets xUnit cancel the test immediately when the test run is aborted, rather than waiting for the operation to time out.
+
+```csharp
+// Wrong — triggers xUnit1051 warning
+var result = await controller.ListJobs(1, 20, ct: CancellationToken.None);
+
+// Correct
+var result = await controller.ListJobs(1, 20, ct: TestContext.Current.CancellationToken);
+```
+
+This applies everywhere a `CancellationToken` parameter is accepted — controller calls, repository calls, `Task.Delay`, `StartAsync`/`StopAsync`, etc. The `TestContext` static is available in all xUnit test classes without any extra imports.
 
 ## Key configuration sections (`appsettings.json`)
 

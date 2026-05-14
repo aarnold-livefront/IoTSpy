@@ -62,12 +62,12 @@ public class RedisPassiveProxyBufferTests
     public async Task Add_PushesJsonToRedis()
     {
         var buf = CreateBuffer();
-        await buf.StartAsync(CancellationToken.None);
+        await buf.StartAsync(TestContext.Current.CancellationToken);
 
         buf.Add(MakeCapture());
 
-        await Task.Delay(250, CancellationToken.None);
-        await buf.StopAsync(CancellationToken.None);
+        await Task.Delay(250, TestContext.Current.CancellationToken);
+        await buf.StopAsync(TestContext.Current.CancellationToken);
 
         await _batch.Received().ListRightPushAsync(
             Arg.Is<RedisKey>(k => k == "test:passive:buffer"),
@@ -80,12 +80,12 @@ public class RedisPassiveProxyBufferTests
     public async Task Add_TrimsAfterPush()
     {
         var buf = CreateBuffer();
-        await buf.StartAsync(CancellationToken.None);
+        await buf.StartAsync(TestContext.Current.CancellationToken);
 
         buf.Add(MakeCapture());
 
-        await Task.Delay(250, CancellationToken.None);
-        await buf.StopAsync(CancellationToken.None);
+        await Task.Delay(250, TestContext.Current.CancellationToken);
+        await buf.StopAsync(TestContext.Current.CancellationToken);
 
         await _batch.Received().ListTrimAsync(
             Arg.Is<RedisKey>(k => k == "test:passive:buffer"),
@@ -98,13 +98,13 @@ public class RedisPassiveProxyBufferTests
     public async Task Add_WithActiveFilter_SkipsNonMatchingCapture()
     {
         var buf = CreateBuffer();
-        await buf.StartAsync(CancellationToken.None);
+        await buf.StartAsync(TestContext.Current.CancellationToken);
         buf.SetDeviceFilter(["10.0.0.1"]);
 
         buf.Add(MakeCapture(clientIp: "10.0.0.99")); // not in filter
 
-        await Task.Delay(250, CancellationToken.None);
-        await buf.StopAsync(CancellationToken.None);
+        await Task.Delay(250, TestContext.Current.CancellationToken);
+        await buf.StopAsync(TestContext.Current.CancellationToken);
 
         await _batch.DidNotReceive().ListRightPushAsync(
             Arg.Any<RedisKey>(),
@@ -117,13 +117,13 @@ public class RedisPassiveProxyBufferTests
     public async Task Add_WithActiveFilter_AcceptsMatchingCapture()
     {
         var buf = CreateBuffer();
-        await buf.StartAsync(CancellationToken.None);
+        await buf.StartAsync(TestContext.Current.CancellationToken);
         buf.SetDeviceFilter(["10.0.0.1"]);
 
         buf.Add(MakeCapture(clientIp: "10.0.0.1")); // in filter
 
-        await Task.Delay(250, CancellationToken.None);
-        await buf.StopAsync(CancellationToken.None);
+        await Task.Delay(250, TestContext.Current.CancellationToken);
+        await buf.StopAsync(TestContext.Current.CancellationToken);
 
         await _batch.Received().ListRightPushAsync(
             Arg.Any<RedisKey>(),
@@ -141,11 +141,11 @@ public class RedisPassiveProxyBufferTests
            .Returns(Task.FromResult<RedisValue[]>([(RedisValue)"192.168.1.1"]));
 
         var buf = CreateBuffer();
-        await buf.StartAsync(CancellationToken.None);
+        await buf.StartAsync(TestContext.Current.CancellationToken);
 
         Assert.Contains("192.168.1.1", buf.DeviceFilter);
 
-        await buf.StopAsync(CancellationToken.None);
+        await buf.StopAsync(TestContext.Current.CancellationToken);
     }
 
     // ── Synchronous read paths (Count, Snapshot, Clear) ──────────────────────
@@ -224,13 +224,13 @@ public class RedisPassiveProxyBufferTests
     public async Task SetDeviceFilter_UpdatesLocalCache_AffectsSubsequentAdds()
     {
         var buf = CreateBuffer();
-        await buf.StartAsync(CancellationToken.None);
+        await buf.StartAsync(TestContext.Current.CancellationToken);
         buf.SetDeviceFilter(["10.10.10.1"]);
 
         buf.Add(MakeCapture(clientIp: "10.10.10.99")); // not in filter
 
-        await Task.Delay(250, CancellationToken.None);
-        await buf.StopAsync(CancellationToken.None);
+        await Task.Delay(250, TestContext.Current.CancellationToken);
+        await buf.StopAsync(TestContext.Current.CancellationToken);
 
         await _batch.DidNotReceive().ListRightPushAsync(
             Arg.Any<RedisKey>(),
@@ -254,14 +254,14 @@ public class RedisPassiveProxyBufferTests
     public async Task ClearDeviceFilter_AllowsAllSubsequentAdds()
     {
         var buf = CreateBuffer();
-        await buf.StartAsync(CancellationToken.None);
+        await buf.StartAsync(TestContext.Current.CancellationToken);
         buf.SetDeviceFilter(["10.0.0.1"]);
         buf.ClearDeviceFilter();
 
         buf.Add(MakeCapture(clientIp: "10.0.0.99")); // previously filtered, now allowed
 
-        await Task.Delay(250, CancellationToken.None);
-        await buf.StopAsync(CancellationToken.None);
+        await Task.Delay(250, TestContext.Current.CancellationToken);
+        await buf.StopAsync(TestContext.Current.CancellationToken);
 
         await _batch.Received().ListRightPushAsync(
             Arg.Any<RedisKey>(),

@@ -42,7 +42,7 @@ public class RulesetBundleExportTests
     public async Task ExportRuleset_ReturnsJsonFileWithFilename()
     {
         var (controller, _, _, _) = MakeController();
-        var result = await controller.ExportRuleset(null, CancellationToken.None) as FileContentResult;
+        var result = await controller.ExportRuleset(null, TestContext.Current.CancellationToken) as FileContentResult;
 
         Assert.NotNull(result);
         Assert.Equal("application/json", result.ContentType);
@@ -53,7 +53,7 @@ public class RulesetBundleExportTests
     public async Task ExportRuleset_IncludesAllTopLevelKeys()
     {
         var (controller, _, _, _) = MakeController();
-        var result = await controller.ExportRuleset(null, CancellationToken.None) as FileContentResult;
+        var result = await controller.ExportRuleset(null, TestContext.Current.CancellationToken) as FileContentResult;
 
         Assert.NotNull(result);
         var doc = JsonDocument.Parse(Encoding.UTF8.GetString(result.FileContents));
@@ -79,7 +79,7 @@ public class RulesetBundleExportTests
             new() { Name = "Debug breakpoint", Language = ScriptLanguage.JavaScript, ScriptCode = "return true;" }
         });
 
-        var result = await controller.ExportRuleset(null, CancellationToken.None) as FileContentResult;
+        var result = await controller.ExportRuleset(null, TestContext.Current.CancellationToken) as FileContentResult;
 
         Assert.NotNull(result);
         var doc = JsonDocument.Parse(Encoding.UTF8.GetString(result.FileContents));
@@ -99,7 +99,7 @@ public class RulesetBundleExportTests
             new() { Name = "Rule D", ReplacementFilePath = null }
         });
 
-        var result = await controller.ExportRuleset(null, CancellationToken.None) as FileContentResult;
+        var result = await controller.ExportRuleset(null, TestContext.Current.CancellationToken) as FileContentResult;
 
         Assert.NotNull(result);
         var doc = JsonDocument.Parse(Encoding.UTF8.GetString(result.FileContents));
@@ -121,7 +121,7 @@ public class RulesetBundleExportTests
         });
         apiSpecs.GetReplacementRulesAsync(specId, Arg.Any<CancellationToken>()).Returns(new List<ContentReplacementRule>());
 
-        var result = await controller.ExportRuleset(specId, CancellationToken.None) as FileContentResult;
+        var result = await controller.ExportRuleset(specId, TestContext.Current.CancellationToken) as FileContentResult;
 
         Assert.NotNull(result);
         var doc = JsonDocument.Parse(Encoding.UTF8.GetString(result.FileContents));

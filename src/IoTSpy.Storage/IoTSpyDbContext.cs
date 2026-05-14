@@ -52,6 +52,9 @@ public DbSet<OpenRtbEvent> OpenRtbEvents => Set<OpenRtbEvent>();
     // Gaps Batch 6 — gRPC proto schemas
     public DbSet<ProtoSchema> ProtoSchemas => Set<ProtoSchema>();
 
+    // Security — scan scope CIDR allowlist
+    public DbSet<ScanScope> ScanScopes => Set<ScanScope>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Device>(e =>
@@ -361,6 +364,17 @@ modelBuilder.Entity<OpenRtbPiiPolicy>(e =>
             e.HasKey(s => s.Id);
             e.HasIndex(s => s.CreatedAt);
             e.Property(s => s.Name).IsRequired().HasMaxLength(200);
+        });
+
+        // Security — scan scope CIDR allowlist
+        modelBuilder.Entity<ScanScope>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.HasIndex(s => s.IsActive);
+            e.HasIndex(s => s.CreatedAt);
+            e.Property(s => s.Name).IsRequired().HasMaxLength(200);
+            e.Property(s => s.Cidr).IsRequired().HasMaxLength(50);
+            e.Property(s => s.CreatedByUsername).IsRequired().HasMaxLength(100);
         });
 
         // SQLite cannot ORDER BY DateTimeOffset columns; store all as Unix ms (long) so

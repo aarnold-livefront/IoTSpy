@@ -375,6 +375,18 @@ export interface StartScanRequest {
   enableCredentialTest?: boolean
   enableCveLookup?: boolean
   enableConfigAudit?: boolean
+  consentAcknowledged: boolean
+}
+
+// ── Scan scope models ─────────────────────────────────────────────────────────
+
+export interface ScanScope {
+  id: string
+  name: string
+  cidr: string
+  isActive: boolean
+  createdByUsername: string
+  createdAt: string
 }
 
 // ── Manipulation enums ───────────────────────────────────────────────────────

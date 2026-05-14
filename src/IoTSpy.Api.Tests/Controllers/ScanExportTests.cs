@@ -4,6 +4,7 @@ using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using Microsoft.AspNetCore.Mvc;
 using NSubstitute;
+using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
 using Xunit;
@@ -12,8 +13,12 @@ namespace IoTSpy.Api.Tests.Controllers;
 
 public class ScanExportTests
 {
-    private static ScannerController MakeController(IScanJobRepository scanJobs) =>
-        new(Substitute.For<IScannerService>(), scanJobs, Substitute.For<IDeviceRepository>());
+    private static ScannerController MakeController(IScanJobRepository scanJobs)
+    {
+        var scopes = Substitute.For<IScanScopeRepository>();
+        scopes.GetActiveAsync(Arg.Any<CancellationToken>()).Returns(new List<ScanScope>());
+        return new(Substitute.For<IScannerService>(), scanJobs, Substitute.For<IDeviceRepository>(), scopes);
+    }
 
     [Fact]
     public async Task ExportFindings_WhenJobNotFound_ReturnsNotFound()
@@ -22,7 +27,7 @@ public class ScanExportTests
         scanJobs.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((ScanJob?)null);
 
         var controller = MakeController(scanJobs);
-        var result = await controller.ExportFindings(Guid.NewGuid(), CancellationToken.None);
+        var result = await controller.ExportFindings(Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -51,7 +56,7 @@ public class ScanExportTests
         scanJobs.GetFindingsAsync(jobId, Arg.Any<CancellationToken>()).Returns(findings);
 
         var controller = MakeController(scanJobs);
-        var result = await controller.ExportFindings(jobId, CancellationToken.None) as FileContentResult;
+        var result = await controller.ExportFindings(jobId, TestContext.Current.CancellationToken) as FileContentResult;
 
         Assert.NotNull(result);
         Assert.Equal("application/json", result.ContentType);
@@ -75,7 +80,7 @@ public class ScanExportTests
         scanJobs.GetFindingsAsync(jobId, Arg.Any<CancellationToken>()).Returns(new List<ScanFinding>());
 
         var controller = MakeController(scanJobs);
-        var result = await controller.ExportFindings(jobId, CancellationToken.None) as FileContentResult;
+        var result = await controller.ExportFindings(jobId, TestContext.Current.CancellationToken) as FileContentResult;
 
         Assert.NotNull(result);
         var json = Encoding.UTF8.GetString(result.FileContents);

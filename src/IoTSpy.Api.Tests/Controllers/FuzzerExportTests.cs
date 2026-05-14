@@ -35,7 +35,7 @@ public class FuzzerExportTests
         fuzzerJobs.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((FuzzerJob?)null);
 
         var controller = MakeController(fuzzerJobs);
-        var result = await controller.ExportFuzzerResults(Guid.NewGuid(), CancellationToken.None);
+        var result = await controller.ExportFuzzerResults(Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -56,7 +56,7 @@ public class FuzzerExportTests
         fuzzerJobs.GetResultsAsync(id, Arg.Any<CancellationToken>()).Returns(results);
 
         var controller = MakeController(fuzzerJobs);
-        var result = await controller.ExportFuzzerResults(id, CancellationToken.None) as FileContentResult;
+        var result = await controller.ExportFuzzerResults(id, TestContext.Current.CancellationToken) as FileContentResult;
 
         Assert.NotNull(result);
         Assert.Equal("application/json", result.ContentType);
@@ -79,7 +79,7 @@ public class FuzzerExportTests
         fuzzerJobs.GetResultsAsync(id, Arg.Any<CancellationToken>()).Returns(new List<FuzzerResult>());
 
         var controller = MakeController(fuzzerJobs);
-        var result = await controller.ExportFuzzerResults(id, CancellationToken.None) as FileContentResult;
+        var result = await controller.ExportFuzzerResults(id, TestContext.Current.CancellationToken) as FileContentResult;
 
         Assert.NotNull(result);
         var json = Encoding.UTF8.GetString(result.FileContents);

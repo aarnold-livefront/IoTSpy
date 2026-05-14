@@ -104,7 +104,7 @@ public class ApiSpecControllerTests
         var controller = CreateController(service: service);
         var result = await controller.Generate(
             new ApiSpecGenerationRequest { Host = "api.example.com" },
-            CancellationToken.None) as CreatedResult;
+            TestContext.Current.CancellationToken) as CreatedResult;
 
         Assert.NotNull(result);
         Assert.IsType<ApiSpecDocument>(result.Value);
@@ -116,7 +116,7 @@ public class ApiSpecControllerTests
         var controller = CreateController();
         var result = await controller.Generate(
             new ApiSpecGenerationRequest { Host = "" },
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.IsType<BadRequestObjectResult>(result);
     }
@@ -133,7 +133,7 @@ public class ApiSpecControllerTests
         var controller = CreateController(service: service);
         var result = await controller.Import(
             new ApiSpecController.ImportSpecDto("""{"openapi":"3.0.3"}""", "Test"),
-            CancellationToken.None) as CreatedResult;
+            TestContext.Current.CancellationToken) as CreatedResult;
 
         Assert.NotNull(result);
     }
@@ -144,7 +144,7 @@ public class ApiSpecControllerTests
         var controller = CreateController();
         var result = await controller.Import(
             new ApiSpecController.ImportSpecDto(""),
-            CancellationToken.None);
+            TestContext.Current.CancellationToken);
 
         Assert.IsType<BadRequestObjectResult>(result);
     }
@@ -159,7 +159,7 @@ public class ApiSpecControllerTests
             .Returns("""{"openapi":"3.0.3"}""");
 
         var controller = CreateController(service: service);
-        var result = await controller.Export(Guid.NewGuid(), CancellationToken.None) as FileContentResult;
+        var result = await controller.Export(Guid.NewGuid(), TestContext.Current.CancellationToken) as FileContentResult;
 
         Assert.NotNull(result);
         Assert.Equal("application/json", result.ContentType);
@@ -173,7 +173,7 @@ public class ApiSpecControllerTests
             .Returns<string>(x => throw new KeyNotFoundException());
 
         var controller = CreateController(service: service);
-        var result = await controller.Export(Guid.NewGuid(), CancellationToken.None);
+        var result = await controller.Export(Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -188,7 +188,7 @@ public class ApiSpecControllerTests
         repo.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(MakeSpec(id));
 
         var controller = CreateController(repo: repo);
-        var result = await controller.Delete(id, CancellationToken.None);
+        var result = await controller.Delete(id, TestContext.Current.CancellationToken);
 
         Assert.IsType<NoContentResult>(result);
         await repo.Received(1).DeleteAsync(id, Arg.Any<CancellationToken>());
@@ -201,7 +201,7 @@ public class ApiSpecControllerTests
         repo.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((ApiSpecDocument?)null);
 
         var controller = CreateController(repo: repo);
-        var result = await controller.Delete(Guid.NewGuid(), CancellationToken.None);
+        var result = await controller.Delete(Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -217,7 +217,7 @@ public class ApiSpecControllerTests
         repo.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(spec);
 
         var controller = CreateController(repo: repo);
-        var result = await controller.Activate(id, CancellationToken.None) as OkObjectResult;
+        var result = await controller.Activate(id, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var updated = Assert.IsType<ApiSpecDocument>(result.Value);
@@ -235,7 +235,7 @@ public class ApiSpecControllerTests
         repo.GetByIdAsync(id, Arg.Any<CancellationToken>()).Returns(spec);
 
         var controller = CreateController(repo: repo);
-        var result = await controller.Deactivate(id, CancellationToken.None) as OkObjectResult;
+        var result = await controller.Deactivate(id, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var updated = Assert.IsType<ApiSpecDocument>(result.Value);
@@ -253,7 +253,7 @@ public class ApiSpecControllerTests
             .Returns([MakeRule(specId), MakeRule(specId)]);
 
         var controller = CreateController(repo: repo);
-        var result = await controller.ListRules(specId, CancellationToken.None) as OkObjectResult;
+        var result = await controller.ListRules(specId, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var rules = Assert.IsType<List<ContentReplacementRule>>(result.Value);
@@ -276,7 +276,7 @@ public class ApiSpecControllerTests
             "image/*",
             ContentReplacementAction.Redact);
 
-        var result = await controller.CreateRule(specId, dto, CancellationToken.None) as CreatedResult;
+        var result = await controller.CreateRule(specId, dto, TestContext.Current.CancellationToken) as CreatedResult;
 
         Assert.NotNull(result);
         Assert.IsType<ContentReplacementRule>(result.Value);
@@ -295,7 +295,7 @@ public class ApiSpecControllerTests
             "image/*",
             ContentReplacementAction.Redact);
 
-        var result = await controller.CreateRule(Guid.NewGuid(), dto, CancellationToken.None);
+        var result = await controller.CreateRule(Guid.NewGuid(), dto, TestContext.Current.CancellationToken);
 
         Assert.IsType<NotFoundResult>(result);
     }

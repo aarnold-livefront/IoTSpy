@@ -59,7 +59,7 @@ public class CaptureBatchWriterTests
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         var task = writer.StartAsync(cts.Token);
 
-        await Task.Delay(500, CancellationToken.None);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
         cts.Cancel();
         try { await task; } catch (OperationCanceledException) { }
 
@@ -76,7 +76,7 @@ public class CaptureBatchWriterTests
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         var task = writer.StartAsync(cts.Token);
 
-        await Task.Delay(500, CancellationToken.None);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
         cts.Cancel();
         try { await task; } catch (OperationCanceledException) { }
 
@@ -98,7 +98,7 @@ public class CaptureBatchWriterTests
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
         var task = writer.StartAsync(cts.Token);
 
-        await Task.Delay(500, CancellationToken.None);
+        await Task.Delay(500, TestContext.Current.CancellationToken);
         cts.Cancel();
         try { await task; } catch (OperationCanceledException) { }
 

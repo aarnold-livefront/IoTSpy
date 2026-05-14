@@ -49,7 +49,7 @@ public class RulesetImportTests
         );
 
         var controller = MakeController(rules);
-        var result = await controller.ImportRuleset(dto, CancellationToken.None) as OkObjectResult;
+        var result = await controller.ImportRuleset(dto, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -72,7 +72,7 @@ public class RulesetImportTests
         );
 
         var controller = MakeController(breakpoints: bps);
-        var result = await controller.ImportRuleset(dto, CancellationToken.None) as OkObjectResult;
+        var result = await controller.ImportRuleset(dto, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -104,7 +104,7 @@ public class RulesetImportTests
         );
 
         var controller = MakeController(apiSpecs: apiSpecs);
-        var result = await controller.ImportRuleset(dto, CancellationToken.None) as OkObjectResult;
+        var result = await controller.ImportRuleset(dto, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         Assert.NotNull(savedRule);
@@ -115,7 +115,7 @@ public class RulesetImportTests
     public async Task ImportRuleset_EmptyBundle_ReturnsAllZeros()
     {
         var controller = MakeController();
-        var result = await controller.ImportRuleset(new ImportRulesetDto(), CancellationToken.None) as OkObjectResult;
+        var result = await controller.ImportRuleset(new ImportRulesetDto(), TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);
@@ -147,7 +147,7 @@ public class RulesetImportTests
         );
 
         var controller = MakeController(apiSpecs: apiSpecs);
-        var result = await controller.ImportRuleset(dto, CancellationToken.None) as OkObjectResult;
+        var result = await controller.ImportRuleset(dto, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var json = JsonSerializer.Serialize(result.Value);

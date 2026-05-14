@@ -47,18 +47,26 @@ describe('ScannerPanel', () => {
     expect(screen.getByRole('button', { name: /Start Scan/i })).toBeDisabled()
   })
 
-  it('Start Scan button enables after device selection', async () => {
+  it('Start Scan button remains disabled with device but no consent', async () => {
     render(<ScannerPanel />)
     await userEvent.selectOptions(screen.getByRole('combobox'), 'dev-1')
+    expect(screen.getByRole('button', { name: /Start Scan/i })).toBeDisabled()
+  })
+
+  it('Start Scan button enables after device selection and consent', async () => {
+    render(<ScannerPanel />)
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'dev-1')
+    await userEvent.click(screen.getByLabelText(/I confirm I have authorisation/i))
     expect(screen.getByRole('button', { name: /Start Scan/i })).not.toBeDisabled()
   })
 
-  it('renders scan option checkboxes', () => {
+  it('renders scan option checkboxes including consent', () => {
     render(<ScannerPanel />)
     expect(screen.getByLabelText(/Fingerprinting/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Credential Test/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/CVE Lookup/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/Config Audit/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/I confirm I have authorisation/i)).toBeInTheDocument()
   })
 
   it('renders ScanJobList child component', () => {
@@ -69,9 +77,10 @@ describe('ScannerPanel', () => {
   it('calls scan hook with correct params on submit', async () => {
     render(<ScannerPanel />)
     await userEvent.selectOptions(screen.getByRole('combobox'), 'dev-1')
+    await userEvent.click(screen.getByLabelText(/I confirm I have authorisation/i))
     await userEvent.click(screen.getByRole('button', { name: /Start Scan/i }))
     expect(noop).toHaveBeenCalledWith(
-      expect.objectContaining({ deviceId: 'dev-1' })
+      expect.objectContaining({ deviceId: 'dev-1', consentAcknowledged: true })
     )
   })
 
