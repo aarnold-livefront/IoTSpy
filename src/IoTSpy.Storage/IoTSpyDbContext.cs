@@ -35,6 +35,7 @@ public DbSet<OpenRtbEvent> OpenRtbEvents => Set<OpenRtbEvent>();
     // Phase 11 — Multi-user & audit
     public DbSet<User> Users => Set<User>();
     public DbSet<AuditEntry> AuditEntries => Set<AuditEntry>();
+    public DbSet<AuditArchiveEntry> AuditArchive => Set<AuditArchiveEntry>();
     public DbSet<DashboardLayout> DashboardLayouts => Set<DashboardLayout>();
 
     // Phase 14 — API key management
@@ -213,6 +214,18 @@ modelBuilder.Entity<OpenRtbPiiPolicy>(e =>
             e.HasIndex(a => a.Timestamp);
             e.HasIndex(a => a.UserId);
             e.HasIndex(a => a.Action);
+            e.Property(a => a.Action).IsRequired().HasMaxLength(100);
+            e.Property(a => a.EntityType).HasMaxLength(100);
+            e.Property(a => a.EntityId).HasMaxLength(100);
+            e.Property(a => a.IpAddress).HasMaxLength(45);
+        });
+
+        modelBuilder.Entity<AuditArchiveEntry>(e =>
+        {
+            e.HasKey(a => a.Id);
+            e.HasIndex(a => a.Timestamp);
+            e.HasIndex(a => a.ArchivedAt);
+            e.HasIndex(a => a.UserId);
             e.Property(a => a.Action).IsRequired().HasMaxLength(100);
             e.Property(a => a.EntityType).HasMaxLength(100);
             e.Property(a => a.EntityId).HasMaxLength(100);

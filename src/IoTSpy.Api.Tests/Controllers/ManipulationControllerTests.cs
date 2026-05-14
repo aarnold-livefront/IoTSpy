@@ -338,7 +338,7 @@ public class ManipulationControllerTests
         captures.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((CapturedRequest?)null);
 
         var dto = new StartFuzzerDto(Guid.NewGuid());
-        var result = await MakeController(captures: captures).StartFuzzer(dto);
+        var result = await MakeController(captures: captures).StartFuzzer(dto, TestContext.Current.CancellationToken);
 
         Assert.IsType<NotFoundObjectResult>(result);
     }
@@ -349,6 +349,108 @@ public class ManipulationControllerTests
         var controller = MakeController();
         var result = await controller.GetFuzzerStatus(Guid.NewGuid());
         Assert.IsType<NotFoundResult>(result);
+    }
+
+    // ── TLS bypass audit ──────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task StartReplay_WithBypassTlsValidation_SetsSessionFlagAndAudits()
+    {
+        var captureId = Guid.NewGuid();
+        var capture = new CapturedRequest { Id = captureId, Method = "GET", Host = "device.local", Scheme = "https", Port = 443, Path = "/" };
+        var captures = Substitute.For<ICaptureRepository>();
+        captures.GetByIdAsync(captureId, Arg.Any<CancellationToken>()).Returns(capture);
+        var manip = Substitute.For<IManipulationService>();
+        manip.ReplayAsync(Arg.Any<ReplaySession>(), Arg.Any<CancellationToken>())
+            .Returns(ci => ci.Arg<ReplaySession>());
+        var audit = Substitute.For<IAuditRepository>();
+
+        var dto = new StartReplayDto(captureId, BypassTlsValidation: true);
+        var result = await MakeController(manipService: manip, captures: captures, audit: audit)
+            .StartReplay(dto, TestContext.Current.CancellationToken);
+
+        Assert.IsType<OkObjectResult>(result);
+        await manip.Received(1).ReplayAsync(
+            Arg.Is<ReplaySession>(s => s.BypassTlsValidation),
+            Arg.Any<CancellationToken>());
+        await audit.Received(1).AddAsync(
+            Arg.Is<AuditEntry>(e => e.Action == "ReplayBypassTls" && e.EntityType == "ReplaySession"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StartReplay_WithoutBypassTlsValidation_DoesNotAuditBypass()
+    {
+        var captureId = Guid.NewGuid();
+        var capture = new CapturedRequest { Id = captureId, Method = "GET", Host = "device.local", Scheme = "https", Port = 443, Path = "/" };
+        var captures = Substitute.For<ICaptureRepository>();
+        captures.GetByIdAsync(captureId, Arg.Any<CancellationToken>()).Returns(capture);
+        var manip = Substitute.For<IManipulationService>();
+        manip.ReplayAsync(Arg.Any<ReplaySession>(), Arg.Any<CancellationToken>())
+            .Returns(ci => ci.Arg<ReplaySession>());
+        var audit = Substitute.For<IAuditRepository>();
+
+        var dto = new StartReplayDto(captureId);
+        var result = await MakeController(manipService: manip, captures: captures, audit: audit)
+            .StartReplay(dto, TestContext.Current.CancellationToken);
+
+        Assert.IsType<OkObjectResult>(result);
+        await manip.Received(1).ReplayAsync(
+            Arg.Is<ReplaySession>(s => !s.BypassTlsValidation),
+            Arg.Any<CancellationToken>());
+        await audit.DidNotReceive().AddAsync(
+            Arg.Is<AuditEntry>(e => e.Action == "ReplayBypassTls"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StartFuzzer_WithBypassTlsValidation_SetsJobFlagAndAudits()
+    {
+        var captureId = Guid.NewGuid();
+        var capture = new CapturedRequest { Id = captureId, Method = "POST", Host = "device.local", Scheme = "https", Port = 443, Path = "/api" };
+        var captures = Substitute.For<ICaptureRepository>();
+        captures.GetByIdAsync(captureId, Arg.Any<CancellationToken>()).Returns(capture);
+        var manip = Substitute.For<IManipulationService>();
+        manip.StartFuzzerAsync(Arg.Any<FuzzerJob>(), Arg.Any<CancellationToken>())
+            .Returns(ci => ci.Arg<FuzzerJob>());
+        var audit = Substitute.For<IAuditRepository>();
+
+        var dto = new StartFuzzerDto(captureId, BypassTlsValidation: true);
+        var result = await MakeController(manipService: manip, captures: captures, audit: audit)
+            .StartFuzzer(dto, TestContext.Current.CancellationToken);
+
+        Assert.IsType<OkObjectResult>(result);
+        await manip.Received(1).StartFuzzerAsync(
+            Arg.Is<FuzzerJob>(j => j.BypassTlsValidation),
+            Arg.Any<CancellationToken>());
+        await audit.Received(1).AddAsync(
+            Arg.Is<AuditEntry>(e => e.Action == "FuzzerBypassTls" && e.EntityType == "FuzzerJob"),
+            Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task StartFuzzer_WithoutBypassTlsValidation_DoesNotAuditBypass()
+    {
+        var captureId = Guid.NewGuid();
+        var capture = new CapturedRequest { Id = captureId, Method = "POST", Host = "device.local", Scheme = "https", Port = 443, Path = "/api" };
+        var captures = Substitute.For<ICaptureRepository>();
+        captures.GetByIdAsync(captureId, Arg.Any<CancellationToken>()).Returns(capture);
+        var manip = Substitute.For<IManipulationService>();
+        manip.StartFuzzerAsync(Arg.Any<FuzzerJob>(), Arg.Any<CancellationToken>())
+            .Returns(ci => ci.Arg<FuzzerJob>());
+        var audit = Substitute.For<IAuditRepository>();
+
+        var dto = new StartFuzzerDto(captureId);
+        var result = await MakeController(manipService: manip, captures: captures, audit: audit)
+            .StartFuzzer(dto, TestContext.Current.CancellationToken);
+
+        Assert.IsType<OkObjectResult>(result);
+        await manip.Received(1).StartFuzzerAsync(
+            Arg.Is<FuzzerJob>(j => !j.BypassTlsValidation),
+            Arg.Any<CancellationToken>());
+        await audit.DidNotReceive().AddAsync(
+            Arg.Is<AuditEntry>(e => e.Action == "FuzzerBypassTls"),
+            Arg.Any<CancellationToken>());
     }
 
     // ── AI Mock ───────────────────────────────────────────────────────────────

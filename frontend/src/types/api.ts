@@ -220,6 +220,12 @@ export interface AdminStats {
   captures: AdminDataStats
   packets: AdminDataStats
   scanFindings: { count: number }
+  auditLog: {
+    count: number
+    archiveCount: number
+    oldestTimestamp: string | null
+    oldestArchiveTimestamp: string | null
+  }
 }
 
 export interface UserSummary {
@@ -453,6 +459,7 @@ export interface ReplaySession {
   responseHeaders: string
   responseBody: string
   durationMs: number
+  bypassTlsValidation: boolean
   createdAt: string
 }
 
@@ -465,6 +472,7 @@ export interface FuzzerJob {
   concurrentRequests: number
   completedRequests: number
   anomaliesFound: number
+  bypassTlsValidation: boolean
   startedAt?: string
   completedAt?: string
   errorMessage?: string
@@ -528,6 +536,7 @@ export interface CreateReplayRequest {
   path?: string
   requestHeaders?: string
   requestBody?: string
+  bypassTlsValidation?: boolean
 }
 
 export interface StartFuzzerRequest {
@@ -535,6 +544,7 @@ export interface StartFuzzerRequest {
   strategy?: FuzzerStrategy
   mutationCount?: number
   concurrentRequests?: number
+  bypassTlsValidation?: boolean
 }
 
 // ── OpenRTB ──────────────────────────────────────────────────────────────────
@@ -734,6 +744,14 @@ export interface UpdateSpecRequest {
 
 // ── Plugin models ────────────────────────────────────────────────────────────
 
+export type PluginTrustStatus =
+  | 'Trusted'
+  | 'Untrusted'
+  | 'ManifestMissing'
+  | 'ManifestInvalid'
+  | 'HashMismatch'
+  | 'SignatureInvalid'
+
 export interface PluginInfo {
   protocol: string
   name: string
@@ -741,6 +759,8 @@ export interface PluginInfo {
   assemblyPath: string
   isLoaded: boolean
   loadError?: string
+  trustStatus: PluginTrustStatus
+  signerSubject?: string
 }
 
 // ── Protocol Proxy models ─────────────────────────────────────────────────────

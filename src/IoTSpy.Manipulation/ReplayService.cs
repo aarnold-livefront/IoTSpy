@@ -60,7 +60,11 @@ public class ReplayService(IHttpClientFactory httpClientFactory, ILogger<ReplayS
                 request.Content = new StringContent(session.RequestBody, Encoding.UTF8, contentType);
             }
 
-            var client = httpClientFactory.CreateClient("IoTSpyReplay");
+            var clientName = session.BypassTlsValidation ? "IoTSpyReplayBypassTls" : "IoTSpyReplay";
+            if (session.BypassTlsValidation)
+                logger.LogWarning("Replay {SessionId}: TLS validation bypassed (BypassTlsValidation=true)", session.Id);
+
+            var client = httpClientFactory.CreateClient(clientName);
             using var response = await client.SendAsync(request, ct);
 
             session.ResponseStatusCode = (int)response.StatusCode;

@@ -74,3 +74,25 @@
 .plugins-tab__status--failed {
   color: var(--color-error);
 }
+
+.plugins-tab__trust {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.plugins-tab__trust--trusted {
+  color: var(--color-success);
+}
+
+.plugins-tab__trust--untrusted {
+  color: var(--color-warning, #b45309);
+}
+
+.plugins-tab__trust--missing {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.plugins-tab__trust--invalid {
+  color: var(--color-error);
+}

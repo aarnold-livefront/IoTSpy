@@ -8,4 +8,6 @@ public sealed class PluginInfo
     public string AssemblyPath { get; set; } = "";
     public bool IsLoaded { get; set; }
     public string? LoadError { get; set; }
+    public PluginTrustStatus TrustStatus { get; set; } = PluginTrustStatus.ManifestMissing;
+    public string? SignerSubject { get; set; }
 }

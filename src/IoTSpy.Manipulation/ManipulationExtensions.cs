@@ -38,13 +38,24 @@ public static class ManipulationExtensions
         {
             client.Timeout = TimeSpan.FromSeconds(30);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("IoTSpy/1.0 Replay");
+        });
+
+        services.AddHttpClient("IoTSpyReplayBypassTls", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("IoTSpy/1.0 Replay");
         }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
         {
-            // Research tool — skip TLS validation for replaying to IoT devices
             ServerCertificateCustomValidationCallback = (_, _, _, _) => true
         });
 
         services.AddHttpClient("IoTSpyFuzzer", client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(30);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("IoTSpy/1.0 Fuzzer");
+        });
+
+        services.AddHttpClient("IoTSpyFuzzerBypassTls", client =>
         {
             client.Timeout = TimeSpan.FromSeconds(30);
             client.DefaultRequestHeaders.UserAgent.ParseAdd("IoTSpy/1.0 Fuzzer");

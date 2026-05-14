@@ -253,6 +253,7 @@ builder.Services.AddSingleton<IAlertingService, AlertingService>();
 builder.Services.AddHostedService<ScheduledScanService>();
 
 // ── Plugin system (Phase 16.4) ────────────────────────────────────────────────
+builder.Services.AddSingleton<PluginSignatureVerifier>();
 builder.Services.AddSingleton<PluginLoaderService>();
 builder.Services.AddSingleton<IPluginRegistry>(sp =>
 {

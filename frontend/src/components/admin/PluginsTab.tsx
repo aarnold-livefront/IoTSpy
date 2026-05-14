@@ -1,5 +1,24 @@
+import type { PluginTrustStatus } from '../../types/api'
 import { usePlugins } from '../../hooks/usePlugins'
 import '../../styles/plugins-tab.css'
+
+const TRUST_LABEL: Record<PluginTrustStatus, string> = {
+  Trusted: '✓ Trusted',
+  Untrusted: '⚠ Untrusted',
+  ManifestMissing: '— No manifest',
+  ManifestInvalid: '✕ Bad manifest',
+  HashMismatch: '✕ Hash mismatch',
+  SignatureInvalid: '✕ Bad signature',
+}
+
+const TRUST_CLASS: Record<PluginTrustStatus, string> = {
+  Trusted: 'plugins-tab__trust--trusted',
+  Untrusted: 'plugins-tab__trust--untrusted',
+  ManifestMissing: 'plugins-tab__trust--missing',
+  ManifestInvalid: 'plugins-tab__trust--invalid',
+  HashMismatch: 'plugins-tab__trust--invalid',
+  SignatureInvalid: 'plugins-tab__trust--invalid',
+}
 
 export default function PluginsTab() {
   const { plugins, loading, reloading, error, reload } = usePlugins()
@@ -11,6 +30,8 @@ export default function PluginsTab() {
           <h2 className="admin-section-title plugins-tab__title">Protocol Decoder Plugins</h2>
           <p className="plugins-tab__subtitle">
             External decoders loaded from the <code>plugins/</code> directory at startup.
+            Plugin signing is configured via <code>Plugins:RequireSignedPlugins</code> and{' '}
+            <code>Plugins:TrustedSignerThumbprints</code> in <code>appsettings.json</code>.
           </p>
         </div>
         <button
@@ -38,13 +59,15 @@ export default function PluginsTab() {
                 <th>Protocol</th>
                 <th>Name</th>
                 <th>Version</th>
-                <th>Status</th>
+                <th>Load status</th>
+                <th>Trust</th>
+                <th>Signer</th>
                 <th>Assembly</th>
               </tr>
             </thead>
             <tbody>
-              {plugins.map((p) => (
-                <tr key={p.protocol}>
+              {plugins.map((p, i) => (
+                <tr key={p.protocol || i}>
                   <td className="plugins-tab__protocol-cell">{p.protocol}</td>
                   <td>{p.name}</td>
                   <td className="plugins-tab__muted-cell">{p.version}</td>
@@ -59,6 +82,14 @@ export default function PluginsTab() {
                         ● Failed{p.loadError ? ` — ${p.loadError}` : ''}
                       </span>
                     )}
+                  </td>
+                  <td>
+                    <span className={`plugins-tab__trust ${TRUST_CLASS[p.trustStatus]}`}>
+                      {TRUST_LABEL[p.trustStatus]}
+                    </span>
+                  </td>
+                  <td className="plugins-tab__muted-cell">
+                    {p.signerSubject ?? <span className="plugins-tab__muted-cell">—</span>}
                   </td>
                   <td className="plugins-tab__assembly-cell">
                     <code>{p.assemblyPath}</code>

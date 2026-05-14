@@ -90,15 +90,27 @@ See `.dev/claude-skills/README.md` for full details.
 ## Current state
 
 All phases 1–16, 18–22 plus API & Backend Polish, Frontend Usability enhancements, Gaps Batches 4, 5, and 6 are complete:
-- 814 backend tests across 8 test projects; 102 frontend component tests; Playwright E2E suite (auth, captures, dashboard, manipulation)
+- 825 backend tests across 8 test projects; 102 frontend component tests; Playwright E2E suite (auth, captures, dashboard, manipulation)
 - 21 REST controllers, 196 endpoints (added `ScanScopeController`)
-- 23 EF Core migrations up through `AddScanScopes`
+- 25 EF Core migrations up through `AddAuditArchive`
 - GitHub Actions CI at `.github/workflows/ci.yml`
 - Helm chart at `deploy/helm/iotspy/`; production Docker Compose at `docker-compose.prod.yml`
 
-> Counts above last verified 2026-05-09. To re-check: `grep -rE "^\s*\[(Fact|Theory)" --include="*.cs" src/IoTSpy.*.Tests src/IoTSpy.Api.IntegrationTests | wc -l`, `ls src/IoTSpy.Api/Controllers | wc -l`, `ls src/IoTSpy.Storage/Migrations/*.cs | grep -vE "(Designer|Snapshot)" | wc -l`, `grep -rE "\[Http" --include="*.cs" src/IoTSpy.Api/Controllers | wc -l`.
+> Counts above last verified 2026-05-14. To re-check: `grep -rE "^\s*\[(Fact|Theory)" --include="*.cs" src/IoTSpy.*.Tests src/IoTSpy.Api.IntegrationTests | wc -l`, `ls src/IoTSpy.Api/Controllers | wc -l`, `ls src/IoTSpy.Storage/Migrations/*.cs | grep -vE "(Designer|Snapshot)" | wc -l`, `grep -rE "\[Http" --include="*.cs" src/IoTSpy.Api/Controllers | wc -l`.
 
-### feature/scan-scope-consent-gate (latest)
+### feature/plugin-signing-audit-tiered-retention (latest)
+- Plugin signing (#16): `PluginSignatureVerifier` validates `.manifest.json` (SHA-256 hash + RSA/ECDSA signature + X.509 cert) for each DLL; `PluginTrustStatus` enum; `Plugins:RequireSignedPlugins` + `Plugins:TrustedSignerThumbprints` config; Admin Plugins tab shows Trust/Signer columns; ADR at `docs/adr/0001-plugin-signing.md`; 7 new `PluginLoaderServiceTests`
+- Audit tiered retention (#46): `AuditArchiveEntry` + `AuditArchive` table (migration `AddAuditArchive`); `ArchiveOlderThanAsync`/`PurgeArchiveOlderThanAsync` on `IAuditRepository`; `DataRetentionService` archives before purge; `POST/DELETE /api/admin/audit/archive`; DatabaseTab Audit Log card with archive/purge-archive sliders; ADR at `docs/adr/0002-audit-tiered-retention.md`
+
+### feature/replay-fuzzer-tls-opt-in (previous)
+- Replay/Fuzzer TLS validation is now opt-in, not always-on (finding #13)
+- `BypassTlsValidation: bool` added to `StartReplayDto`, `StartFuzzerDto`, `ReplaySession`, `FuzzerJob`
+- Two new named HTTP clients each: `IoTSpyReplay`/`IoTSpyReplayBypassTls`, `IoTSpyFuzzer`/`IoTSpyFuzzerBypassTls`
+- Controller writes audit entry + both services emit `LogWarning` when bypass is active
+- UI: "Bypass TLS validation" checkbox with orange warning badge in `ReplayPanel` and `FuzzerPanel`
+- EF migration `AddBypassTlsValidation`; 4 new controller tests
+
+### feature/scan-scope-consent-gate (previous)
 - Scan scope enforcement: `ScanScope` model + `IScanScopeRepository` + `ScanScopeRepository`; `CidrHelper` (IPv4/IPv6 CIDR containment, bare-IP = /32 or /128); `ScanScopeController` at `GET/POST /api/scopes`, `PATCH /api/scopes/{id}/toggle`, `DELETE /api/scopes/{id}` (Admin-only writes); `AddScanScopes` EF Core migration; gate in `ScannerController.StartScan`: 403 if any active scopes exist and device IP is not in one
 - Consent gate: `StartScanDto.ConsentAcknowledged: bool`; returns 400 if false (checked first, before device lookup); frontend consent checkbox in `ScannerPanel`; Start Scan button gated on both device selection and consent checkbox
 - Admin UI: **Scan Scopes** tab added to the Admin page (add, enable/disable toggle, delete); `api/scanScopes.ts` + `hooks/useScanScopes.ts`

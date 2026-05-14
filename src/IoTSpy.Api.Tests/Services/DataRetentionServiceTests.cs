@@ -1,6 +1,8 @@
 using IoTSpy.Api.Services;
+using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using IoTSpy.Storage;
+using IoTSpy.Storage.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -17,6 +19,7 @@ public class DataRetentionServiceTests
         var dbName = $"retention-{Guid.NewGuid():N}";
         services.AddDbContext<IoTSpyDbContext>(opts =>
             opts.UseSqlite($"Data Source=file:{dbName}?mode=memory&cache=shared"));
+        services.AddScoped<IAuditRepository, AuditRepository>();
         var provider = services.BuildServiceProvider();
 
         var db = provider.GetRequiredService<IoTSpyDbContext>();
