@@ -11,6 +11,8 @@ public class FuzzerJob
     public FuzzerStrategy Strategy { get; set; }
     public int MutationCount { get; set; } = 50;
     public int ConcurrentRequests { get; set; } = 5;
+    // When true, TLS certificate errors are ignored for mutation requests.
+    public bool BypassTlsValidation { get; set; }
     public FuzzerJobStatus Status { get; set; } = FuzzerJobStatus.Pending;
     public int CompletedMutations { get; set; }
     public int Anomalies { get; set; }

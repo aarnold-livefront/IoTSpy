@@ -30,6 +30,8 @@ export default function DatabaseTab() {
   const [captureDays, setCaptureDays] = useState(30)
   const [captureHost, setCaptureHost] = useState('')
   const [packetDays, setPacketDays] = useState(30)
+  const [auditArchiveDays, setAuditArchiveDays] = useState(90)
+  const [auditPurgeDays, setAuditPurgeDays] = useState(365)
 
   const {
     data: stats,
@@ -44,14 +46,34 @@ export default function DatabaseTab() {
     mutationFn: (url: string) =>
       apiFetch<{ deleted: number }>(url, { method: 'DELETE' }),
     onSuccess: (result, url) => {
-      const type = url.includes('captures') ? 'captures' : 'packets'
+      const type = url.includes('captures') ? 'captures' : url.includes('packets') ? 'packets' : 'records'
       showToast(`Deleted ${result.deleted} ${type}`)
       void queryClient.invalidateQueries({ queryKey: STATS_KEY })
     },
     onError: () => showToast('Purge failed'),
   })
 
-  const busy = purgeMutation.isPending
+  const archiveAuditMutation = useMutation({
+    mutationFn: (days: number) =>
+      apiFetch<{ archived: number }>(`/api/admin/audit/archive?olderThanDays=${days}`, { method: 'POST' }),
+    onSuccess: (result) => {
+      showToast(`Archived ${result.archived} audit entries`)
+      void queryClient.invalidateQueries({ queryKey: STATS_KEY })
+    },
+    onError: () => showToast('Archive failed'),
+  })
+
+  const purgeAuditArchiveMutation = useMutation({
+    mutationFn: (days: number) =>
+      apiFetch<{ purged: number }>(`/api/admin/audit/archive?olderThanDays=${days}`, { method: 'DELETE' }),
+    onSuccess: (result) => {
+      showToast(`Purged ${result.purged} archived entries`)
+      void queryClient.invalidateQueries({ queryKey: STATS_KEY })
+    },
+    onError: () => showToast('Purge failed'),
+  })
+
+  const busy = purgeMutation.isPending || archiveAuditMutation.isPending || purgeAuditArchiveMutation.isPending
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -172,6 +194,46 @@ export default function DatabaseTab() {
               )}>Purge all</button>
             <button className="admin-btn" onClick={() => downloadExport('/api/admin/export/packets?format=json', 'packets.json')}>Export JSON</button>
             <button className="admin-btn" onClick={() => downloadExport('/api/admin/export/packets?format=csv', 'packets.csv')}>Export CSV</button>
+          </div>
+        </div>
+
+        <div className="admin-card">
+          <div className="admin-card__title">Audit Log</div>
+          <div className="admin-card__stats">
+            {stats.auditLog.count.toLocaleString()} active entries
+            &nbsp;·&nbsp; oldest: {formatDate(stats.auditLog.oldestTimestamp)}
+          </div>
+          <div className="admin-card__stats" style={{ marginBottom: 'var(--space-3)', color: 'var(--color-text-muted)' }}>
+            Archive: {stats.auditLog.archiveCount.toLocaleString()} entries
+            &nbsp;·&nbsp; oldest: {formatDate(stats.auditLog.oldestArchiveTimestamp)}
+          </div>
+          <div style={{ marginBottom: 'var(--space-3)' }}>
+            <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>
+              Archive active entries older than {auditArchiveDays} days
+            </label>
+            <input type="range" min={7} max={730} value={auditArchiveDays}
+              onChange={e => setAuditArchiveDays(+e.target.value)}
+              style={{ width: '100%', marginBottom: 4 }} />
+            <button className="admin-btn admin-btn--danger" disabled={busy} onClick={() =>
+              runWithConfirm(
+                'Archive audit entries',
+                `Move audit entries older than ${auditArchiveDays} days to the archive? This cannot be undone.`,
+                () => archiveAuditMutation.mutateAsync(auditArchiveDays),
+              )}>Archive by age</button>
+          </div>
+          <div style={{ marginBottom: 'var(--space-3)' }}>
+            <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>
+              Purge archive entries older than {auditPurgeDays} days
+            </label>
+            <input type="range" min={30} max={3650} value={auditPurgeDays}
+              onChange={e => setAuditPurgeDays(+e.target.value)}
+              style={{ width: '100%', marginBottom: 4 }} />
+            <button className="admin-btn admin-btn--danger" disabled={busy} onClick={() =>
+              runWithConfirm(
+                'Purge audit archive',
+                `Permanently delete archive entries older than ${auditPurgeDays} days? This cannot be undone.`,
+                () => purgeAuditArchiveMutation.mutateAsync(auditPurgeDays),
+              )}>Purge archive</button>
           </div>
         </div>
 

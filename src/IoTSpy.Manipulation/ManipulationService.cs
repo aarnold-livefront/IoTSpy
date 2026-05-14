@@ -145,6 +145,8 @@ public class ManipulationService(
 
             logger.LogInformation("Starting fuzzer {JobId}: {Count} mutations with {Strategy}",
                 jobId, job.MutationCount, job.Strategy);
+            if (job.BypassTlsValidation)
+                logger.LogWarning("Fuzzer {JobId}: TLS validation bypassed (BypassTlsValidation=true)", jobId);
 
             var semaphore = new SemaphoreSlim(job.ConcurrentRequests);
             var tasks = new List<Task>();
@@ -161,7 +163,7 @@ public class ManipulationService(
                 {
                     try
                     {
-                        var result = await fuzzerService.ExecuteMutationAsync(baseCapture, index, job.Strategy, ct);
+                        var result = await fuzzerService.ExecuteMutationAsync(baseCapture, index, job.Strategy, job.BypassTlsValidation, ct);
                         result.FuzzerJobId = jobId;
                         await fuzzerRepo.AddResultAsync(result, ct);
 

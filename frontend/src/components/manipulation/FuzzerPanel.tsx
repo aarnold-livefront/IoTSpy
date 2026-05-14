@@ -46,6 +46,7 @@ export default function FuzzerPanel({
   const [strategy, setStrategy] = useState<FuzzerStrategy>('Random')
   const [mutationCount, setMutationCount] = useState(50)
   const [concurrent, setConcurrent] = useState(5)
+  const [bypassTls, setBypassTls] = useState(false)
   const [starting, setStarting] = useState(false)
   const [viewingJobId, setViewingJobId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -58,6 +59,7 @@ export default function FuzzerPanel({
       strategy,
       mutationCount,
       concurrentRequests: concurrent,
+      bypassTlsValidation: bypassTls || undefined,
     }
     await onStart(req)
     setStarting(false)
@@ -138,6 +140,19 @@ export default function FuzzerPanel({
               min={1}
               max={50}
             />
+          </label>
+          <label className="manip-form__label manip-form__label--inline manip-form__label--warning">
+            <input
+              type="checkbox"
+              checked={bypassTls}
+              onChange={(e) => setBypassTls(e.target.checked)}
+            />
+            Bypass TLS validation
+            {bypassTls && (
+              <span className="manip-warn-badge" title="TLS validation disabled — use only against trusted test targets">
+                Warning: insecure
+              </span>
+            )}
           </label>
           <button
             className="manip-btn manip-btn--primary"

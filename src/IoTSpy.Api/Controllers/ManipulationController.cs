@@ -273,7 +273,7 @@ public class ManipulationController(
         Ok(await replaySessions.GetByCaptureIdAsync(captureId));
 
     [HttpPost("replays")]
-    public async Task<IActionResult> StartReplay([FromBody] StartReplayDto dto)
+    public async Task<IActionResult> StartReplay([FromBody] StartReplayDto dto, CancellationToken ct)
     {
         var capture = await captures.GetByIdAsync(dto.CaptureId);
         if (capture is null) return NotFound("Capture not found");
@@ -288,10 +288,21 @@ public class ManipulationController(
             RequestPath = dto.Path ?? capture.Path,
             RequestQuery = dto.Query ?? capture.Query,
             RequestHeaders = dto.RequestHeaders ?? capture.RequestHeaders,
-            RequestBody = dto.RequestBody ?? capture.RequestBody
+            RequestBody = dto.RequestBody ?? capture.RequestBody,
+            BypassTlsValidation = dto.BypassTlsValidation
         };
 
-        var result = await manipulationService.ReplayAsync(session);
+        if (dto.BypassTlsValidation)
+            await auditRepo.AddAsync(new AuditEntry
+            {
+                UserId = CurrentUserId, Username = CurrentUsername,
+                Action = "ReplayBypassTls", EntityType = "ReplaySession",
+                EntityId = session.Id.ToString(),
+                NewValue = $"TLS validation bypassed for replay of capture {dto.CaptureId}",
+                IpAddress = CurrentIp
+            }, ct);
+
+        var result = await manipulationService.ReplayAsync(session, ct);
         return Ok(result);
     }
 
@@ -334,7 +345,7 @@ public class ManipulationController(
     }
 
     [HttpPost("fuzzer")]
-    public async Task<IActionResult> StartFuzzer([FromBody] StartFuzzerDto dto)
+    public async Task<IActionResult> StartFuzzer([FromBody] StartFuzzerDto dto, CancellationToken ct)
     {
         var capture = await captures.GetByIdAsync(dto.CaptureId);
         if (capture is null) return NotFound("Capture not found");
@@ -344,10 +355,21 @@ public class ManipulationController(
             BaseCaptureId = dto.CaptureId,
             Strategy = dto.Strategy ?? FuzzerStrategy.Random,
             MutationCount = dto.MutationCount ?? 50,
-            ConcurrentRequests = dto.ConcurrentRequests ?? 5
+            ConcurrentRequests = dto.ConcurrentRequests ?? 5,
+            BypassTlsValidation = dto.BypassTlsValidation
         };
 
-        var result = await manipulationService.StartFuzzerAsync(job);
+        if (dto.BypassTlsValidation)
+            await auditRepo.AddAsync(new AuditEntry
+            {
+                UserId = CurrentUserId, Username = CurrentUsername,
+                Action = "FuzzerBypassTls", EntityType = "FuzzerJob",
+                EntityId = job.Id.ToString(),
+                NewValue = $"TLS validation bypassed for fuzzer job against capture {dto.CaptureId}",
+                IpAddress = CurrentIp
+            }, ct);
+
+        var result = await manipulationService.StartFuzzerAsync(job, ct);
         return Ok(result);
     }
 
@@ -575,14 +597,16 @@ public record StartReplayDto(
     string? Path = null,
     string? Query = null,
     string? RequestHeaders = null,
-    string? RequestBody = null
+    string? RequestBody = null,
+    bool BypassTlsValidation = false
 );
 
 public record StartFuzzerDto(
     Guid CaptureId,
     FuzzerStrategy? Strategy = null,
     int? MutationCount = null,
-    int? ConcurrentRequests = null
+    int? ConcurrentRequests = null,
+    bool BypassTlsValidation = false
 );
 
 public record AiMockGenerateDto(

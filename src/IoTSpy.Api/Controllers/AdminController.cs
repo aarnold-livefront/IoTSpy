@@ -26,6 +26,7 @@ public class AdminController(
         var oldestPacket = await db.Packets.AnyAsync(ct)
             ? await db.Packets.MinAsync(p => (DateTimeOffset?)p.Timestamp, ct)
             : null;
+        var auditStats = await auditRepo.GetStatsAsync(ct);
 
         return Ok(new
         {
@@ -41,8 +42,59 @@ public class AdminController(
                 estimatedSizeBytes = packetCount * 512L,
                 oldestTimestamp = oldestPacket
             },
-            scanFindings = new { count = scanFindingCount }
+            scanFindings = new { count = scanFindingCount },
+            auditLog = new
+            {
+                count = auditStats.MainCount,
+                archiveCount = auditStats.ArchiveCount,
+                oldestTimestamp = auditStats.OldestMainTimestamp,
+                oldestArchiveTimestamp = auditStats.OldestArchiveTimestamp
+            }
         });
+    }
+
+    [HttpPost("audit/archive")]
+    public async Task<IActionResult> ArchiveAuditLog(
+        [FromQuery] int olderThanDays = 90, CancellationToken ct = default)
+    {
+        if (olderThanDays < 1)
+            return BadRequest(new { error = "olderThanDays must be >= 1" });
+
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-olderThanDays);
+        var archived = await auditRepo.ArchiveOlderThanAsync(cutoff, ct);
+
+        await auditRepo.AddAsync(new AuditEntry
+        {
+            Username = User.Identity?.Name ?? "system",
+            Action = "ArchiveAuditLog",
+            EntityType = "AuditEntry",
+            Details = $"Archived {archived} audit entries older than {olderThanDays} days",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? ""
+        }, ct);
+
+        return Ok(new { archived });
+    }
+
+    [HttpDelete("audit/archive")]
+    public async Task<IActionResult> PurgeAuditArchive(
+        [FromQuery] int olderThanDays = 365, CancellationToken ct = default)
+    {
+        if (olderThanDays < 1)
+            return BadRequest(new { error = "olderThanDays must be >= 1" });
+
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-olderThanDays);
+        var purged = await auditRepo.PurgeArchiveOlderThanAsync(cutoff, ct);
+
+        await auditRepo.AddAsync(new AuditEntry
+        {
+            Username = User.Identity?.Name ?? "system",
+            Action = "PurgeAuditArchive",
+            EntityType = "AuditArchiveEntry",
+            Details = $"Purged {purged} archive entries older than {olderThanDays} days",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? ""
+        }, ct);
+
+        return Ok(new { purged });
     }
 
     [HttpDelete("captures")]

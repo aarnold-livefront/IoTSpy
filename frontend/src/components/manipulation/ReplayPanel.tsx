@@ -20,6 +20,7 @@ export default function ReplayPanel({ replays, loading, error, captures, onRepla
   const [headers, setHeaders] = useState('')
   const [body, setBody] = useState('')
   const [sending, setSending] = useState(false)
+  const [bypassTls, setBypassTls] = useState(false)
   const [selectedReplay, setSelectedReplay] = useState<ReplaySession | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
@@ -46,6 +47,7 @@ export default function ReplayPanel({ replays, loading, error, captures, onRepla
       path: path || undefined,
       requestHeaders: headers || undefined,
       requestBody: body || undefined,
+      bypassTlsValidation: bypassTls || undefined,
     }
     const session = await onReplay(req)
     if (session) {
@@ -159,6 +161,19 @@ export default function ReplayPanel({ replays, loading, error, captures, onRepla
               </label>
             </div>
             <div className="manip-form__actions">
+              <label className="manip-form__label manip-form__label--inline manip-form__label--warning">
+                <input
+                  type="checkbox"
+                  checked={bypassTls}
+                  onChange={(e) => setBypassTls(e.target.checked)}
+                />
+                Bypass TLS validation
+                {bypassTls && (
+                  <span className="manip-warn-badge" title="TLS validation disabled — use only against trusted test targets">
+                    Warning: insecure
+                  </span>
+                )}
+              </label>
               <button
                 className="manip-btn manip-btn--primary"
                 onClick={handleSend}

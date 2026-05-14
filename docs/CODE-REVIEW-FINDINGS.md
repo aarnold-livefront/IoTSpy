@@ -12,14 +12,14 @@ Severity legend: **Critical** = ship blocker · **High** = next-sprint · **Medi
 
 | State | Count | Items |
 |---|---|---|
-| ✅ Completed | 31 | #1, #2, #3, #4, #5, #6, #7, #8, #9, #10, #11, #12, #14, #15, #17, #18, #19, #20, #21, #22, #23, #24, #25, #26, #27, #28, #45, #47, #49, #50 |
+| ✅ Completed | 34 | #1, #2, #3, #4, #5, #6, #7, #8, #9, #10, #11, #12, #13, #14, #15, #16, #17, #18, #19, #20, #21, #22, #23, #24, #25, #26, #27, #28, #45, #46, #47, #49, #50 |
 | ⏳ In-flight (open PR) | 0 | — |
 | 🟥 Critical remaining | 0 | — |
-| 🟧 High remaining | 2 | #13, #16 |
-| 🟨 Medium remaining | 19 | #29–#44, #46, #48 |
+| 🟧 High remaining | 0 | — |
+| 🟨 Medium remaining | 18 | #29–#44, #48 |
 | 🟩 Low remaining | 9 | #51–#59 |
 
-PR history that closed items: **#59** (day-0 hotfixes), **#60** (doc accuracy), **#61** (test backfill), **#62** (responsive pass), **#63** (security hardening), **#66** (auth: session expiry redirect, multi-user login), **#68** (modal system: #20, #21, #49, #50), **#69** (crash resilience: #8), **feature/scan-scope-consent-gate** (scan scope enforcement + consent gate: #4, #45).
+PR history that closed items: **#59** (day-0 hotfixes), **#60** (doc accuracy), **#61** (test backfill), **#62** (responsive pass), **#63** (security hardening), **#66** (auth: session expiry redirect, multi-user login), **#68** (modal system: #20, #21, #49, #50), **#69** (crash resilience: #8), **feature/scan-scope-consent-gate** (scan scope enforcement + consent gate: #4, #45), **feature/replay-fuzzer-tls-opt-in** (Replay/Fuzzer TLS bypass opt-in: #13), **feature/plugin-signing-audit-tiered-retention** (plugin signing: #16; audit tiered retention: #46).
 
 ---
 
@@ -27,13 +27,7 @@ PR history that closed items: **#59** (day-0 hotfixes), **#60** (doc accuracy), 
 
 ---
 
-## 🟧 High — remaining
-
-### Security & correctness
-
-**13. Replay/Fuzzer silently bypass TLS validation** — `ManipulationExtensions.cs:41-44, :51-53` set `ServerCertificateCustomValidationCallback => true` per named-client (always-on), not per-request. Make it an opt-in `BypassTlsValidation` flag on `StartReplayDto` / `StartFuzzerDto` with audit-log warning. Surface the toggle in the Replay/Fuzzer UI.
-
-**16. No code signing on plugin loader** — `PluginLoaderService` loads arbitrary `.dll`s with no hash/signature check. At minimum, document the trust boundary in the admin UI; better, require a manifest with SHA-256 and check against an allowlist. Decision needed on key-mgmt approach before implementation.
+## 🟧 High — all resolved ✅
 
 ---
 
@@ -79,8 +73,6 @@ PR history that closed items: **#59** (day-0 hotfixes), **#60** (doc accuracy), 
 
 ### Trust & safety
 
-**46. Audit log DELETE not blocked** — `AuditWriteOnceTrigger` covers UPDATE only. Adding `BEFORE DELETE` would conflict with `DataRetentionService.DeleteOlderThanAsync`. Decision needed: either retention writes to an immutable archive sink before deleting, or DELETE-protect entirely and stop pruning audit. Not a one-line fix.
-
 **48. No per-user data isolation** — Viewer-role users see all captures/scans across the instance. For shared-instance deployments this leaks data. Add row-level ownership filter on capture/scan/device queries. Touches many controllers; bundle as a single multi-controller PR.
 
 ---
@@ -120,7 +112,9 @@ Each entry includes the closing PR. Use `gh pr view <num>` for the full diff and
 - **#6 — `PanelPacketCapture` infinite-render risk** [PR #62] — destructured stable `useCallback` refs; `useEffect` no longer depends on the unstable `analysis` object literal.
 - **#7 — `PanelPacketCapture` 3-column layout broken <768px** [PR #62] — `responsive.css` stacks `.ppc-root` vertically; inspector capped at 50 vh.
 
-### High security & correctness (6 of 8)
+### High security & correctness (7 of 8)
+
+- **#13 — Replay/Fuzzer silently bypassed TLS validation** [branch: feature/replay-fuzzer-tls-opt-in] — `BypassTlsValidation: bool = false` added to `StartReplayDto`, `StartFuzzerDto`, `ReplaySession`, and `FuzzerJob` models. `ManipulationExtensions` now registers `IoTSpyReplay`/`IoTSpyFuzzer` (TLS-validating, default) and `IoTSpyReplayBypassTls`/`IoTSpyFuzzerBypassTls` (opt-in bypass) named clients. `ReplayService` and `FuzzerService` select the client by flag; `ManipulationService` passes the flag through. Controller writes an `AuditEntry` (action `ReplayBypassTls`/`FuzzerBypassTls`) and both services log `LogWarning` when bypass is active. UI: checkbox in `ReplayPanel` and `FuzzerPanel` with an orange "Warning: insecure" badge. EF migration `AddBypassTlsValidation`. 4 new controller tests.
 
 - **#9 — `ProtoSchemasController.Upload` had no size limit** [PR #63] — `[RequestSizeLimit(1 MB)]` + length guard on both upload paths.
 - **#10 — `ProtoSchemasController.Delete` was not Admin-restricted** [PR #63] — `[Authorize(Roles = "admin")]` added; regression test asserts the attribute via reflection.
@@ -159,7 +153,11 @@ Each entry includes the closing PR. Use `gh pr view <num>` for the full diff and
 - **#4 — No scan scope enforcement** [branch: feature/scan-scope-consent-gate] — `ScanScope` model + `IScanScopeRepository` + `ScanScopeRepository`; `CidrHelper` (IPv4/IPv6 CIDR matching, bare IP as /32 or /128); `ScanScopeController` at `GET/POST/PATCH /{id}/toggle/DELETE /api/scopes` (Admin-only writes); `AddScanScopes` EF Core migration; gate wired into `ScannerController.StartScan`: if any active scopes exist and the device IP is not in one, returns 403. Admin UI: **Scan Scopes** tab in the Admin page (add/enable/disable/delete scopes). 17 new `CidrHelperTests` + 7 `ScanScopeRepositoryTests` + 9 `ScanScopeControllerTests` + 4 new gate tests in `ScannerControllerTests`. All xUnit1051 `CancellationToken.None` warnings across the entire test suite resolved in the same branch.
 - **#45 — No "I am authorized" consent gate** [branch: feature/scan-scope-consent-gate] — `StartScanDto` gains `ConsentAcknowledged: bool`; `ScannerController.StartScan` returns 400 if it is false (checked before any device lookup). Frontend: consent checkbox added to `ScannerPanel`; **Start Scan** button stays disabled until both a device is selected and the checkbox is ticked. `StartScanRequest` TypeScript type updated; `ScannerPanel.test.tsx` updated with consent-gate assertions.
 
-### Trust & safety (2 of 4)
+### Trust & safety (4 of 4) ✅
+
+- **#16 — No code signing on plugin loader** [branch: feature/plugin-signing-audit-tiered-retention] — `PluginSignatureVerifier` validates a per-DLL `.manifest.json` (SHA-256 hash, RSA/ECDSA signature over hash bytes, X.509 signer certificate). `PluginLoaderService` calls the verifier for every DLL; if `Plugins:RequireSignedPlugins=true`, unsigned/untrusted DLLs are rejected before loading; otherwise they load with a warning. `Plugins:TrustedSignerThumbprints` allowlist in `appsettings.json`. `PluginTrustStatus` enum (`Trusted`, `Untrusted`, `ManifestMissing`, `ManifestInvalid`, `HashMismatch`, `SignatureInvalid`) propagated to `PluginInfo`, API response, and frontend. Admin Plugins tab shows Trust and Signer columns with colour-coded badges. ADR at `docs/adr/0001-plugin-signing.md`. 7 new tests in `PluginLoaderServiceTests`.
+
+- **#46 — Audit log DELETE not blocked** [branch: feature/plugin-signing-audit-tiered-retention] — Tiered retention: `AuditArchiveEntry` model + `AuditArchive` table (EF migration `AddAuditArchive`). `IAuditRepository` gains `ArchiveOlderThanAsync` and `PurgeArchiveOlderThanAsync`. `DataRetentionService` archives first, then purges archive after a configurable `AuditArchivePurgeDays`. Manual controls: `POST /api/admin/audit/archive?olderThanDays=N` and `DELETE /api/admin/audit/archive?olderThanDays=N` (Admin-only). `GetStats` includes `archiveCount`/`oldestArchiveTimestamp`. `DatabaseTab` has Audit Log card with age-slider Archive and Purge-archive buttons. ADR at `docs/adr/0002-audit-tiered-retention.md`. `DataRetentionServiceTests` registers `IAuditRepository` in its DI container.
 
 - **#47 — Scanner `MaxConcurrency` defaulted to 100** [PR #63] — default lowered to 25; user values clamped to ≤100.
 
@@ -167,29 +165,23 @@ Each entry includes the closing PR. Use `gh pr view <num>` for the full diff and
 
 ## Recommended next PRs
 
-Updated after feature/scan-scope-consent-gate (scope enforcement + consent gate: #4, #45) landed. All Critical items are now resolved. Remaining PRs in priority order:
+Updated after feature/plugin-signing-audit-tiered-retention landed. All Critical and High items are now resolved. Remaining PRs in priority order:
 
-1. **Replay/Fuzzer TLS opt-in PR** — #13. Opt-in `BypassTlsValidation` flag on `StartReplayDto` / `StartFuzzerDto`; `ManipulationExtensions.cs:41-53` moves the `ServerCertificateCustomValidationCallback` behind that flag; audit-log warning emitted when opt-in is true; UI checkbox in Replay/Fuzzer tab. Smaller than it looks.
+1. **Incomplete-feature polish PR** — bundle #29 (HAR headers), #30 + #31 (config export/import round-trip including `ContentReplacementRule` + `ProtoSchema`), #32 (scheduled-scan `LastRunScanJobId` / `LastRunStatus` columns + migration), #34 (replace `ProtoParser.FromJson` hand-rolled split with `JsonSerializer`), #35 (real storage estimates via `PRAGMA page_count * page_size` / `pg_relation_size`). All contained, all safe; can be one PR or split per concern.
 
-2. **Incomplete-feature polish PR** — bundle #29 (HAR headers), #30 + #31 (config export/import round-trip including `ContentReplacementRule` + `ProtoSchema`), #32 (scheduled-scan `LastRunScanJobId` / `LastRunStatus` columns + migration), #34 (replace `ProtoParser.FromJson` hand-rolled split with `JsonSerializer`), #35 (real storage estimates via `PRAGMA page_count * page_size` / `pg_relation_size`). All contained, all safe; can be one PR or split per concern.
-
-3. **User-story PRs (medium, high-value)** — pick one per persona-PR:
+2. **User-story PRs (medium, high-value)** — pick one per persona-PR:
    - Researcher: #36 (capture-to-curl `GET /api/captures/{id}/curl`), #39 (body FTS5 search on `RequestBody`/`ResponseBody`), #55 (capture diff endpoint)
    - Pen-tester: #38 (replay base-URL override end-to-end), #57 (CVSS override `PATCH /api/scanner/findings/{id}`), #56 (project/workspace concept)
    - Developer: #37 (`POST /api/captures/import/har`)
    - Admin: #41 (audit `UsersTab.tsx` create/edit wiring), #42 (backup/restore endpoints), #43 (`GET/PUT /api/admin/retention` + DatabaseTab UI), #40 (in-app SignalR alerts via collaboration hub)
 
-4. **Per-user data isolation PR** — #48. Row-level ownership filter helper in `IoTSpy.Storage`; applied across captures, scans, and device queries. Touches many controllers; bundle as a single multi-controller PR.
+3. **Per-user data isolation PR** — #48. Row-level ownership filter helper in `IoTSpy.Storage`; applied across captures, scans, and device queries. Touches many controllers; bundle as a single multi-controller PR.
 
-5. **Plugin signing PR** — #16. Write an ADR on key-management approach first; then add manifest + SHA-256 check in `PluginLoaderService`.
+4. **Protocol coverage** — #44. One PR per protocol; AMQP 1.0 and RTSP/RTP first (highest IoT relevance). Slot: `IoTSpy.Protocols`.
 
-6. **Audit DELETE protection PR** — #46. Write an ADR on retention-vs-immutability first (immutable archive sink vs. drop pruning for `DataRetentionService`).
+5. **Operational observability** — #51 (OTEL tracing), #52 (broader Prometheus metrics), #53 (Grafana dashboards), #54 (runbook). Each independent; pick up in any order.
 
-7. **Protocol coverage** — #44. One PR per protocol; AMQP 1.0 and RTSP/RTP first (highest IoT relevance). Slot: `IoTSpy.Protocols`.
-
-8. **Operational observability** — #51 (OTEL tracing), #52 (broader Prometheus metrics), #53 (Grafana dashboards), #54 (runbook). Each independent; pick up in any order.
-
-9. **SSO/OIDC** — #59. Largest single feature in the Low tier; only prioritize if a customer is asking.
+6. **SSO/OIDC** — #59. Largest single feature in the Low tier; only prioritize if a customer is asking.
 
 Each item above is sized to fit a focused PR. Avoid bundling across categories — the cleaner the diff, the easier the review.
 

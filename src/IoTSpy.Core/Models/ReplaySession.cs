@@ -22,5 +22,9 @@ public class ReplaySession
     public string ResponseBody { get; set; } = string.Empty;
     public long? DurationMs { get; set; }
 
+    // When true, TLS certificate errors are ignored for the target host.
+    // Stored so the audit trail reflects how the session was executed.
+    public bool BypassTlsValidation { get; set; }
+
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 }

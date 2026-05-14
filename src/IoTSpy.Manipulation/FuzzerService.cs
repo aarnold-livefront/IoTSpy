@@ -12,7 +12,8 @@ namespace IoTSpy.Manipulation;
 public class FuzzerService(IHttpClientFactory httpClientFactory, ILogger<FuzzerService> logger)
 {
     public async Task<FuzzerResult> ExecuteMutationAsync(
-        CapturedRequest baseCapture, int mutationIndex, FuzzerStrategy strategy, CancellationToken ct = default)
+        CapturedRequest baseCapture, int mutationIndex, FuzzerStrategy strategy,
+        bool bypassTlsValidation = false, CancellationToken ct = default)
     {
         var mutatedBody = Mutate(baseCapture.RequestBody, mutationIndex, strategy);
         var result = new FuzzerResult
@@ -60,7 +61,8 @@ public class FuzzerService(IHttpClientFactory httpClientFactory, ILogger<FuzzerS
                 request.Content = new StringContent(mutatedBody, Encoding.UTF8, contentType);
             }
 
-            var client = httpClientFactory.CreateClient("IoTSpyFuzzer");
+            var clientName = bypassTlsValidation ? "IoTSpyFuzzerBypassTls" : "IoTSpyFuzzer";
+            var client = httpClientFactory.CreateClient(clientName);
             using var response = await client.SendAsync(request, ct);
 
             result.ResponseStatusCode = (int)response.StatusCode;
