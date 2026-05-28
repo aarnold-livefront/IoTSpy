@@ -22,6 +22,14 @@ export class ApiError extends Error {
   }
 }
 
+/** Thrown by apiFetch when the server is unreachable (ECONNREFUSED / offline). */
+export class NetworkError extends ApiError {
+  constructor() {
+    super(0, 'Server unavailable')
+    this.name = 'NetworkError'
+  }
+}
+
 let onUnauthorized: (() => void) | null = null
 
 export function setOnUnauthorized(cb: (() => void) | null): void {
@@ -54,7 +62,12 @@ export async function apiFetch<T>(
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const res = await fetch(path, { ...init, headers })
+  let res: Response
+  try {
+    res = await fetch(path, { ...init, headers })
+  } catch {
+    throw new NetworkError()
+  }
 
   if (!res.ok) {
     let message = res.statusText

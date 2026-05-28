@@ -1644,6 +1644,69 @@ namespace IoTSpy.Storage.Migrations
                     b.ToTable("SessionCaptures");
                 });
 
+            modelBuilder.Entity("IoTSpy.Core.Models.TrafficInsight", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CaptureId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConfidenceJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("CreatedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsDismissed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsReviewed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ModelVersion")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("ReviewedAt")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("ReviewedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("RiskScore")
+                        .HasColumnType("REAL");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TagsJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CaptureId")
+                        .IsUnique();
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("IsReviewed");
+
+                    b.HasIndex("RiskScore");
+
+                    b.ToTable("TrafficInsights");
+                });
+
             modelBuilder.Entity("IoTSpy.Core.Models.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1827,6 +1890,17 @@ namespace IoTSpy.Storage.Migrations
                     b.Navigation("Capture");
 
                     b.Navigation("Session");
+                });
+
+            modelBuilder.Entity("IoTSpy.Core.Models.TrafficInsight", b =>
+                {
+                    b.HasOne("IoTSpy.Core.Models.CapturedRequest", "Capture")
+                        .WithMany()
+                        .HasForeignKey("CaptureId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Capture");
                 });
 
             modelBuilder.Entity("IoTSpy.Core.Models.ApiSpecDocument", b =>

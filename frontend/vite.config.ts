@@ -27,7 +27,10 @@ export default defineConfig({
         configure: (proxy) => {
           proxy.removeAllListeners('error')
           proxy.on('error', (err) => {
-            if ((err as NodeJS.ErrnoException).code !== 'ECONNRESET') {
+            // ECONNREFUSED: backend not running yet; ECONNRESET: backend restarted.
+            // Both are expected during dev — the frontend handles reconnection.
+            const code = (err as NodeJS.ErrnoException).code
+            if (code !== 'ECONNRESET' && code !== 'ECONNREFUSED') {
               console.error('[vite] api proxy error:', err)
             }
           })
@@ -38,12 +41,10 @@ export default defineConfig({
         changeOrigin: true,
         ws: true,
         configure: (proxy) => {
-          // Remove Vite's default error listener so it doesn't log before our handler runs.
-          // ECONNRESET is expected when the backend restarts or SignalR closes a connection
-          // — the frontend SignalR client handles reconnection automatically.
           proxy.removeAllListeners('error')
           proxy.on('error', (err) => {
-            if ((err as NodeJS.ErrnoException).code !== 'ECONNRESET') {
+            const code = (err as NodeJS.ErrnoException).code
+            if (code !== 'ECONNRESET' && code !== 'ECONNREFUSED') {
               console.error('[vite] ws proxy error:', err)
             }
           })

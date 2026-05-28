@@ -1,3 +1,4 @@
+using IoTSpy.Api.Services;
 using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using IoTSpy.Storage;
@@ -12,7 +13,8 @@ namespace IoTSpy.Api.Controllers;
 [Route("api/admin")]
 public class AdminController(
     IoTSpyDbContext db,
-    IAuditRepository auditRepo) : ControllerBase
+    IAuditRepository auditRepo,
+    DataRetentionSettingsService retentionSettings) : ControllerBase
 {
     [HttpGet("stats")]
     public async Task<IActionResult> GetStats(CancellationToken ct)
@@ -225,6 +227,69 @@ public class AdminController(
         var json = System.Text.Json.JsonSerializer.Serialize(config,
             new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase });
         return File(System.Text.Encoding.UTF8.GetBytes(json), "application/json", "iotspy-config.json");
+    }
+
+    [HttpGet("retention")]
+    public IActionResult GetRetentionSettings()
+    {
+        var opts = retentionSettings.Current;
+        return Ok(new
+        {
+            enabled = opts.Enabled,
+            captureRetentionDays = opts.CaptureRetentionDays,
+            packetRetentionDays = opts.PacketRetentionDays,
+            scanJobRetentionDays = opts.ScanJobRetentionDays,
+            openRtbEventRetentionDays = opts.OpenRtbEventRetentionDays,
+            auditRetentionDays = opts.AuditRetentionDays,
+            auditArchivePurgeDays = opts.AuditArchivePurgeDays,
+            runIntervalHours = opts.RunIntervalHours,
+        });
+    }
+
+    public record UpdateRetentionRequest(
+        bool Enabled,
+        int CaptureRetentionDays,
+        int PacketRetentionDays,
+        int ScanJobRetentionDays,
+        int OpenRtbEventRetentionDays,
+        int AuditRetentionDays,
+        int AuditArchivePurgeDays,
+        double RunIntervalHours);
+
+    [HttpPut("retention")]
+    public async Task<IActionResult> UpdateRetentionSettings(
+        [FromBody] UpdateRetentionRequest request, CancellationToken ct)
+    {
+        if (request.RunIntervalHours <= 0)
+            return BadRequest(new { error = "runIntervalHours must be > 0" });
+        if (request.CaptureRetentionDays < 0 || request.PacketRetentionDays < 0 ||
+            request.ScanJobRetentionDays < 0 || request.OpenRtbEventRetentionDays < 0 ||
+            request.AuditRetentionDays < 0 || request.AuditArchivePurgeDays < 0)
+            return BadRequest(new { error = "Retention days must be >= 0 (0 = never purge)" });
+
+        var opts = new DataRetentionOptions
+        {
+            Enabled = request.Enabled,
+            CaptureRetentionDays = request.CaptureRetentionDays,
+            PacketRetentionDays = request.PacketRetentionDays,
+            ScanJobRetentionDays = request.ScanJobRetentionDays,
+            OpenRtbEventRetentionDays = request.OpenRtbEventRetentionDays,
+            AuditRetentionDays = request.AuditRetentionDays,
+            AuditArchivePurgeDays = request.AuditArchivePurgeDays,
+            RunIntervalHours = request.RunIntervalHours,
+        };
+        retentionSettings.Update(opts);
+
+        await auditRepo.AddAsync(new AuditEntry
+        {
+            Username = User.Identity?.Name ?? "system",
+            Action = "UpdateRetentionSettings",
+            EntityType = "DataRetentionOptions",
+            Details = $"Enabled={opts.Enabled}, CaptureDays={opts.CaptureRetentionDays}, PacketDays={opts.PacketRetentionDays}, ScanDays={opts.ScanJobRetentionDays}, OpenRtbDays={opts.OpenRtbEventRetentionDays}, AuditDays={opts.AuditRetentionDays}, AuditPurgeDays={opts.AuditArchivePurgeDays}, IntervalHours={opts.RunIntervalHours}",
+            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? ""
+        }, ct);
+
+        return Ok(new { message = "Retention settings updated. Changes take effect on the next scheduled pass." });
     }
 
     private static string Csv(string? value)

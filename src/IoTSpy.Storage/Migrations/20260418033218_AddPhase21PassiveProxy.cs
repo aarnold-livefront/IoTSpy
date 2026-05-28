@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -43,22 +43,15 @@ namespace IoTSpy.Storage.Migrations
                 table: "PassiveCaptureSessions",
                 column: "CreatedAt");
 
-            migrationBuilder.AddForeignKey(
-                name: "FK_Captures_PassiveCaptureSessions_PassiveCaptureSessionId",
-                table: "Captures",
-                column: "PassiveCaptureSessionId",
-                principalTable: "PassiveCaptureSessions",
-                principalColumn: "Id",
-                onDelete: ReferentialAction.SetNull);
+            // SQLite does not enforce FK constraints at the DB level (requires PRAGMA foreign_keys=ON
+            // at every connection), so the constraint is omitted here to avoid the non-transactional
+            // PRAGMA table-rebuild EF Core would otherwise generate. EF Core tracks the relationship
+            // through its model; the index below is sufficient for query performance.
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropForeignKey(
-                name: "FK_Captures_PassiveCaptureSessions_PassiveCaptureSessionId",
-                table: "Captures");
-
             migrationBuilder.DropTable(
                 name: "PassiveCaptureSessions");
 

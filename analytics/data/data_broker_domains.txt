@@ -1,0 +1,91 @@
+# Known ad-tech, analytics, tracking, and data broker domains
+# One domain suffix per line. Subdomains match automatically (e.g. cdn.doubleclick.net matches doubleclick.net)
+# Add custom entries for devices observed in your environment.
+
+# Google ad/analytics infrastructure
+doubleclick.net
+googlesyndication.com
+googletagmanager.com
+googletagservices.com
+google-analytics.com
+analytics.google.com
+googleadservices.com
+
+# Firebase / Crashlytics
+crashlytics.com
+firebase.google.com
+
+# Product analytics
+amplitude.com
+segment.io
+segment.com
+mixpanel.com
+heap.io
+posthog.com
+
+# Session recording / UX analytics
+hotjar.com
+fullstory.com
+logrocket.com
+mouseflow.com
+smartlook.com
+contentsquare.com
+
+# Customer engagement / CRM
+intercom.io
+braze.com
+oneSignal.com
+klaviyo.com
+customerio.com
+
+# A/B testing
+optimizely.com
+launchdarkly.com
+split.io
+
+# Mobile attribution / install tracking
+adjust.com
+appsflyer.com
+branch.io
+kochava.com
+singular.net
+
+# Ad networks / RTB
+adnxs.com
+advertising.com
+moatads.com
+criteo.com
+taboola.com
+outbrain.com
+rubiconproject.com
+pubmatic.com
+openx.com
+media.net
+indexexchange.com
+casalemedia.com
+adsrvr.org
+
+# Audience measurement / data brokers
+comscore.com
+quantserve.com
+scorecardresearch.com
+nielsen.com
+lotame.com
+bluekai.com
+krux.com
+liveramp.com
+neustar.biz
+datalogix.com
+acxiom.com
+
+# Error / crash tracking
+sentry.io
+bugsnag.com
+rollbar.com
+raygun.io
+instabug.com
+
+# CDN-hosted analytics (often first-party-ish but track cross-site)
+cdn.mxpnl.com
+cdn.segment.com
+cdn.amplitude.com

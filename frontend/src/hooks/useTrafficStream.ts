@@ -17,20 +17,32 @@ interface Options {
   onCapture: (event: TrafficCaptureEvent) => void
 }
 
+// Retry forever with exponential backoff, capped at 30 s.
+// The default policy retries only 4 times (0 / 2 / 10 / 30 s) then gives up.
+const infiniteReconnectPolicy: signalR.IRetryPolicy = {
+  nextRetryDelayInMilliseconds(ctx) {
+    return Math.min(1_000 * 2 ** ctx.previousRetryCount, 30_000)
+  },
+}
+
 export function useTrafficStream({ onCapture }: Options) {
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected')
   const hubRef = useRef<signalR.HubConnection | null>(null)
   const onCaptureRef = useRef(onCapture)
   const activeFiltersRef = useRef<TrafficFilter>({})
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const stoppedRef = useRef(false)
   onCaptureRef.current = onCapture
 
   useEffect(() => {
     const token = getToken()
     if (!token) return
 
+    stoppedRef.current = false
+
     const connection = new signalR.HubConnectionBuilder()
       .withUrl(`/hubs/traffic?access_token=${encodeURIComponent(token)}`)
-      .withAutomaticReconnect()
+      .withAutomaticReconnect(infiniteReconnectPolicy)
       .configureLogging(signalR.LogLevel.Warning)
       .build()
 
@@ -39,22 +51,41 @@ export function useTrafficStream({ onCapture }: Options) {
     connection.onreconnecting(() => setConnectionState('reconnecting'))
     connection.onreconnected(() => {
       setConnectionState('connected')
-      // Re-subscribe to active filters after reconnect
       void resubscribeAll(connection, activeFiltersRef.current)
     })
-    connection.onclose(() => setConnectionState('disconnected'))
+    connection.onclose(() => {
+      // onclose fires when the connection is deliberately stopped or after all
+      // reconnect attempts fail. With infiniteReconnectPolicy the latter never
+      // happens during normal operation, so this only fires on explicit stop().
+      setConnectionState('disconnected')
+    })
 
     connection.on('TrafficCapture', (event: TrafficCaptureEvent) => {
       onCaptureRef.current(event)
     })
 
-    setConnectionState('connecting')
-    connection
-      .start()
-      .then(() => setConnectionState('connected'))
-      .catch(() => setConnectionState('disconnected'))
+    // Attempt the initial connection, retrying with backoff if the server is
+    // not yet reachable (e.g. backend restarting). withAutomaticReconnect only
+    // handles drops after a successful connect — it does not retry start().
+    let attempt = 0
+    function tryStart() {
+      if (stoppedRef.current) return
+      setConnectionState('connecting')
+      connection.start()
+        .then(() => setConnectionState('connected'))
+        .catch(() => {
+          if (stoppedRef.current) return
+          setConnectionState('disconnected')
+          const delay = Math.min(1_000 * 2 ** attempt, 30_000)
+          attempt++
+          retryTimerRef.current = setTimeout(tryStart, delay)
+        })
+    }
+    tryStart()
 
     return () => {
+      stoppedRef.current = true
+      if (retryTimerRef.current !== null) clearTimeout(retryTimerRef.current)
       void connection.stop()
     }
   }, []) // only once on mount

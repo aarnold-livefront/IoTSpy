@@ -1,0 +1,4 @@
+# Keep small model manifests; exclude large binaries
+*.onnx
+*.pkl
+*.joblib
