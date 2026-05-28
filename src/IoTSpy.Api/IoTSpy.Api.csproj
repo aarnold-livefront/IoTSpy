@@ -34,6 +34,7 @@
     <ProjectReference Include="..\IoTSpy.Scanner\IoTSpy.Scanner.csproj" />
     <ProjectReference Include="..\IoTSpy.Manipulation\IoTSpy.Manipulation.csproj" />
     <ProjectReference Include="..\IoTSpy.Storage\IoTSpy.Storage.csproj" />
+    <ProjectReference Include="..\IoTSpy.Analytics\IoTSpy.Analytics.csproj" />
   </ItemGroup>
 
 </Project>

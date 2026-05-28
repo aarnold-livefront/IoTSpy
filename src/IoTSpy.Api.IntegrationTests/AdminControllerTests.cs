@@ -140,4 +140,64 @@ public class AdminControllerTests
         Assert.Contains("scheduledScans", content);
         Assert.Contains("exportedAt", content);
     }
+
+    [Fact]
+    public async Task GetRetentionSettings_AsAdmin_ReturnsCurrentOptions()
+    {
+        var client = await CreateAdminClientAsync();
+
+        var resp = await client.GetAsync("/api/admin/retention", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
+        var json = await resp.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.Contains("enabled", json);
+        Assert.Contains("captureRetentionDays", json);
+        Assert.Contains("runIntervalHours", json);
+    }
+
+    [Fact]
+    public async Task PutRetentionSettings_AsAdmin_UpdatesAndReturnsOk()
+    {
+        var client = await CreateAdminClientAsync();
+
+        var payload = new
+        {
+            enabled = true,
+            captureRetentionDays = 60,
+            packetRetentionDays = 14,
+            scanJobRetentionDays = 180,
+            openRtbEventRetentionDays = 30,
+            auditRetentionDays = 365,
+            auditArchivePurgeDays = 730,
+            runIntervalHours = 12.0
+        };
+        var putResp = await client.PutAsJsonAsync("/api/admin/retention", payload, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, putResp.StatusCode);
+
+        // Verify the GET reflects the update
+        var getResp = await client.GetAsync("/api/admin/retention", TestContext.Current.CancellationToken);
+        var json = await getResp.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+        Assert.Contains("60", json);   // captureRetentionDays
+        Assert.Contains("12", json);   // runIntervalHours
+    }
+
+    [Fact]
+    public async Task PutRetentionSettings_InvalidInterval_Returns400()
+    {
+        var client = await CreateAdminClientAsync();
+
+        var payload = new
+        {
+            enabled = true,
+            captureRetentionDays = 30,
+            packetRetentionDays = 7,
+            scanJobRetentionDays = 90,
+            openRtbEventRetentionDays = 14,
+            auditRetentionDays = 0,
+            auditArchivePurgeDays = 0,
+            runIntervalHours = 0.0
+        };
+        var resp = await client.PutAsJsonAsync("/api/admin/retention", payload, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+    }
 }

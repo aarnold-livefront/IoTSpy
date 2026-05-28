@@ -56,6 +56,9 @@ public DbSet<OpenRtbEvent> OpenRtbEvents => Set<OpenRtbEvent>();
     // Security — scan scope CIDR allowlist
     public DbSet<ScanScope> ScanScopes => Set<ScanScope>();
 
+    // ML analytics — traffic insights
+    public DbSet<TrafficInsight> TrafficInsights => Set<TrafficInsight>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Device>(e =>
@@ -388,6 +391,23 @@ modelBuilder.Entity<OpenRtbPiiPolicy>(e =>
             e.Property(s => s.Name).IsRequired().HasMaxLength(200);
             e.Property(s => s.Cidr).IsRequired().HasMaxLength(50);
             e.Property(s => s.CreatedByUsername).IsRequired().HasMaxLength(100);
+        });
+
+        // ML analytics — traffic insights
+        modelBuilder.Entity<TrafficInsight>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.HasIndex(t => t.CaptureId).IsUnique();
+            e.HasIndex(t => t.RiskScore);
+            e.HasIndex(t => t.IsReviewed);
+            e.HasIndex(t => t.CreatedAt);
+            e.Property(t => t.ModelVersion).IsRequired().HasMaxLength(50);
+            e.Property(t => t.Source).IsRequired().HasMaxLength(20);
+            e.Property(t => t.ReviewNote).HasMaxLength(2000);
+            e.HasOne(t => t.Capture)
+             .WithMany()
+             .HasForeignKey(t => t.CaptureId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
 
         // SQLite cannot ORDER BY DateTimeOffset columns; store all as Unix ms (long) so

@@ -1,7 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import type { AdminStats } from '../../types/api'
 import { apiFetch, getToken } from '../../api/client'
+
+interface RetentionSettings {
+  enabled: boolean
+  captureRetentionDays: number
+  packetRetentionDays: number
+  scanJobRetentionDays: number
+  openRtbEventRetentionDays: number
+  auditRetentionDays: number
+  auditArchivePurgeDays: number
+  runIntervalHours: number
+}
 
 interface ConfirmState {
   title: string
@@ -33,6 +44,9 @@ export default function DatabaseTab() {
   const [auditArchiveDays, setAuditArchiveDays] = useState(90)
   const [auditPurgeDays, setAuditPurgeDays] = useState(365)
 
+  const [retention, setRetention] = useState<RetentionSettings | null>(null)
+  const [retentionDirty, setRetentionDirty] = useState(false)
+
   const {
     data: stats,
     isLoading: loading,
@@ -40,6 +54,29 @@ export default function DatabaseTab() {
   } = useQuery<AdminStats>({
     queryKey: STATS_KEY,
     queryFn: () => apiFetch<AdminStats>('/api/admin/stats'),
+  })
+
+  const { data: retentionData } = useQuery<RetentionSettings>({
+    queryKey: ['admin-retention'],
+    queryFn: () => apiFetch<RetentionSettings>('/api/admin/retention'),
+  })
+
+  useEffect(() => {
+    if (retentionData && !retentionDirty) setRetention(retentionData)
+  }, [retentionData, retentionDirty])
+
+  const retentionMutation = useMutation({
+    mutationFn: (settings: RetentionSettings) =>
+      apiFetch<{ message: string }>('/api/admin/retention', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      }),
+    onSuccess: () => {
+      showToast('Retention settings saved')
+      setRetentionDirty(false)
+    },
+    onError: () => showToast('Failed to save retention settings'),
   })
 
   const purgeMutation = useMutation({
@@ -73,7 +110,7 @@ export default function DatabaseTab() {
     onError: () => showToast('Purge failed'),
   })
 
-  const busy = purgeMutation.isPending || archiveAuditMutation.isPending || purgeAuditArchiveMutation.isPending
+  const busy = purgeMutation.isPending || archiveAuditMutation.isPending || purgeAuditArchiveMutation.isPending || retentionMutation.isPending
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -115,6 +152,95 @@ export default function DatabaseTab() {
       {toast && <div className="admin-toast">{toast}</div>}
 
       <div className="admin-cards">
+        {retention && (
+          <div className="admin-card" style={{ gridColumn: '1 / -1' }}>
+            <div className="admin-card__title">Automatic Retention</div>
+            <div className="admin-card__stats" style={{ marginBottom: 'var(--space-3)' }}>
+              Background service purges old records on a schedule.
+              {' '}<span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-xs)' }}>
+                Changes take effect on the next pass; update appsettings.json for persistence across restarts.
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+              <label style={{ fontSize: 'var(--font-size-sm)', fontWeight: 600 }}>
+                Enable automatic retention
+              </label>
+              <button
+                role="switch"
+                aria-checked={retention.enabled}
+                className={`admin-btn ${retention.enabled ? 'admin-btn--primary' : ''}`}
+                style={{ minWidth: 80 }}
+                onClick={() => { setRetention(r => r ? { ...r, enabled: !r.enabled } : r); setRetentionDirty(true) }}
+              >
+                {retention.enabled ? 'Enabled' : 'Disabled'}
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 'var(--space-4)', marginBottom: 'var(--space-4)' }}>
+              {([
+                ['Captures TTL', 'captureRetentionDays', 1, 730] as const,
+                ['Packets TTL', 'packetRetentionDays', 1, 365] as const,
+                ['Scan Jobs TTL', 'scanJobRetentionDays', 1, 730] as const,
+                ['OpenRTB Events TTL', 'openRtbEventRetentionDays', 1, 365] as const,
+                ['Audit Archive TTL', 'auditRetentionDays', 0, 730] as const,
+                ['Audit Purge TTL', 'auditArchivePurgeDays', 0, 3650] as const,
+              ] as const).map(([label, field, min, max]) => (
+                <div key={field}>
+                  <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', display: 'block', marginBottom: 4 }}>
+                    {label}: {retention[field] === 0 ? 'never' : `${retention[field]}d`}
+                  </label>
+                  <input
+                    type="range"
+                    min={min}
+                    max={max}
+                    value={retention[field]}
+                    style={{ width: '100%' }}
+                    onChange={e => {
+                      const val = +e.target.value
+                      setRetention(r => r ? { ...r, [field]: val } : r)
+                      setRetentionDirty(true)
+                    }}
+                  />
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+              <label style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)' }}>
+                Run every {retention.runIntervalHours}h
+              </label>
+              <input
+                type="range"
+                min={1}
+                max={168}
+                step={1}
+                value={retention.runIntervalHours}
+                style={{ flex: 1 }}
+                onChange={e => {
+                  setRetention(r => r ? { ...r, runIntervalHours: +e.target.value } : r)
+                  setRetentionDirty(true)
+                }}
+              />
+            </div>
+
+            <div className="admin-card__actions">
+              <button
+                className="admin-btn admin-btn--primary"
+                disabled={busy || !retentionDirty}
+                onClick={() => retentionMutation.mutate(retention)}
+              >
+                Save
+              </button>
+              {retentionDirty && (
+                <button className="admin-btn" onClick={() => { setRetention(retentionData ?? null); setRetentionDirty(false) }}>
+                  Discard
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="admin-card">
           <div className="admin-card__title">Captures &amp; Logs</div>
           <div className="admin-card__stats">

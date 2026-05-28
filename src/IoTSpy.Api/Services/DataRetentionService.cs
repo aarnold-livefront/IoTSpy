@@ -2,37 +2,40 @@ using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using IoTSpy.Storage;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace IoTSpy.Api.Services;
 
 /// <summary>
 /// Background service that periodically deletes records older than the configured TTL.
-/// Runs at startup and then on the configured interval.
+/// Runs at startup and then on the configured interval. Settings are re-read each pass
+/// so changes made via the Admin API take effect without a restart.
 /// </summary>
 public class DataRetentionService(
     IServiceScopeFactory scopeFactory,
-    IOptions<DataRetentionOptions> options,
+    DataRetentionSettingsService settings,
     ILogger<DataRetentionService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var opts = options.Value;
-        if (!opts.Enabled)
-        {
-            logger.LogInformation("Data retention is disabled");
-            return;
-        }
-
-        logger.LogInformation(
-            "Data retention enabled — captures TTL={CaptureDays}d, packets TTL={PacketDays}d, scan jobs TTL={ScanDays}d, audit archive TTL={AuditDays}d, interval={IntervalHours}h",
-            opts.CaptureRetentionDays, opts.PacketRetentionDays, opts.ScanJobRetentionDays,
-            opts.AuditRetentionDays, opts.RunIntervalHours);
-
-        // Run once at startup, then on the configured interval
+        // Run once at startup, then on the configured interval.
+        // Re-read settings each iteration so Admin API changes take effect immediately.
         while (!stoppingToken.IsCancellationRequested)
         {
+            var opts = settings.Current;
+
+            if (!opts.Enabled)
+            {
+                // Check again after a short sleep rather than exiting — the user may enable it later.
+                await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
+                continue;
+            }
+
+            logger.LogInformation(
+                "Data retention pass starting — captures TTL={CaptureDays}d, packets TTL={PacketDays}d, scan jobs TTL={ScanDays}d, audit archive TTL={AuditDays}d",
+                opts.CaptureRetentionDays, opts.PacketRetentionDays, opts.ScanJobRetentionDays,
+                opts.AuditRetentionDays);
+
             try
             {
                 await RunRetentionPassAsync(opts, stoppingToken);

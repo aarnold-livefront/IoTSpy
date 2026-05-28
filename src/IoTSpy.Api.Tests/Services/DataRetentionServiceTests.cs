@@ -32,9 +32,10 @@ public class DataRetentionServiceTests
         IServiceScopeFactory scopeFactory,
         DataRetentionOptions opts)
     {
+        var settingsService = new DataRetentionSettingsService(Options.Create(opts));
         return new DataRetentionService(
             scopeFactory,
-            Options.Create(opts),
+            settingsService,
             NullLogger<DataRetentionService>.Instance);
     }
 

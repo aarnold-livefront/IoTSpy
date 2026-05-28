@@ -11,6 +11,7 @@ import SessionsPanel from '../components/sessions/SessionsPanel'
 import ScannerPanel from '../components/scanner/ScannerPanel'
 import OpenRtbPanel from '../components/openrtb/OpenRtbPanel'
 import ProtocolProxyPanel from '../components/proxy/ProtocolProxyPanel'
+import InsightTriagePanel from '../components/analytics/InsightTriagePanel'
 import PassiveCaptureSummary from '../components/passive/PassiveCaptureSummary'
 import ErrorBoundary from '../components/common/ErrorBoundary'
 import DisconnectBanner from '../components/common/DisconnectBanner'
@@ -23,7 +24,7 @@ import { useBackendHealth } from '../hooks/useBackendHealth'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
 import type { CaptureFilters } from '../types/api'
 
-type ViewMode = 'list' | 'timeline' | 'packet-capture' | 'manipulation' | 'sessions' | 'scanner' | 'openrtb' | 'protocol-proxy'
+type ViewMode = 'list' | 'timeline' | 'packet-capture' | 'manipulation' | 'sessions' | 'scanner' | 'openrtb' | 'protocol-proxy' | 'analytics'
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches)
@@ -88,7 +89,7 @@ export default function DashboardPage() {
 
       {/* View mode toggle */}
       <div className="view-toggle">
-        {(['list', 'timeline', 'packet-capture', 'manipulation', 'sessions', 'scanner', 'openrtb', 'protocol-proxy'] as const).map(mode => (
+        {(['list', 'timeline', 'packet-capture', 'manipulation', 'sessions', 'scanner', 'openrtb', 'protocol-proxy', 'analytics'] as const).map(mode => (
           <button
             key={mode}
             className={`view-toggle__btn${viewMode === mode ? ' view-toggle__btn--active' : ''}`}
@@ -100,7 +101,8 @@ export default function DashboardPage() {
              mode === 'manipulation' ? 'Manipulation' :
              mode === 'sessions' ? 'Sessions' :
              mode === 'scanner' ? 'Scanner' :
-             mode === 'openrtb' ? 'OpenRTB' : 'Protocol Proxies'}
+             mode === 'openrtb' ? 'OpenRTB' :
+             mode === 'protocol-proxy' ? 'Protocol Proxies' : 'ML Insights'}
           </button>
         ))}
       </div>
@@ -231,6 +233,12 @@ export default function DashboardPage() {
       {viewMode === 'protocol-proxy' && (
         <ErrorBoundary>
           <ProtocolProxyPanel />
+        </ErrorBoundary>
+      )}
+
+      {viewMode === 'analytics' && (
+        <ErrorBoundary>
+          <InsightTriagePanel />
         </ErrorBoundary>
       )}
 

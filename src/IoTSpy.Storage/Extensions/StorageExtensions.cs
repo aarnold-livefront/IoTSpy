@@ -75,6 +75,9 @@ services.AddScoped<IOpenRtbEventRepository, OpenRtbEventRepository>();
         // Security — scan scope CIDR allowlist
         services.AddScoped<IScanScopeRepository, ScanScopeRepository>();
 
+        // ML analytics — traffic insights
+        services.AddScoped<ITrafficInsightRepository, TrafficInsightRepository>();
+
         return services;
     }
 

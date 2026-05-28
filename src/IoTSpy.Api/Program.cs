@@ -1,6 +1,7 @@
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading.RateLimiting;
+using IoTSpy.Analytics;
 using IoTSpy.Api.Authentication;
 using IoTSpy.Api.Hubs;
 using IoTSpy.Api.Services;
@@ -238,10 +239,20 @@ if (rateLimitEnabled)
     });
 }
 
+// ── ML Analytics (traffic insight scoring) ───────────────────────────────────
+var analyticsOptions = builder.Configuration
+    .GetSection(AnalyticsOptions.SectionName)
+    .Get<AnalyticsOptions>() ?? new AnalyticsOptions();
+builder.Services.AddIoTSpyAnalytics(analyticsOptions);
+
 // ── Data retention (Phase 8.4) ────────────────────────────────────────────────
 builder.Services.Configure<DataRetentionOptions>(
     builder.Configuration.GetSection(DataRetentionOptions.SectionName));
-builder.Services.AddHostedService<DataRetentionService>();
+builder.Services.AddSingleton<DataRetentionSettingsService>();
+builder.Services.AddHostedService(sp => new DataRetentionService(
+    sp.GetRequiredService<IServiceScopeFactory>(),
+    sp.GetRequiredService<DataRetentionSettingsService>(),
+    sp.GetRequiredService<ILogger<DataRetentionService>>()));
 
 // ── Alerting (Phase 9.4) ──────────────────────────────────────────────────────
 builder.Services.Configure<AlertingOptions>(
