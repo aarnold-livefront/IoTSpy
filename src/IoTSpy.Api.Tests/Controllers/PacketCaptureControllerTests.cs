@@ -111,7 +111,7 @@ public class PacketCaptureControllerTests
         captureService.StartCaptureAsync(deviceId, Arg.Any<CancellationToken>()).Returns(true);
 
         var controller = MakeController(captureService);
-        var result = await controller.StartCapture(new StartCaptureRequest { DeviceId = deviceId }) as OkObjectResult;
+        var result = await controller.StartCapture(new StartCaptureRequest { DeviceId = deviceId }, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         await captureService.Received(1).StartCaptureAsync(deviceId, Arg.Any<CancellationToken>());
@@ -168,7 +168,7 @@ public class PacketCaptureControllerTests
 
         var controller = MakeController(captureService);
         var filter = new ControllerFilterDto { Protocol = "TCP", Limit = 10 };
-        var result = await controller.GetPackets(filter) as OkObjectResult;
+        var result = await controller.GetPackets(filter, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var dtos = Assert.IsAssignableFrom<IEnumerable<CapturedPacketDto>>(result.Value);
@@ -200,7 +200,7 @@ public class PacketCaptureControllerTests
             PayloadSearch = "DNS",
             Limit = 500
         };
-        await controller.GetPackets(filter);
+        await controller.GetPackets(filter, TestContext.Current.CancellationToken);
 
         await captureService.Received(1).FilterPacketsAsync(
             Arg.Is<ServiceFilterDto>(f =>
@@ -224,7 +224,7 @@ public class PacketCaptureControllerTests
         captureService.GetPacketByIdAsync(packet.Id, Arg.Any<CancellationToken>()).Returns(packet);
 
         var controller = MakeController(captureService);
-        var result = await controller.GetPacket(packet.Id) as OkObjectResult;
+        var result = await controller.GetPacket(packet.Id, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var dto = Assert.IsType<CapturedPacketDto>(result.Value);
@@ -239,7 +239,7 @@ public class PacketCaptureControllerTests
         captureService.GetPacketByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((CapturedPacket?)null);
 
         var controller = MakeController(captureService);
-        var result = await controller.GetPacket(Guid.NewGuid());
+        var result = await controller.GetPacket(Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -253,7 +253,7 @@ public class PacketCaptureControllerTests
         captureService.FreezeFrameAsync(id, Arg.Any<CancellationToken>()).Returns(frame);
 
         var controller = MakeController(captureService);
-        var result = await controller.FreezePacket(id) as OkObjectResult;
+        var result = await controller.FreezePacket(id, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var dto = Assert.IsType<FreezeFrameDto>(result.Value);
@@ -268,7 +268,7 @@ public class PacketCaptureControllerTests
         captureService.FreezeFrameAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((FreezeFrameResult?)null);
 
         var controller = MakeController(captureService);
-        var result = await controller.FreezePacket(Guid.NewGuid());
+        var result = await controller.FreezePacket(Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -282,7 +282,7 @@ public class PacketCaptureControllerTests
         captureService.GetFreezeFrameAsync(id, Arg.Any<CancellationToken>()).Returns(frame);
 
         var controller = MakeController(captureService);
-        var result = await controller.GetFreezeFrame(id) as OkObjectResult;
+        var result = await controller.GetFreezeFrame(id, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var dto = Assert.IsType<FreezeFrameDto>(result.Value);
@@ -296,7 +296,7 @@ public class PacketCaptureControllerTests
         captureService.GetFreezeFrameAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((FreezeFrameResult?)null);
 
         var controller = MakeController(captureService);
-        var result = await controller.GetFreezeFrame(Guid.NewGuid());
+        var result = await controller.GetFreezeFrame(Guid.NewGuid(), TestContext.Current.CancellationToken);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -309,7 +309,7 @@ public class PacketCaptureControllerTests
         captureService.DeletePacketAsync(id, Arg.Any<CancellationToken>()).Returns(true);
 
         var controller = MakeController(captureService);
-        var result = await controller.DeletePacket(id) as OkObjectResult;
+        var result = await controller.DeletePacket(id, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         await captureService.Received(1).DeletePacketAsync(id, Arg.Any<CancellationToken>());
@@ -329,7 +329,7 @@ public class PacketCaptureControllerTests
         analyzer.AnalyzeProtocolsAsync(Arg.Any<CancellationToken>()).Returns(dist);
 
         var controller = MakeController(analyzer: analyzer);
-        var result = await controller.GetProtocolDistribution() as OkObjectResult;
+        var result = await controller.GetProtocolDistribution(TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var dto = Assert.IsType<ProtocolDistributionDto>(result.Value);
@@ -345,7 +345,7 @@ public class PacketCaptureControllerTests
         analyzer.AnalyzeProtocolsAsync(Arg.Any<CancellationToken>()).Returns((ProtocolDistribution?)null);
 
         var controller = MakeController(analyzer: analyzer);
-        var result = await controller.GetProtocolDistribution();
+        var result = await controller.GetProtocolDistribution(TestContext.Current.CancellationToken);
 
         Assert.IsType<NotFoundResult>(result);
     }
@@ -361,7 +361,7 @@ public class PacketCaptureControllerTests
         analyzer.FindCommunicationPatternsAsync(5, Arg.Any<CancellationToken>()).Returns(patterns);
 
         var controller = MakeController(analyzer: analyzer);
-        var result = await controller.GetCommunicationPatterns(topN: 5) as OkObjectResult;
+        var result = await controller.GetCommunicationPatterns(topN: 5, ct: TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var dtos = Assert.IsAssignableFrom<IEnumerable<CommunicationPatternDto>>(result.Value);
@@ -382,7 +382,7 @@ public class PacketCaptureControllerTests
         analyzer.DetectSuspiciousActivityAsync(Arg.Any<CancellationToken>()).Returns(activities);
 
         var controller = MakeController(analyzer: analyzer);
-        var result = await controller.GetSuspiciousActivity() as OkObjectResult;
+        var result = await controller.GetSuspiciousActivity(TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         var dtos = Assert.IsAssignableFrom<IEnumerable<SuspiciousActivityDto>>(result.Value);
@@ -470,7 +470,7 @@ public class PacketCaptureControllerTests
         captureService.ExportToPcapAsync(Arg.Any<CancellationToken>()).Returns(pcapBytes);
 
         var controller = MakeController(captureService);
-        var result = await controller.ExportPcap(null, null, null, null, null) as FileContentResult;
+        var result = await controller.ExportPcap(null, null, null, null, null, TestContext.Current.CancellationToken) as FileContentResult;
 
         Assert.NotNull(result);
         Assert.Equal("application/vnd.tcpdump.pcap", result.ContentType);
@@ -487,7 +487,7 @@ public class PacketCaptureControllerTests
         captureService.ExportToPcapFilteredAsync(Arg.Any<ServiceFilterDto>(), Arg.Any<CancellationToken>()).Returns(pcapBytes);
 
         var controller = MakeController(captureService);
-        var result = await controller.ExportPcap("TCP", null, null, null, null) as FileContentResult;
+        var result = await controller.ExportPcap("TCP", null, null, null, null, TestContext.Current.CancellationToken) as FileContentResult;
 
         Assert.NotNull(result);
         await captureService.Received(1).ExportToPcapFilteredAsync(Arg.Any<ServiceFilterDto>(), Arg.Any<CancellationToken>());
@@ -501,7 +501,7 @@ public class PacketCaptureControllerTests
         captureService.ExportToPcapAsync(Arg.Any<CancellationToken>()).Returns((byte[]?)null);
 
         var controller = MakeController(captureService);
-        var result = await controller.ExportPcap(null, null, null, null, null);
+        var result = await controller.ExportPcap(null, null, null, null, null, TestContext.Current.CancellationToken);
 
         Assert.IsType<NotFoundObjectResult>(result);
     }

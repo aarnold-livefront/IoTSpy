@@ -103,7 +103,7 @@ public class ScanScopeRepositoryTests : IDisposable
     {
         var repo = new ScanScopeRepository(_db);
         var first  = await repo.AddAsync(MakeScope("10.0.0.0/8"),      TestContext.Current.CancellationToken);
-        await Task.Delay(5); // ensure distinct timestamps
+        await Task.Delay(5, TestContext.Current.CancellationToken); // ensure distinct timestamps
         var second = await repo.AddAsync(MakeScope("192.168.0.0/16"),  TestContext.Current.CancellationToken);
 
         var all = await repo.GetAllAsync(TestContext.Current.CancellationToken);
