@@ -79,6 +79,14 @@
   vertical-align: middle;
 }
 
+.insight-triage__row--clickable {
+  cursor: pointer;
+}
+
+.insight-triage__row--clickable:hover td {
+  background: var(--color-surface-hover, rgba(255, 255, 255, 0.04));
+}
+
 .insight-triage__row--dismissed td {
   opacity: 0.5;
 }

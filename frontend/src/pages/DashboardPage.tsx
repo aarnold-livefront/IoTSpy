@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import AppShell from '../components/layout/AppShell'
 import Header from '../components/layout/Header'
 import SplitPane from '../components/layout/SplitPane'
@@ -43,6 +43,10 @@ export default function DashboardPage() {
   const [filters, setFilters] = useState<CaptureFilters>({ page: 1, pageSize: 50 })
   const [viewMode, setViewMode] = useState<ViewMode>('list')
   const { theme, toggle: toggleTheme } = useTheme()
+  const [frozen, setFrozen] = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
+  const frozenRef = useRef(frozen)
+  frozenRef.current = frozen
 
   const proxy = useProxy()
   const { devices } = useDevices()
@@ -57,7 +61,21 @@ export default function DashboardPage() {
     prependCapture,
   } = useCaptures(filters)
 
-  const { connectionState } = useTrafficStream({ onCapture: prependCapture })
+  const handleCapture = useCallback((event: Parameters<typeof prependCapture>[0]) => {
+    if (frozenRef.current) {
+      setPendingCount(c => c + 1)
+    } else {
+      prependCapture(event)
+    }
+  }, [prependCapture])
+
+  const handleFreeze = useCallback(() => setFrozen(true), [])
+  const handleResume = useCallback(() => {
+    setFrozen(false)
+    setPendingCount(0)
+  }, [])
+
+  const { connectionState } = useTrafficStream({ onCapture: handleCapture })
   const backendStatus = useBackendHealth(connectionState)
 
   // Escape key: deselect the active capture (closes the detail pane)
@@ -133,6 +151,10 @@ export default function DashboardPage() {
                       onSelect={setSelectedId}
                       onFiltersChange={setFilters}
                       onLoadMore={loadMore}
+                      frozen={frozen}
+                      pendingCount={pendingCount}
+                      onFreeze={handleFreeze}
+                      onResume={handleResume}
                     />
                   )
                 ) : selectedId ? (
@@ -151,6 +173,10 @@ export default function DashboardPage() {
                         onSelect={setSelectedId}
                         onFiltersChange={setFilters}
                         onLoadMore={loadMore}
+                        frozen={frozen}
+                        pendingCount={pendingCount}
+                        onFreeze={handleFreeze}
+                        onResume={handleResume}
                       />
                     }
                     right={<CaptureDetail captureId={selectedId} />}
@@ -173,6 +199,10 @@ export default function DashboardPage() {
                     onSelect={setSelectedId}
                     onFiltersChange={setFilters}
                     onLoadMore={loadMore}
+                    frozen={frozen}
+                    pendingCount={pendingCount}
+                    onFreeze={handleFreeze}
+                    onResume={handleResume}
                   />
                 )}
               </ErrorBoundary>
@@ -238,7 +268,9 @@ export default function DashboardPage() {
 
       {viewMode === 'analytics' && (
         <ErrorBoundary>
-          <InsightTriagePanel />
+          <InsightTriagePanel
+            onOpenCapture={id => { setSelectedId(id); setViewMode('list') }}
+          />
         </ErrorBoundary>
       )}
 

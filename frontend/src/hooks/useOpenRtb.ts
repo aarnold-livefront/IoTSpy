@@ -42,8 +42,8 @@ export function useOpenRtb() {
   const eventsError = eventsQueryError instanceof Error ? eventsQueryError.message : null
 
   const refreshEvents = useCallback(
-    (page = 1) => {
-      setEventsPage(page)
+    () => {
+      setEventsPage(1)
       void refetchEvents()
     },
     [refetchEvents],
@@ -140,8 +140,8 @@ export function useOpenRtb() {
   const auditError = auditQueryError instanceof Error ? auditQueryError.message : null
 
   const refreshAuditLog = useCallback(
-    (page = 1) => {
-      setAuditPage(page)
+    () => {
+      setAuditPage(1)
       void refetchAudit()
     },
     [refetchAudit],

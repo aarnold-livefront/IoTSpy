@@ -22,7 +22,7 @@ public sealed class OpenRtbPiiService(
     ILogger<OpenRtbPiiService> logger) : IOpenRtbService
 {
     private static readonly Regex OpenRtbPathPattern = new(
-        @"/(openrtb|ortb|bid|auction|prebid)",
+        @"/(openrtb|ortb|bid|auction|prebid|rtb|exchange|adserver|adex|request)",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private volatile List<OpenRtbPiiPolicy>? _cachedPolicies;
@@ -144,8 +144,10 @@ public sealed class OpenRtbPiiService(
                 strippingLogs.Count, openRtbMessage.MessageType, message.Host, message.Path);
         }
 
-        // Persist event and logs asynchronously (fire-and-forget to not block RTB flow)
-        _ = Task.Run(() => PersistEventAndLogsAsync(openRtbMessage, message, phase, strippingLogs, ct), ct);
+        // Persist event and logs asynchronously (fire-and-forget to not block RTB flow).
+        // CancellationToken.None: persistence must not be tied to the proxy request lifetime —
+        // the connection token is typically cancelled before the DB write completes.
+        _ = Task.Run(() => PersistEventAndLogsAsync(openRtbMessage, message, phase, strippingLogs, CancellationToken.None));
 
         return modified;
     }

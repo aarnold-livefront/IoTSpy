@@ -57,7 +57,11 @@ public class ScanJobRepository(IoTSpyDbContext db) : IScanJobRepository
 
     public async Task<ScanJob> UpdateAsync(ScanJob job, CancellationToken ct = default)
     {
-        db.ScanJobs.Update(job);
+        var tracked = db.ChangeTracker.Entries<ScanJob>().FirstOrDefault(e => e.Entity.Id == job.Id);
+        if (tracked is not null)
+            tracked.CurrentValues.SetValues(job);
+        else
+            db.ScanJobs.Update(job);
         await db.SaveChangesAsync(ct);
         return job;
     }

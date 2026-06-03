@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using IoTSpy.Core.Enums;
 
 namespace IoTSpy.Core.Models;
@@ -6,6 +7,7 @@ public class ScanFinding
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     public Guid ScanJobId { get; set; }
+    [JsonIgnore]
     public ScanJob? ScanJob { get; set; }
     public ScanFindingType Type { get; set; }
     public ScanFindingSeverity Severity { get; set; }

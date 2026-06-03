@@ -50,6 +50,10 @@ interface Props {
   onSelect: (id: string) => void
   onFiltersChange: (filters: CaptureFilters) => void
   onLoadMore: () => void
+  frozen: boolean
+  pendingCount: number
+  onFreeze: () => void
+  onResume: () => void
 }
 
 export default function CaptureList({
@@ -65,6 +69,10 @@ export default function CaptureList({
   onSelect,
   onFiltersChange,
   onLoadMore,
+  frozen,
+  pendingCount,
+  onFreeze,
+  onResume,
 }: Props) {
   const listRef = useRef<FixedSizeList>(null)
   const prevFirstIdRef = useRef<string | null>(null)
@@ -145,6 +153,20 @@ export default function CaptureList({
       <div className="capture-list__toolbar">
         <div className="capture-list__count">
           {total.toLocaleString()} capture{total !== 1 ? 's' : ''}
+        </div>
+        <div className="capture-list__toolbar-actions">
+          {frozen ? (
+            <button className="capture-list__resume-btn" onClick={onResume} title="Resume live updates">
+              &#9654; Resume
+              {pendingCount > 0 && (
+                <span className="capture-list__pending-badge">{pendingCount} new</span>
+              )}
+            </button>
+          ) : (
+            <button className="capture-list__freeze-btn" onClick={onFreeze} title="Freeze list for manual analysis">
+              &#9646;&#9646; Freeze
+            </button>
+          )}
         </div>
         <div className="capture-list__export" ref={exportRef}>
           <button

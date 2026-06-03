@@ -179,17 +179,71 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  /* Prevent text-selection drag from interfering with the native scrollbar */
+  user-select: none;
 }
 
 .capture-list__toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: var(--space-1) var(--space-3);
   border-bottom: 1px solid var(--color-border);
   background-color: var(--color-surface);
   flex-shrink: 0;
   gap: var(--space-2);
+}
+
+.capture-list__toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.capture-list__freeze-btn,
+.capture-list__resume-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  font-size: var(--font-size-xs);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.capture-list__freeze-btn {
+  color: var(--color-text-muted);
+  background-color: transparent;
+}
+
+.capture-list__freeze-btn:hover {
+  background-color: var(--color-surface-2);
+  color: var(--color-text);
+}
+
+.capture-list__resume-btn {
+  color: var(--color-primary);
+  background-color: color-mix(in srgb, var(--color-primary) 10%, transparent);
+  border-color: color-mix(in srgb, var(--color-primary) 40%, transparent);
+  font-weight: 500;
+}
+
+.capture-list__resume-btn:hover {
+  background-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.capture-list__pending-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border-radius: 8px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  background-color: var(--color-primary);
+  color: #fff;
+  margin-left: 2px;
 }
 
 .capture-list__count {
