@@ -64,6 +64,13 @@ const makeSummary = (i: number): CapturedRequestSummary => ({
 
 const defaultFilters: CaptureFilters = {}
 
+const defaultFreezeProps = {
+  frozen: false,
+  pendingCount: 0,
+  onFreeze: noop,
+  onResume: noop,
+}
+
 describe('CaptureList', () => {
   beforeEach(() => vi.clearAllMocks())
 
@@ -83,6 +90,7 @@ describe('CaptureList', () => {
         onSelect={noop}
         onFiltersChange={noop}
         onLoadMore={noop}
+        {...defaultFreezeProps}
       />
     )
     expect(screen.getByTestId('virtual-list')).toBeInTheDocument()
@@ -105,6 +113,7 @@ describe('CaptureList', () => {
         onSelect={noop}
         onFiltersChange={noop}
         onLoadMore={noop}
+        {...defaultFreezeProps}
       />
     )
     expect(screen.queryAllByTestId('capture-row')).toHaveLength(0)
@@ -125,6 +134,7 @@ describe('CaptureList', () => {
         onSelect={noop}
         onFiltersChange={noop}
         onLoadMore={noop}
+        {...defaultFreezeProps}
       />
     )
     expect(screen.getByText(/Network failure/i)).toBeInTheDocument()
@@ -145,6 +155,7 @@ describe('CaptureList', () => {
         onSelect={noop}
         onFiltersChange={noop}
         onLoadMore={noop}
+        {...defaultFreezeProps}
       />
     )
     await userEvent.click(screen.getByRole('button', { name: /Reset filters/i }))

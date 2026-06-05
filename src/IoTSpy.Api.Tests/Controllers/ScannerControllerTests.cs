@@ -57,7 +57,7 @@ public class ScannerControllerTests
 
         var controller = ScannerControllerFactory.Make(scanner: scanner, devices: devices);
         var dto = new StartScanDto(device.Id, ConsentAcknowledged: true);
-        var result = await controller.StartScan(dto) as OkObjectResult;
+        var result = await controller.StartScan(dto, TestContext.Current.CancellationToken) as OkObjectResult;
 
         Assert.NotNull(result);
         await scanner.Received(1).StartScanAsync(Arg.Any<ScanJob>(), Arg.Any<CancellationToken>());
@@ -76,7 +76,7 @@ public class ScannerControllerTests
         var controller = ScannerControllerFactory.Make(scanner: scanner, devices: devices);
         var dto = new StartScanDto(device.Id, ConsentAcknowledged: false);
 
-        var result = await controller.StartScan(dto);
+        var result = await controller.StartScan(dto, TestContext.Current.CancellationToken);
 
         Assert.IsType<BadRequestObjectResult>(result);
         await scanner.DidNotReceive().StartScanAsync(Arg.Any<ScanJob>(), Arg.Any<CancellationToken>());
@@ -101,7 +101,7 @@ public class ScannerControllerTests
         var controller = ScannerControllerFactory.Make(scanner: scanner, devices: devices, scopes: scopes);
         var dto = new StartScanDto(device.Id, ConsentAcknowledged: true);
 
-        var result = await controller.StartScan(dto);
+        var result = await controller.StartScan(dto, TestContext.Current.CancellationToken);
 
         Assert.IsType<OkObjectResult>(result);
     }
@@ -121,7 +121,7 @@ public class ScannerControllerTests
         var controller = ScannerControllerFactory.Make(scanner: scanner, devices: devices, scopes: scopes);
         var dto = new StartScanDto(device.Id, ConsentAcknowledged: true);
 
-        var result = await controller.StartScan(dto);
+        var result = await controller.StartScan(dto, TestContext.Current.CancellationToken);
 
         Assert.IsType<ObjectResult>(result);
         Assert.Equal(403, ((ObjectResult)result).StatusCode);
@@ -142,7 +142,7 @@ public class ScannerControllerTests
         var controller = ScannerControllerFactory.Make(scanner: scanner, devices: devices);
         var dto = new StartScanDto(device.Id, ConsentAcknowledged: true);
 
-        var result = await controller.StartScan(dto);
+        var result = await controller.StartScan(dto, TestContext.Current.CancellationToken);
 
         Assert.IsType<OkObjectResult>(result);
     }
@@ -161,7 +161,7 @@ public class ScannerControllerTests
         var hugeRange = string.Join(",", Enumerable.Repeat("1-65535", 50));
         var dto = new StartScanDto(device.Id, PortRange: hugeRange, ConsentAcknowledged: true);
 
-        var result = await controller.StartScan(dto);
+        var result = await controller.StartScan(dto, TestContext.Current.CancellationToken);
 
         Assert.IsType<BadRequestObjectResult>(result);
         await scanner.DidNotReceive().StartScanAsync(Arg.Any<ScanJob>(), Arg.Any<CancellationToken>());
@@ -180,7 +180,7 @@ public class ScannerControllerTests
         var controller = ScannerControllerFactory.Make(scanner: scanner, devices: devices);
         var dto = new StartScanDto(device.Id, PortRange: "1-100", MaxConcurrency: 10_000, ConsentAcknowledged: true);
 
-        await controller.StartScan(dto);
+        await controller.StartScan(dto, TestContext.Current.CancellationToken);
 
         await scanner.Received(1).StartScanAsync(
             Arg.Is<ScanJob>(j => j.MaxConcurrency == 100),
@@ -200,7 +200,7 @@ public class ScannerControllerTests
         var controller = ScannerControllerFactory.Make(scanner: scanner, devices: devices);
         var dto = new StartScanDto(device.Id, ConsentAcknowledged: true);
 
-        await controller.StartScan(dto);
+        await controller.StartScan(dto, TestContext.Current.CancellationToken);
 
         await scanner.Received(1).StartScanAsync(
             Arg.Is<ScanJob>(j => j.MaxConcurrency == 25),
@@ -214,7 +214,7 @@ public class ScannerControllerTests
         devices.GetByIdAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>()).Returns((Device?)null);
 
         var controller = ScannerControllerFactory.Make(devices: devices);
-        var result = await controller.StartScan(new StartScanDto(Guid.NewGuid(), ConsentAcknowledged: true));
+        var result = await controller.StartScan(new StartScanDto(Guid.NewGuid(), ConsentAcknowledged: true), TestContext.Current.CancellationToken);
 
         Assert.IsType<NotFoundObjectResult>(result);
     }

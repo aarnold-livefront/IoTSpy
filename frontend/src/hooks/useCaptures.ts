@@ -4,7 +4,8 @@ import { listCaptures } from '../api/captures'
 import type { CaptureFilters, CapturedRequestSummary, TrafficCaptureEvent } from '../types/api'
 import type { CaptureListResponse } from '../types/api'
 
-const PAGE_SIZE = 200
+const PAGE_SIZE = 50
+const LIVE_CAP = 500
 
 export function useCaptures(filters: CaptureFilters) {
   const queryClient = useQueryClient()
@@ -47,12 +48,13 @@ export function useCaptures(filters: CaptureFilters) {
         queryKey,
         (old: InfiniteData<CaptureListResponse> | undefined) => {
           if (!old || old.pages.length === 0) return old
+          const liveItems = [partial, ...old.pages[0].items]
           return {
             ...old,
             pages: [
               {
                 ...old.pages[0],
-                items: [partial, ...old.pages[0].items],
+                items: liveItems.length > LIVE_CAP ? liveItems.slice(0, LIVE_CAP) : liveItems,
                 total: old.pages[0].total + 1,
               },
               ...old.pages.slice(1),

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useOpenRtb } from '../../hooks/useOpenRtb'
+import '../../styles/openrtb.css'
 import OpenRtbTrafficList from './OpenRtbTrafficList'
 import OpenRtbInspector from './OpenRtbInspector'
 import PiiPolicyEditor from './PiiPolicyEditor'

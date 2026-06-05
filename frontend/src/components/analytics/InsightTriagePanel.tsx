@@ -3,9 +3,14 @@ import { getTriageQueue, reviewInsight, getAnalyticsStats } from '../../api/anal
 import type { AnalyticsStats, TrafficInsight } from '../../types/analytics'
 import { parseTags, parseConfidence } from '../../types/analytics'
 import RiskTagBadge from './RiskTagBadge'
+import InsightDetailModal from './InsightDetailModal'
 import './InsightTriagePanel.css'
 
-export default function InsightTriagePanel() {
+interface Props {
+  onOpenCapture?: (captureId: string) => void
+}
+
+export default function InsightTriagePanel({ onOpenCapture }: Props) {
   const [items, setItems] = useState<TrafficInsight[]>([])
   const [stats, setStats] = useState<AnalyticsStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -14,6 +19,7 @@ export default function InsightTriagePanel() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [reviewing, setReviewing] = useState<string | null>(null)
+  const [inspecting, setInspecting] = useState<TrafficInsight | null>(null)
 
   const PAGE_SIZE = 50
 
@@ -92,7 +98,11 @@ export default function InsightTriagePanel() {
                 const tags = parseTags(insight)
                 const conf = parseConfidence(insight)
                 return (
-                  <tr key={insight.id} className={insight.isDismissed ? 'insight-triage__row--dismissed' : ''}>
+                  <tr
+                    key={insight.id}
+                    className={`insight-triage__row--clickable${insight.isDismissed ? ' insight-triage__row--dismissed' : ''}`}
+                    onClick={() => setInspecting(insight)}
+                  >
                     <td>
                       <div className="insight-triage__score">
                         <div
@@ -122,7 +132,7 @@ export default function InsightTriagePanel() {
                     </td>
                     <td>
                       {!insight.isReviewed && (
-                        <div className="insight-triage__actions">
+                        <div className="insight-triage__actions" onClick={e => e.stopPropagation()}>
                           <button
                             className="insight-triage__btn insight-triage__btn--confirm"
                             disabled={reviewing === insight.id}
@@ -159,6 +169,14 @@ export default function InsightTriagePanel() {
             </div>
           )}
         </>
+      )}
+      {inspecting && (
+        <InsightDetailModal
+          insight={inspecting}
+          onClose={() => setInspecting(null)}
+          onReviewed={() => { setInspecting(null); load() }}
+          onOpenCapture={onOpenCapture}
+        />
       )}
     </div>
   )

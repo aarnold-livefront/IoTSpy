@@ -1,0 +1,26 @@
+# ── Captured / real data — never commit ─────────────────────────────────────
+data/*.parquet
+data/*.csv
+data/*.json
+# Exception: the broker domain list is safe to commit
+!data/data_broker_domains.txt
+
+# ── Real (device-specific) executed notebooks ────────────────────────────────
+# The notebooks/ root contains executed notebooks with real capture data.
+# Only the samples/ subdirectory is safe to commit.
+notebooks/01_*.ipynb
+notebooks/02_*.ipynb
+notebooks/03_*.ipynb
+
+# ── Trained models (potentially contain fingerprints of real data) ────────────
+models/*.lgb
+models/*.onnx
+models/*.pkl
+models/*.joblib
+models/*_features.json
+
+# ── Python / Jupyter artefacts ────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+*.egg-info/

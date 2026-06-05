@@ -1,0 +1,291 @@
+/* ── OpenRTB Panel ───────────────────────────────────────────── */
+
+.openrtb-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.openrtb-header h3 {
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.openrtb-error {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-error-bg);
+  color: var(--color-error);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-2);
+}
+
+/* ── Shared button base ──────────────────────────────────────── */
+
+.openrtb-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, opacity 0.15s;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.openrtb-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Primary action (Refresh, Add Policy) */
+.openrtb-header > button,
+.openrtb-header > div > button:not(.btn-secondary) {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, opacity 0.15s;
+  border: 1px solid var(--color-primary);
+  background-color: transparent;
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+.openrtb-header > button:hover:not(:disabled),
+.openrtb-header > div > button:not(.btn-secondary):hover:not(:disabled) {
+  background-color: rgba(0, 201, 177, 0.10);
+  color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.openrtb-header > button:disabled,
+.openrtb-header > div > button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Secondary / ghost buttons (Reset Defaults, Cancel) */
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-2);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-surface-3);
+  color: var(--color-text);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Small buttons (table row actions: Edit) */
+.btn-sm {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-2);
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  margin-right: var(--space-1);
+}
+
+.btn-sm:hover:not(:disabled) {
+  background-color: var(--color-surface-3);
+  color: var(--color-text);
+}
+
+/* Danger small button (table row actions: Delete) */
+.btn-sm.btn-danger,
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+  border: 1px solid var(--color-danger);
+  background-color: transparent;
+  color: var(--color-danger);
+  white-space: nowrap;
+}
+
+.btn-sm.btn-danger:hover:not(:disabled),
+.btn-danger:hover:not(:disabled) {
+  background-color: rgba(231, 76, 60, 0.10);
+}
+
+/* ── Traffic table ───────────────────────────────────────────── */
+
+.openrtb-traffic-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.openrtb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.openrtb-table th {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.openrtb-table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text);
+  vertical-align: middle;
+}
+
+.openrtb-table tbody tr {
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.openrtb-table tbody tr:hover {
+  background-color: var(--color-surface-2);
+}
+
+.openrtb-table tbody tr.selected {
+  background-color: var(--color-surface-3);
+}
+
+/* ── Badges (info / success / warning) ──────────────────────── */
+
+.badge--info {
+  background: rgba(52, 152, 219, 0.15);
+  color: var(--color-info);
+}
+
+.badge--success {
+  background: rgba(46, 204, 113, 0.15);
+  color: var(--color-success);
+}
+
+.badge--warning {
+  background: rgba(243, 156, 18, 0.15);
+  color: var(--color-warning);
+}
+
+/* ── PII Policy Editor ───────────────────────────────────────── */
+
+.pii-policy-editor {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.policy-form {
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.form-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.form-row input,
+.form-row select {
+  padding: var(--space-1) var(--space-2);
+  background: var(--color-input-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+.form-row input:focus,
+.form-row select:focus {
+  border-color: var(--color-border-focus);
+  outline: none;
+}
+
+.form-actions {
+  display: flex;
+  gap: var(--space-2);
+  padding-top: var(--space-1);
+}
+
+.form-actions button:first-child {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary);
+  color: #fff;
+  white-space: nowrap;
+}
+
+.form-actions button:first-child:hover:not(:disabled) {
+  background-color: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}

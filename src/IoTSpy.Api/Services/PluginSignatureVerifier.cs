@@ -83,7 +83,7 @@ public sealed class PluginSignatureVerifier
         X509Certificate2 cert;
         try
         {
-            cert = new X509Certificate2(Convert.FromBase64String(manifest.SignerCertificate));
+            cert = X509CertificateLoader.LoadCertificate(Convert.FromBase64String(manifest.SignerCertificate));
         }
         catch (Exception ex)
         {
