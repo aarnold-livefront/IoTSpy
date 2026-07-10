@@ -48,25 +48,14 @@ IoTSpy.Scanner      Port scan, fingerprinting, CVE lookup, packet capture
 IoTSpy.Manipulation Rules engine, scripted breakpoints, replay, fuzzer, AI mock, OpenRTB PII, API spec generation, content replacement
 IoTSpy.*.Tests      Unit + integration tests
 frontend/           Vite 6 + React 19 + TypeScript dashboard
-docs/               ARCHITECTURE.md, PLAN.md
+docs/               ARCHITECTURE.md, PLAN-INDEX.md
 ```
 
 Controllers under `IoTSpy.Api/Controllers/` (20): Admin, ApiSpec, Auth, Captures, Certificates, ContentRules, Dashboard, Devices, Manipulation, OpenRtb, PacketCapture, PassiveCapture, Plugins, ProtocolProxy, ProtoSchemas, Proxy, Report, Scanner, ScheduledScan, Sessions.
 
 ## Available skills
 
-Project-specific Claude Code skills live in `.dev/claude-skills/`. Install them once from the repo root:
-
-```bash
-# 1. Register the local marketplace (absolute path required)
-claude plugin marketplace add "$(pwd)/.dev/claude-skills" --scope project
-
-# 2. Install each skill
-claude plugin install dotnet-engineer@iotspy-skills --scope project
-claude plugin install security-code-review@iotspy-skills --scope project
-claude plugin install threat-modeling@iotspy-skills --scope project
-claude plugin install iotspy-context@iotspy-skills --scope project
-```
+Project-specific Claude Code skills live in `.claude/skills/` and are auto-discovered — no install step required.
 
 | Skill | When to use |
 |---|---|
@@ -75,7 +64,7 @@ claude plugin install iotspy-context@iotspy-skills --scope project
 | `/threat-modeling` | Structured threat modeling with calibrated severity and dual-use tool considerations |
 | `/iotspy-context` | IoTSpy-specific architecture, conventions, and security caveats — pair with the above when in this repo |
 
-See `.dev/claude-skills/README.md` for full details.
+See `.claude/skills/README.md` for full details.
 
 ## Workflow rules
 

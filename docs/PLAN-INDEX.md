@@ -50,15 +50,18 @@ This is the primary navigation hub for all project planning, architecture, and i
 | Document | Purpose | Audience | Length |
 |---|---|---|---|
 | **[AGENT-NOTES.md](AGENT-NOTES.md)** | Quick setup, testing, session handoff | Claude Code agents | ~400 lines |
-| **[SKILLS-PLUGINS.md](SKILLS-PLUGINS.md)** | When/how to use skills and plugins (workflow recipes + decision matrix) | Claude Code agents | ~165 lines |
+| **[SKILLS.md](SKILLS.md)** | When/how to use skills (workflow recipes + decision matrix) | Claude Code agents | ~165 lines |
 | **[PHASES-COMPLETED.md](PHASES-COMPLETED.md)** | All completed phases (1–16, 18–22, API & Backend Polish, Frontend Usability) | Contributors, architects | ~600 lines |
 | **[PHASES-ROADMAP.md](PHASES-ROADMAP.md)** | Future enhancement areas (no numbered phases remaining) | Product managers, strategists | ~100 lines |
 | **[PHASES-ARCHIVED.md](PHASES-ARCHIVED.md)** | Archived / formally deprioritized phases (Phase 17) | Reference only | ~50 lines |
 | **[GAPS.md](GAPS.md)** | Known issues, API gaps, security hardening, tech debt | QA, tech leads | ~350 lines |
+| **[CODE-REVIEW-FINDINGS.md](CODE-REVIEW-FINDINGS.md)** | Live status board for the multi-angle code review (backend, frontend, docs, gaps) | Tech leads, reviewers | ~200 lines |
 | **[DESIGN-DECISIONS.md](DESIGN-DECISIONS.md)** | Architecture decisions, naming, patterns | Architects, senior engineers | ~400 lines |
 | **[CODE-PATTERNS.md](CODE-PATTERNS.md)** | Protocol decoder patterns, common code conventions | Backend engineers | ~200 lines |
 | **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** | Common debugging scenarios and fixes | All contributors | ~150 lines |
 | **[QUICK-REF.md](QUICK-REF.md)** | Quick command and API reference cheat sheet | All contributors | ~100 lines |
+| **[PLAN-BEHAVIORAL-INFERENCE.md](PLAN-BEHAVIORAL-INFERENCE.md)** | Design for a metadata-only behavioral/privacy-leakage inference module | Backend engineers, ML/architects | ~variable |
+| **[PLAN-ML-TRAFFIC-CLASSIFICATION.md](PLAN-ML-TRAFFIC-CLASSIFICATION.md)** | Design for ML-based traffic classification | Backend engineers, ML/architects | ~variable |
 
 ### Reference Guides
 
@@ -67,6 +70,7 @@ This is the primary navigation hub for all project planning, architecture, and i
 | **[ARCHITECTURE.md](ARCHITECTURE.md)** | Full technical architecture (in-depth) |
 | **[README.md](../README.md)** | Feature list, quick start, API reference |
 | **[CLAUDE.md](../CLAUDE.md)** | Project-specific Claude Code skills & commands |
+| **[archive/README.md](archive/README.md)** | Historical planning docs for completed features (superseded once shipped) |
 
 ---
 
@@ -111,11 +115,11 @@ This is the primary navigation hub for all project planning, architecture, and i
 | Run tests? | [AGENT-NOTES.md](AGENT-NOTES.md#testing-before-commit) |
 | Add a new feature? | [AGENT-NOTES.md](AGENT-NOTES.md#adding-features-checklist) |
 | Create an EF Core migration? | [AGENT-NOTES.md](AGENT-NOTES.md#ef-core-migrations) |
-| Use a skill or plugin? | [SKILLS-PLUGINS.md](SKILLS-PLUGINS.md#workflow-recipes) |
-| Know what `/dotnet-engineer` covers? | [`dotnet-engineer/SKILL.md`](../.dev/claude-skills/dotnet-engineer/skills/dotnet-engineer/SKILL.md) |
-| Know what `/security-code-review` covers? | [`security-code-review/SKILL.md`](../.dev/claude-skills/security-code-review/skills/security-code-review/SKILL.md) |
-| Know what `/threat-modeling` covers? | [`threat-modeling/SKILL.md`](../.dev/claude-skills/threat-modeling/skills/threat-modeling/SKILL.md) |
-| IoTSpy-specific conventions and security caveats? | [`iotspy-context/SKILL.md`](../.dev/claude-skills/iotspy-context/skills/iotspy-context/SKILL.md) |
+| Use a skill? | [SKILLS.md](SKILLS.md#workflow-recipes) |
+| Know what `/dotnet-engineer` covers? | [`dotnet-engineer/SKILL.md`](../.claude/skills/dotnet-engineer/SKILL.md) |
+| Know what `/security-code-review` covers? | [`security-code-review/SKILL.md`](../.claude/skills/security-code-review/SKILL.md) |
+| Know what `/threat-modeling` covers? | [`threat-modeling/SKILL.md`](../.claude/skills/threat-modeling/SKILL.md) |
+| IoTSpy-specific conventions and security caveats? | [`iotspy-context/SKILL.md`](../.claude/skills/iotspy-context/SKILL.md) |
 | Add a protocol decoder? | [CODE-PATTERNS.md](CODE-PATTERNS.md#protocol-decoder-pattern) |
 | Debug a problem? | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | Find archived/deprioritized phases? | [PHASES-ARCHIVED.md](PHASES-ARCHIVED.md) |
@@ -134,6 +138,7 @@ This is the primary navigation hub for all project planning, architecture, and i
 | Future work? | 🔭 See [PHASES-ROADMAP.md](PHASES-ROADMAP.md) |
 | Known bugs? | 🔗 See [GAPS.md](GAPS.md#active-gaps) |
 | Tech debt? | 🔗 See [GAPS.md](GAPS.md#technical-debt-items) |
+| Code review status? | 🔗 See [CODE-REVIEW-FINDINGS.md](CODE-REVIEW-FINDINGS.md) |
 
 ---
 
@@ -147,10 +152,12 @@ This is the primary navigation hub for all project planning, architecture, and i
 
 ### For New Feature Work
 - Review [PHASES-ROADMAP.md](PHASES-ROADMAP.md) for enhancement areas (Scanner & Anomaly, Protocol Decoder Depth, Longer-Horizon)
+- In-depth standalone designs: [PLAN-BEHAVIORAL-INFERENCE.md](PLAN-BEHAVIORAL-INFERENCE.md) (privacy-leakage inference), [PLAN-ML-TRAFFIC-CLASSIFICATION.md](PLAN-ML-TRAFFIC-CLASSIFICATION.md) (ML traffic classification)
 - Check [GAPS.md](GAPS.md#active-gaps) for actionable technical debt
 - Follow feature checklist in [AGENT-NOTES.md](AGENT-NOTES.md#adding-features-checklist)
 
 ### For Architecture Reviews
+
 - Read [DESIGN-DECISIONS.md](DESIGN-DECISIONS.md)
 - Cross-reference [GAPS.md](GAPS.md) for known limitations
 - Suggest improvements via PR comments

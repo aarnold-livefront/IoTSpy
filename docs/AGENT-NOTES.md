@@ -56,7 +56,7 @@ IoTSpy.Storage        — EF Core DbContext + repositories (SQLite/Postgres)
 IoTSpy.Api            — ASP.NET Core host (17 controllers, 3 SignalR hubs)
 IoTSpy.*.Tests        — Unit + integration tests (517 total)
 frontend/             — Vite 6 + React 19 + TypeScript dashboard
-docs/                 — ARCHITECTURE.md, PLAN.md, PHASES-*.md, GAPS.md, etc.
+docs/                 — ARCHITECTURE.md, PLAN-INDEX.md, PHASES-*.md, GAPS.md, etc.
 ```
 
 ---
@@ -297,7 +297,7 @@ Changes to `.tsx`/`.ts`/`.css` files hot-reload in browser.
 
 - **README.md** — Quick start, feature list, API reference
 - **docs/ARCHITECTURE.md** — Technical architecture, project structure, data flow
-- **docs/PLAN.md** — High-level overview and navigation hub
+- **docs/PLAN-INDEX.md** — High-level overview and navigation hub
 - **docs/PHASES-COMPLETED.md** — All implemented phases (1-15, 18-20)
 - **docs/PHASES-ROADMAP.md** — Deprioritized phases (16-17), future work (Phase 21+)
 - **docs/DESIGN-DECISIONS.md** — Architecture decisions, naming, implementation notes

@@ -1,6 +1,6 @@
-# IoTSpy — Skills & Plugins Guide
+# IoTSpy — Skills Guide
 
-When and how to use Claude Code skills while developing IoTSpy. This guide is **workflow-only** — the skills themselves describe what they cover. For "what does this skill do?" read the SKILL.md inside each plugin under `.dev/claude-skills/<plugin>/skills/<name>/SKILL.md`.
+When and how to use Claude Code skills while developing IoTSpy. This guide is **workflow-only** — the skills themselves describe what they cover. For "what does this skill do?" read the SKILL.md under `.claude/skills/<name>/SKILL.md`.
 
 ---
 
@@ -21,7 +21,7 @@ When and how to use Claude Code skills while developing IoTSpy. This guide is **
 
 > **On security review:** the global `/security-review` skill (auto-audit of pending branch changes) still exists, but for IoTSpy use `/security-code-review` — it carries the methodology, applies cleanly when paired with `/iotspy-context`, and gives consistent output across reviewers. Treat the global one as a fallback for quick ad-hoc audits, not the recommended workflow.
 
-Project skills live in `.dev/claude-skills/`. See [`.dev/claude-skills/README.md`](../.dev/claude-skills/README.md) for install commands and the canonical skill list.
+Project skills live in `.claude/skills/` and are auto-discovered — no install step required. See [`.claude/skills/README.md`](../.claude/skills/README.md) for the canonical skill list.
 
 ---
 
@@ -159,8 +159,8 @@ Reviewed with /security-code-review + /iotspy-context for:
 
 ## See also
 
-- [`.dev/claude-skills/README.md`](../.dev/claude-skills/README.md) — install and update instructions
-- Each plugin's `SKILL.md` under `.dev/claude-skills/<plugin>/skills/<name>/SKILL.md` — what the skill covers
+- [`.claude/skills/README.md`](../.claude/skills/README.md) — skill list and update instructions
+- Each skill's `SKILL.md` under `.claude/skills/<name>/SKILL.md` — what the skill covers
 - [`CODE-PATTERNS.md`](CODE-PATTERNS.md) — implementation patterns
-- [`PLAN.md`](PLAN.md) — task-driven guide
+- [`PLAN-INDEX.md`](PLAN-INDEX.md) — task-driven navigation hub
 - `CLAUDE.md` and `AGENT.md` — current project state and operational requirements
