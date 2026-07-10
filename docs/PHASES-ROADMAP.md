@@ -15,6 +15,7 @@ See [PHASES-COMPLETED.md](PHASES-COMPLETED.md) for all completed work including 
 - **Scan findings correlation** — Group findings by vulnerability class, CVE, affected service; currently raw list only
 - **Custom anomaly rules** — Declarative anomaly rules (similar to the manipulation rules engine) to flag specific traffic patterns; replaces purely statistical Welford baseline
 - **Behavioral fingerprinting** — Persistent per-device baseline across proxy restarts; detect changes in device communication patterns over time
+- **Behavioral inference / privacy-leakage module** — Infer occupant activity/routines from packet metadata alone (below TLS); see [PLAN-BEHAVIORAL-INFERENCE.md](PLAN-BEHAVIORAL-INFERENCE.md) for the full design
 
 ### Protocol Decoder Depth
 - **AMQP 1.0 decoder** — Message broker protocol increasingly used in IoT (Phase 17.1)

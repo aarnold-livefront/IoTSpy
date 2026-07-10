@@ -1,9 +1,0 @@
-{
-  "name": "iotspy-context",
-  "description": "IoTSpy-specific architecture, conventions, and security caveats — companion to the project-agnostic dotnet-engineer / security-code-review / threat-modeling skills",
-  "version": "1.0.0",
-  "author": {
-    "name": "IoTSpy"
-  },
-  "license": "MIT"
-}

@@ -494,8 +494,9 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
-.claude/
-.superpowers/
+
+# Local-only Claude settings
+.claude/**/*.local.*
 
 # Built APK artifacts
 dist/

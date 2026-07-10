@@ -161,18 +161,7 @@ This applies everywhere a `CancellationToken` parameter is accepted — controll
 
 ## Available Claude Code skills
 
-Project-specific skills live in `.dev/claude-skills/`. If you are running as Claude Code, install them once from the repo root:
-
-```bash
-# 1. Register the local marketplace (absolute path required)
-claude plugin marketplace add "$(pwd)/.dev/claude-skills" --scope project
-
-# 2. Install each skill
-claude plugin install dotnet-engineer@iotspy-skills --scope project
-claude plugin install security-code-review@iotspy-skills --scope project
-claude plugin install threat-modeling@iotspy-skills --scope project
-claude plugin install iotspy-context@iotspy-skills --scope project
-```
+Project-specific skills live in `.claude/skills/` and are auto-discovered by Claude Code — no install step required.
 
 | Skill | When to use |
 |---|---|
@@ -181,7 +170,7 @@ claude plugin install iotspy-context@iotspy-skills --scope project
 | `/threat-modeling` | Structured threat modeling — STRIDE + OWASP + ATT&CK with calibrated severity and dual-use tool considerations |
 | `/iotspy-context` | IoTSpy-specific architecture, conventions, and security caveats — pair with any of the above when working in this repo |
 
-See `.dev/claude-skills/README.md` for full details.
+See `.claude/skills/README.md` for full details.
 
 ### Vite dev proxy
 

@@ -605,7 +605,7 @@ What am I adding?
 
 ## Recommended Workflow
 
-1. **Design phase** → Use `/dotnet-engineer` for architecture guidance (see [SKILLS-PLUGINS.md](SKILLS-PLUGINS.md))
+1. **Design phase** → Use `/dotnet-engineer` for architecture guidance (see [SKILLS.md](SKILLS.md))
 2. **Implementation** → Follow patterns in this document
 3. **Testing** → Use patterns in Test Pattern section above
 4. **Code review** → Use `/review` before PR
@@ -614,4 +614,4 @@ What am I adding?
 7. **Commit** → Reference skill reviews in commit message
 
 See [AGENT-NOTES.md](AGENT-NOTES.md#adding-features-checklist) for the full "Add a Feature" checklist.  
-See [SKILLS-PLUGINS.md](SKILLS-PLUGINS.md) for when/how to use each skill.
+See [SKILLS.md](SKILLS.md) for when/how to use each skill.

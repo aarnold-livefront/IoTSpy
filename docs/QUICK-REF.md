@@ -245,7 +245,7 @@ curl http://localhost:5000/api/proxy/status \
 
 ```bash
 # Where should I start?
-→ See docs/PLAN.md (main entry point)
+→ See docs/PLAN-INDEX.md (main entry point)
 
 # I want to add a feature
 → See docs/CODE-PATTERNS.md ("Where Does My Code Go?")
@@ -350,7 +350,7 @@ git add . && git commit -m "..."
 git push origin your-branch
 
 # 6. Create PR on GitHub
-# (link the PLAN.md documentation URL at end of PR description)
+# (link the PLAN-INDEX.md documentation URL at end of PR description)
 ```
 
 ---
@@ -462,7 +462,6 @@ git clean -fd
 - **API Docs (dev only):** http://localhost:5000/scalar
 - **Frontend:** http://localhost:3000
 - **GitHub:** [repo-url]
-- **Project PLAN:** `docs/PLAN.md`
 - **Code Patterns:** `docs/CODE-PATTERNS.md`
 
 See **[PLAN-INDEX.md](PLAN-INDEX.md)** for navigation to all documentation.

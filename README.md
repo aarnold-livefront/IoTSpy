@@ -538,7 +538,7 @@ src/
 frontend/               # Vite 6 + React 19 + TypeScript dashboard
 docs/
   ARCHITECTURE.md       # Full architecture spec
-  PLAN.md               # Implementation plan, gaps, and roadmap
+  PLAN-INDEX.md         # Navigation hub: implementation plan, gaps, and roadmap
 ```
 
 ---
@@ -568,7 +568,7 @@ cd frontend && npm run dev
 
 ## Development status
 
-See [`docs/PLAN.md`](docs/PLAN.md) for the full implementation plan, identified gaps, and forward-looking roadmap.
+See [`docs/PLAN-INDEX.md`](docs/PLAN-INDEX.md) for the full implementation plan, identified gaps, and forward-looking roadmap.
 
 > **825 backend tests** across 8 test projects; 102 frontend component tests; Playwright E2E suite. All passing.
 
