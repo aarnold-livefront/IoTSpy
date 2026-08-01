@@ -15,5 +15,6 @@ public enum DnsRecordType : ushort
     AAAA = 28,
     SRV = 33,
     OPT = 41,   // EDNS0 pseudo-RR (RFC 6891)
+    RRSIG = 46, // DNSSEC signature (RFC 4034)
     ANY = 255
 }

@@ -51,6 +51,7 @@ public sealed class DnsDecoder : IProtocolDecoder<DnsMessage>
         var truncated = (flags & 0x0200) != 0;
         var recursionDesired = (flags & 0x0100) != 0;
         var recursionAvailable = (flags & 0x0080) != 0;
+        var adBitSet = (flags & 0x0020) != 0;
         var responseCode = (byte)(flags & 0x000F);
 
         var pos = 12;
@@ -74,6 +75,9 @@ public sealed class DnsDecoder : IProtocolDecoder<DnsMessage>
         var additional = ReadResourceRecords(span, arCount, ref pos);
 
         var edns = ParseEdnsRecord(additional);
+        var hasDnssecRecords = answers.Any(r => r.Type == DnsRecordType.RRSIG)
+            || authority.Any(r => r.Type == DnsRecordType.RRSIG)
+            || additional.Any(r => r.Type == DnsRecordType.RRSIG);
 
         message = new DnsMessage
         {
@@ -84,6 +88,8 @@ public sealed class DnsDecoder : IProtocolDecoder<DnsMessage>
             Truncated = truncated,
             RecursionDesired = recursionDesired,
             RecursionAvailable = recursionAvailable,
+            AdBitSet = adBitSet,
+            HasDnssecRecords = hasDnssecRecords,
             ResponseCode = responseCode,
             IsMdns = isMdns,
             Questions = questions,

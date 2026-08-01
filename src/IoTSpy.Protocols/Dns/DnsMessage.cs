@@ -15,6 +15,21 @@ public sealed class DnsMessage
     public bool RecursionAvailable { get; init; }
     public byte ResponseCode { get; init; }
 
+    /// <summary>
+    /// DNSSEC Authenticated Data (AD) flag (RFC 4035 §3.2.3). Set by a validating
+    /// resolver on a response to indicate all RRsets were cryptographically verified.
+    /// Presence does not by itself prove chain-of-trust validation was performed correctly —
+    /// it only reflects what the resolver claims.
+    /// </summary>
+    public bool AdBitSet { get; init; }
+
+    /// <summary>
+    /// True when the message carries at least one RRSIG (type 46) record in the
+    /// Answer, Authority, or Additional sections — a heuristic signal that DNSSEC
+    /// signing is in use for this zone. Not a validation of the signature itself.
+    /// </summary>
+    public bool HasDnssecRecords { get; init; }
+
     public bool IsMdns { get; init; }
 
     public IReadOnlyList<DnsQuestion> Questions { get; init; } = [];

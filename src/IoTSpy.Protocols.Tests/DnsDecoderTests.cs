@@ -248,6 +248,97 @@ public class DnsDecoderTests
         Assert.Null(msg.EdnsRecord);
     }
 
+    // ── DNSSEC: AD bit + RRSIG detection ─────────────────────────────────────
+
+    /// <summary>
+    /// Builds a DNS response with a single resource record of the given type/rdata,
+    /// optionally with the AD (Authenticated Data) flag set.
+    /// </summary>
+    private static byte[] BuildDnsResponseWithRecord(string name, ushort rrType, byte[] rdata, bool adBit = false, ushort id = 0x0001)
+    {
+        var parts = name.Split('.');
+        var nameBytes = new List<byte>();
+        foreach (var part in parts)
+        {
+            nameBytes.Add((byte)part.Length);
+            nameBytes.AddRange(System.Text.Encoding.ASCII.GetBytes(part));
+        }
+        nameBytes.Add(0x00);
+
+        // Flags: QR=1, RD=1, RA=1, AD=<adBit>
+        var flags = (ushort)(0x8000 | 0x0100 | 0x0080 | (adBit ? 0x0020 : 0x0000));
+
+        var payload = new List<byte>
+        {
+            (byte)(id >> 8), (byte)(id & 0xFF),
+            (byte)(flags >> 8), (byte)(flags & 0xFF),
+            0x00, 0x01, // QDCOUNT=1
+            0x00, 0x01, // ANCOUNT=1
+            0x00, 0x00, // NSCOUNT=0
+            0x00, 0x00  // ARCOUNT=0
+        };
+        payload.AddRange(nameBytes);
+        payload.AddRange([0x00, 0x01, 0x00, 0x01]); // QTYPE=A, QCLASS=IN
+
+        // Answer RR: pointer to question name, given type/class IN/TTL/rdata
+        payload.AddRange([0xC0, 0x0C]);
+        payload.Add((byte)(rrType >> 8)); payload.Add((byte)(rrType & 0xFF));
+        payload.AddRange([0x00, 0x01]); // CLASS=IN
+        payload.AddRange([0x00, 0x00, 0x01, 0x2C]); // TTL=300
+        payload.Add((byte)(rdata.Length >> 8)); payload.Add((byte)(rdata.Length & 0xFF));
+        payload.AddRange(rdata);
+
+        return [.. payload];
+    }
+
+    [Fact]
+    public void TryDecode_AdBitSet_ExposesAdBitSetTrue()
+    {
+        var data = BuildDnsResponseWithRecord("example.com", 0x0001 /* A */, [192, 168, 1, 1], adBit: true);
+
+        var result = _decoder.TryDecode(data, out var msg);
+
+        Assert.True(result);
+        Assert.True(msg.AdBitSet);
+    }
+
+    [Fact]
+    public void TryDecode_AdBitNotSet_ExposesAdBitSetFalse()
+    {
+        var data = BuildDnsResponseWithRecord("example.com", 0x0001 /* A */, [192, 168, 1, 1], adBit: false);
+
+        var result = _decoder.TryDecode(data, out var msg);
+
+        Assert.True(result);
+        Assert.False(msg.AdBitSet);
+    }
+
+    [Fact]
+    public void TryDecode_WithRrsigRecord_HasDnssecRecordsIsTrue()
+    {
+        // Minimal (nonsense but well-formed) RRSIG RDATA — content isn't parsed, only type matters.
+        byte[] rrsigRdata = [0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x01, 0x2C, 0x00, 0x00, 0x00, 0x00];
+        var data = BuildDnsResponseWithRecord("example.com", 46 /* RRSIG */, rrsigRdata);
+
+        var result = _decoder.TryDecode(data, out var msg);
+
+        Assert.True(result);
+        Assert.Single(msg.Answers);
+        Assert.Equal(DnsRecordType.RRSIG, msg.Answers[0].Type);
+        Assert.True(msg.HasDnssecRecords);
+    }
+
+    [Fact]
+    public void TryDecode_WithoutRrsigRecord_HasDnssecRecordsIsFalse()
+    {
+        var data = BuildDnsResponseWithRecord("example.com", 0x0001 /* A */, [192, 168, 1, 1]);
+
+        var result = _decoder.TryDecode(data, out var msg);
+
+        Assert.True(result);
+        Assert.False(msg.HasDnssecRecords);
+    }
+
     // ── DecodeAsync wraps TryDecode ──────────────────────────────────────────
 
     [Fact]
