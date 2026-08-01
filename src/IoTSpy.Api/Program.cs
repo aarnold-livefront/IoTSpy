@@ -10,6 +10,7 @@ using IoTSpy.Core.Interfaces;
 using IoTSpy.Core.Models;
 using IoTSpy.Protocols.Anomaly;
 using IoTSpy.Protocols.Mqtt;
+using IoTSpy.Protocols.WebSocket;
 using IoTSpy.Proxy;
 using IoTSpy.Proxy.Interception;
 using IoTSpy.Proxy.Resilience;
@@ -184,6 +185,7 @@ builder.Services.AddSingleton<ICoapProxy, CoapProxy>();
 // ── Anomaly detection (Phase 8.5) ─────────────────────────────────────────
 builder.Services.AddSingleton<IAnomalyDetector, AnomalyDetector>();
 builder.Services.AddSingleton<MqttSessionAnalyzer>();
+builder.Services.AddSingleton<WebSocketMessageReassembler>();
 
 // ── Scanner ─────────────────────────────────────────────────────────────────
 builder.Services.AddIoTSpyScanner(builder.Configuration);
