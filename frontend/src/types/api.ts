@@ -395,6 +395,22 @@ export interface ScanScope {
   createdAt: string
 }
 
+// ── Dashboard layout models ───────────────────────────────────────────────────
+
+export interface DashboardLayout {
+  id: string
+  userId: string
+  name: string
+  isDefault: boolean
+  layoutJson: string
+  filtersJson: string
+}
+
+/** Shape persisted inside DashboardLayout.layoutJson for the current dashboard implementation. */
+export interface DashboardLayoutState {
+  viewMode: string
+}
+
 // ── Manipulation enums ───────────────────────────────────────────────────────
 
 export type ManipulationRuleAction =

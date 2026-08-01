@@ -13,6 +13,7 @@ import OpenRtbPanel from '../components/openrtb/OpenRtbPanel'
 import ProtocolProxyPanel from '../components/proxy/ProtocolProxyPanel'
 import InsightTriagePanel from '../components/analytics/InsightTriagePanel'
 import PassiveCaptureSummary from '../components/passive/PassiveCaptureSummary'
+import DashboardLayoutsMenu from '../components/dashboard/DashboardLayoutsMenu'
 import ErrorBoundary from '../components/common/ErrorBoundary'
 import DisconnectBanner from '../components/common/DisconnectBanner'
 import { useProxy } from '../hooks/useProxy'
@@ -22,9 +23,15 @@ import { useTrafficStream } from '../hooks/useTrafficStream'
 import { useTheme } from '../hooks/useTheme'
 import { useBackendHealth } from '../hooks/useBackendHealth'
 import { useKeyboardShortcuts } from '../hooks/useKeyboardShortcuts'
+import { useDashboardLayouts } from '../hooks/useDashboardLayouts'
 import type { CaptureFilters } from '../types/api'
 
-type ViewMode = 'list' | 'timeline' | 'packet-capture' | 'manipulation' | 'sessions' | 'scanner' | 'openrtb' | 'protocol-proxy' | 'analytics'
+const VIEW_MODES = ['list', 'timeline', 'packet-capture', 'manipulation', 'sessions', 'scanner', 'openrtb', 'protocol-proxy', 'analytics'] as const
+type ViewMode = typeof VIEW_MODES[number]
+
+function isViewMode(value: unknown): value is ViewMode {
+  return typeof value === 'string' && (VIEW_MODES as readonly string[]).includes(value)
+}
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 768px)').matches)
@@ -81,6 +88,36 @@ export default function DashboardPage() {
   // Escape key: deselect the active capture (closes the detail pane)
   useKeyboardShortcuts({ onEscape: () => { if (selectedId) setSelectedId(null) } })
 
+  // Dashboard layout presets: apply a saved layout/filter JSON pair to local state.
+  const applyLayout = useCallback((layoutJson: string, filtersJson: string) => {
+    try {
+      const layoutState = JSON.parse(layoutJson) as { viewMode?: unknown }
+      if (isViewMode(layoutState.viewMode)) {
+        setViewMode(layoutState.viewMode)
+      }
+    } catch {
+      // ignore malformed layout JSON
+    }
+    try {
+      const parsedFilters = JSON.parse(filtersJson) as CaptureFilters
+      setFilters({ ...parsedFilters, page: 1, pageSize: parsedFilters.pageSize ?? 50 })
+    } catch {
+      // ignore malformed filters JSON
+    }
+  }, [])
+
+  // Auto-apply the user's default layout (if any) once, on first load.
+  const { layouts: savedLayouts } = useDashboardLayouts()
+  const appliedDefaultRef = useRef(false)
+  useEffect(() => {
+    if (appliedDefaultRef.current || savedLayouts.length === 0) return
+    appliedDefaultRef.current = true
+    const defaultLayout = savedLayouts.find(l => l.isDefault)
+    if (defaultLayout) {
+      applyLayout(defaultLayout.layoutJson, defaultLayout.filtersJson)
+    }
+  }, [savedLayouts, applyLayout])
+
   const proxyStatus = proxy.status
   const isRunning = proxyStatus?.isRunning ?? false
   const port = proxyStatus?.port ?? proxyStatus?.settings?.proxyPort ?? 8888
@@ -107,7 +144,7 @@ export default function DashboardPage() {
 
       {/* View mode toggle */}
       <div className="view-toggle">
-        {(['list', 'timeline', 'packet-capture', 'manipulation', 'sessions', 'scanner', 'openrtb', 'protocol-proxy', 'analytics'] as const).map(mode => (
+        {VIEW_MODES.map(mode => (
           <button
             key={mode}
             className={`view-toggle__btn${viewMode === mode ? ' view-toggle__btn--active' : ''}`}
@@ -123,6 +160,12 @@ export default function DashboardPage() {
              mode === 'protocol-proxy' ? 'Protocol Proxies' : 'ML Insights'}
           </button>
         ))}
+
+        <DashboardLayoutsMenu
+          currentLayoutJson={JSON.stringify({ viewMode })}
+          currentFiltersJson={JSON.stringify(filters)}
+          onApply={applyLayout}
+        />
       </div>
 
       {viewMode === 'list' && (
