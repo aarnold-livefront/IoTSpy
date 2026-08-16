@@ -1,9 +1,9 @@
 #!/bin/sh
-# remove.sh — uninstall IoTSpy
-# Called by ADM on uninstall. Removes containers and image.
-# USER DATA in /volume1/IoTSpy/data is intentionally preserved.
+# post-uninstall.sh — uninstall IoTSpy.
+# Called by ADM after removal. Removes containers and image.
+# USER DATA in $APKG_PKG_DIR/data is intentionally preserved.
 
-INSTALL_DIR="/volume1/IoTSpy"
+INSTALL_DIR="${APKG_PKG_DIR}"
 
 if docker compose version >/dev/null 2>&1; then
     COMPOSE="docker compose"

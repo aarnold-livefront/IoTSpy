@@ -1,5 +1,5 @@
 #!/bin/sh
-# build-asustor-apk.sh — Build Asustor APK packages for IoTSpy.
+# build-asustor-apk.sh — Build Asustor APKG 2.0 packages for IoTSpy.
 #
 # Usage:
 #   sh scripts/build-asustor-apk.sh
@@ -12,12 +12,23 @@
 # Output:
 #   dist/iotspy_<VERSION>_arm64.apk
 #   dist/iotspy_<VERSION>_x86-64.apk
+#
+# An APKG 2.0 .apk is a ZIP archive containing exactly three entries:
+#   apkg-version   — plain text version string
+#   control.tar.gz — tar.gz of deploy/nas/asustor/CONTROL/ (metadata + lifecycle scripts)
+#   data.tar.gz    — tar.gz of the app payload (bundled docker-compose.yml, etc.)
+# See https://downloadgb.asustor.com/developer/ for the App Central Developer Guide.
 
 set -e
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SRC_DIR="${REPO_ROOT}/deploy/nas/asustor"
 DIST_DIR="${REPO_ROOT}/dist"
+
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "ERROR: python3 is required to assemble the .apk zip container." >&2
+    exit 1
+fi
 
 # Resolve version from git tag if not provided
 if [ -z "${VERSION}" ]; then
@@ -36,38 +47,46 @@ build_apk() {
 
     echo "Building iotspy_${VERSION}_${TARGET_ARCH}.apk ..."
 
-    # Copy all APK source files
-    cp -r "${SRC_DIR}/." "${WORK_DIR}/"
+    mkdir -p "${WORK_DIR}/CONTROL" "${WORK_DIR}/data"
 
-    # Patch version and architecture placeholders in apkg.info
-    sed -i "s/IOTSPY_VERSION/${VERSION}/g" "${WORK_DIR}/apkg.info"
-    sed -i "s/IOTSPY_ARCH/${TARGET_ARCH}/g" "${WORK_DIR}/apkg.info"
+    # ── CONTROL: metadata + lifecycle scripts ──────────────────────────────
+    cp -r "${SRC_DIR}/CONTROL/." "${WORK_DIR}/CONTROL/"
+    sed -e "s/IOTSPY_VERSION/${VERSION}/g" -e "s/IOTSPY_ARCH/${TARGET_ARCH}/g" \
+        "${SRC_DIR}/CONTROL/config.json.template" > "${WORK_DIR}/CONTROL/config.json"
+    rm "${WORK_DIR}/CONTROL/config.json.template"
+    chmod +x "${WORK_DIR}"/CONTROL/*.sh
 
-    # Bundle the NAS compose file into conf/
-    mkdir -p "${WORK_DIR}/conf"
-    cp "${REPO_ROOT}/docker-compose.nas.yml" "${WORK_DIR}/conf/docker-compose.yml"
-
-    # Pin the image tag in the bundled compose so installs use the versioned image
+    # ── data: app payload ───────────────────────────────────────────────────
+    cp -r "${SRC_DIR}/data/." "${WORK_DIR}/data/"
+    cp "${REPO_ROOT}/docker-compose.nas.yml" "${WORK_DIR}/data/conf/docker-compose.yml"
+    # Pin the image tag so installs use the versioned image
     sed -i "s|iotspy:\${IOTSPY_VERSION:-latest}|iotspy:${IMAGE_TAG}|g" \
-        "${WORK_DIR}/conf/docker-compose.yml"
+        "${WORK_DIR}/data/conf/docker-compose.yml"
 
-    # Ensure all lifecycle scripts are executable inside the archive
-    chmod +x \
-        "${WORK_DIR}/install.sh" \
-        "${WORK_DIR}/start.sh" \
-        "${WORK_DIR}/stop.sh" \
-        "${WORK_DIR}/remove.sh" \
-        "${WORK_DIR}/webman/3rdparty/IoTSpy/index.cgi"
+    # ── assemble the three archive members ──────────────────────────────────
+    printf '%s' "${VERSION}" > "${WORK_DIR}/apkg-version"
+    tar -czf "${WORK_DIR}/control.tar.gz" -C "${WORK_DIR}/CONTROL" .
+    tar -czf "${WORK_DIR}/data.tar.gz" -C "${WORK_DIR}/data" .
 
     OUTPUT="${DIST_DIR}/iotspy_${VERSION}_${TARGET_ARCH}.apk"
-    tar -czf "${OUTPUT}" -C "${WORK_DIR}" .
+    rm -f "${OUTPUT}"
+    python3 -c "
+import zipfile, sys
+out, work = sys.argv[1], sys.argv[2]
+with zipfile.ZipFile(out, 'w', zipfile.ZIP_DEFLATED) as z:
+    for name in ('apkg-version', 'control.tar.gz', 'data.tar.gz'):
+        z.write(work + '/' + name, name)
+" "${OUTPUT}" "${WORK_DIR}"
 
-    # Verify the archive lists the expected top-level files
     echo "Contents of ${OUTPUT}:"
-    tar -tzvf "${OUTPUT}" | grep -E '^\-|^\./' | head -20
+    python3 -c "
+import zipfile, sys
+with zipfile.ZipFile(sys.argv[1]) as z:
+    for n in z.namelist():
+        print(' ', n)
+" "${OUTPUT}"
 
     echo "  → ${OUTPUT}"
-    # Reset trap to avoid double-remove on subsequent iterations
     trap - EXIT INT TERM
     rm -rf "${WORK_DIR}"
 }

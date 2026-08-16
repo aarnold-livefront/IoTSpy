@@ -1,0 +1,33 @@
+{
+    "general": {
+        "package": "IoTSpy",
+        "name": "IoTSpy",
+        "version": "IOTSPY_VERSION",
+        "depends": [],
+        "conflicts": [],
+        "developer": "IoTSpy Team",
+        "maintainer": "IoTSpy Team",
+        "email": "annalise@annagram.io",
+        "website": "https://github.com/aarnold-livefront/IoTSpy",
+        "architecture": "IOTSPY_ARCH",
+        "firmware": "3.0.0"
+    },
+    "adm-desktop": {
+        "app": {
+            "type": "custom",
+            "protocol": "http",
+            "port": 5000,
+            "url": "/"
+        },
+        "privilege": {
+            "accessible": "administrators",
+            "customizable": true
+        }
+    },
+    "register": {
+        "port": [
+            "5000",
+            "8888"
+        ]
+    }
+}
