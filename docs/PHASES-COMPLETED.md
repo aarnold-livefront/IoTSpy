@@ -151,7 +151,7 @@ WebSocket interception (bidirectional frame relay + capture). MQTT broker proxy 
 - **Plugin system for protocol decoders (16.4)** — `IPluginDecoder` + `IPluginRegistry` in Core; `PluginLoaderService` via `AssemblyLoadContext`; `PluginsController` REST API
 - **Metrics endpoint (16.6)** — `/metrics` via `prometheus-net.AspNetCore`; `IoTSpyMetrics` with proxy requests, scan durations, anomaly alerts, capture queue depth
 - **Alerting integrations (16.7)** — Slack (blocks API), Teams (MessageCard), PagerDuty Events API v2; severity threshold filtering
-- **NAS APK package support (16.9)** — `docker-compose.nas.yml`; `deploy/nas/asustor/` APK (apkg.info, lifecycle scripts, webman CGI); `scripts/build-asustor-apk.sh`; multi-arch `release.yml` CI publishing to GHCR
+- **NAS APK package support (16.9)** — `docker-compose.nas.yml`; `deploy/nas/asustor/` APKG 2.0 package (CONTROL/config.json + lifecycle scripts, zip-of-tarballs archive format); `scripts/build-asustor-apk.sh`; amd64 `release.yml` CI publishing to GHCR
 - **Deprioritized within Phase 16** — LDAP/SAML SSO (16.5) and distributed multi-node mode (16.8) remain out of scope; see [GAPS.md](GAPS.md)
 
 ## Phase 18 — React Frontend Performance & Correctness

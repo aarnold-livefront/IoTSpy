@@ -1,14 +1,13 @@
 #!/bin/sh
-# install.sh — first-time IoTSpy setup on Asustor NAS
-# Called by ADM on initial install only (not on upgrades).
-# Must be /bin/sh compatible — Asustor ADM uses busybox sh.
+# post-install.sh — first-time IoTSpy setup on Asustor NAS.
+# Called by ADM on both initial install and upgrade ($APKG_PKG_STATUS
+# distinguishes the two). Must be /bin/sh compatible — ADM uses busybox sh.
 
 set -e
 
-INSTALL_DIR="/volume1/IoTSpy"
+INSTALL_DIR="${APKG_PKG_DIR}"
 ENV_FILE="${INSTALL_DIR}/.env"
 
-# Determine compose command (v2 plugin preferred, v1 fallback)
 if docker compose version >/dev/null 2>&1; then
     COMPOSE="docker compose"
 elif command -v docker-compose >/dev/null 2>&1; then
@@ -25,12 +24,15 @@ mkdir -p \
     "${INSTALL_DIR}/plugins"
 chmod 700 "${INSTALL_DIR}/data"
 
-# Copy compose file (overwrite on upgrade to pick up changes)
-cp "$(dirname "$0")/conf/docker-compose.yml" "${INSTALL_DIR}/docker-compose.yml"
+# Copy compose file (overwrite on upgrade to pick up changes), then point its
+# bind mounts at the actual install directory ADM assigned (may not be
+# /volume1/IoTSpy if the user installs to a different volume).
+cp "${INSTALL_DIR}/conf/docker-compose.yml" "${INSTALL_DIR}/docker-compose.yml"
+sed -i "s|/volume1/IoTSpy|${INSTALL_DIR}|g" "${INSTALL_DIR}/docker-compose.yml"
 
 # Generate .env from template only on first install (preserve existing secrets on upgrade)
 if [ ! -f "${ENV_FILE}" ]; then
-    cp "$(dirname "$0")/conf/.env.template" "${ENV_FILE}"
+    cp "${INSTALL_DIR}/conf/.env.template" "${ENV_FILE}"
 
     # Generate a cryptographically random 64-char hex JWT secret
     if command -v openssl >/dev/null 2>&1; then
@@ -43,7 +45,7 @@ if [ ! -f "${ENV_FILE}" ]; then
     echo "Generated JWT secret and saved to ${ENV_FILE}"
 fi
 
-# Pull the Docker image in the background (start.sh will wait for it if needed)
+# Pull the Docker image in the background (start-stop.sh will wait for it if needed)
 $COMPOSE -f "${INSTALL_DIR}/docker-compose.yml" --env-file "${ENV_FILE}" pull || true
 
 echo "IoTSpy installed. Open http://$(hostname -i 2>/dev/null || echo 'NAS-IP'):5000 to get started."

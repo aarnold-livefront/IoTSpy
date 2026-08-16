@@ -1,9 +1,21 @@
 using IoTSpy.Core.Enums;
 using IoTSpy.Core.Models;
 using IoTSpy.Storage.Repositories;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Primitives;
 using Xunit;
 
 namespace IoTSpy.Storage.Tests.Repositories;
+
+/// <summary>Minimal IConfiguration fake exposing a single key, avoiding a new
+/// Microsoft.Extensions.Configuration package reference for one test.</summary>
+file sealed class SingleKeyConfiguration(string key, string value) : IConfiguration
+{
+    public string? this[string k] { get => k == key ? value : null; set => throw new NotSupportedException(); }
+    public IEnumerable<IConfigurationSection> GetChildren() => [];
+    public IChangeToken GetReloadToken() => throw new NotSupportedException();
+    public IConfigurationSection GetSection(string k) => throw new NotSupportedException();
+}
 
 public class ProxySettingsRepositoryTests : IDisposable
 {
@@ -20,6 +32,17 @@ public class ProxySettingsRepositoryTests : IDisposable
         Assert.NotNull(settings);
         // Default port is 8888
         Assert.Equal(8888, settings.ProxyPort);
+    }
+
+    [Fact]
+    public async Task GetAsync_WhenNoSettings_UsesConfiguredDefaultPort()
+    {
+        var config = new SingleKeyConfiguration("Proxy:DefaultPort", "8899");
+        var repo = new ProxySettingsRepository(_db, config);
+
+        var settings = await repo.GetAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(8899, settings.ProxyPort);
     }
 
     [Fact]

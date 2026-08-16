@@ -8,7 +8,7 @@
 #   • Pre-built GHCR image (no local build)
 #   • Bind mounts to /volume1/IoTSpy/ (Asustor storage convention)
 #   • network_mode: host — required for ARP spoofing / transparent proxy
-#     (comment out and add port mappings below if you only need the explicit proxy on :8888)
+#     (comment out and add port mappings below if you only need the explicit proxy on :8899)
 #   • cap_add NET_RAW + NET_ADMIN — required for SharpPcap / packet injection
 #   • Resource limits tuned for ARM NAS hardware (1 CPU / 512 MB)
 
@@ -22,6 +22,10 @@ services:
       - Database__ConnectionString=Data Source=/data/iotspy.db
       - Frontend__Origin=http://${NAS_HOST:-localhost}:5000
       - ASPNETCORE_ENVIRONMENT=Production
+      # Explicit proxy default port. 8888 collides with Asustor ADM's own ACC
+      # service under host networking, so the NAS package seeds a
+      # non-standard default here instead of the app-wide 8888 default.
+      - Proxy__DefaultPort=${IOTSPY_PROXY_PORT:-8899}
     volumes:
       - /volume1/IoTSpy/data:/data
       - /volume1/IoTSpy/logs:/app/logs
@@ -30,14 +34,14 @@ services:
       - NET_RAW
       - NET_ADMIN
     # host networking is required for transparent proxy / ARP spoofing.
-    # In host mode the container shares the NAS network stack, so ports 5000 and 8888
+    # In host mode the container shares the NAS network stack, so ports 5000 and 8899
     # are accessible directly without port mapping.
     # Comment out network_mode and uncomment the ports block below for bridge mode
-    # (explicit proxy on :8888 still works; transparent proxy / ARP spoof will not).
+    # (explicit proxy on :8899 still works; transparent proxy / ARP spoof will not).
     network_mode: host
     # ports:
     #   - "5000:5000"
-    #   - "8888:8888"
+    #   - "8899:8899"
     restart: unless-stopped
     deploy:
       resources:
