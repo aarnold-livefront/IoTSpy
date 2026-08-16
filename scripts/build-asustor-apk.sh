@@ -64,7 +64,11 @@ build_apk() {
         "${WORK_DIR}/data/conf/docker-compose.yml"
 
     # ── assemble the three archive members ──────────────────────────────────
-    printf '%s' "${VERSION}" > "${WORK_DIR}/apkg-version"
+    # apkg-version is the APKG *format* version (always "2.0"), NOT the app
+    # version — ADM reads this to pick a format-1.0-vs-2.0 parser and rejects
+    # the archive as invalid if it's anything else. App version lives in
+    # config.json's general.version field.
+    printf '2.0\n' > "${WORK_DIR}/apkg-version"
     tar -czf "${WORK_DIR}/control.tar.gz" -C "${WORK_DIR}/CONTROL" .
     tar -czf "${WORK_DIR}/data.tar.gz" -C "${WORK_DIR}/data" .
 
